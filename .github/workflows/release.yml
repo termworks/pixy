@@ -19,13 +19,17 @@ jobs:
           - os: ubuntu-latest
             artifact: "pixy-linux-amd64"
             target: "x86_64-unknown-linux-musl"
+            make: make
           - os: ubuntu-24.04-arm
             artifact: "pixy-linux-arm64"
             target: "aarch64-unknown-linux-musl"
+            make: make
           - os: macos-15-intel
             artifact: "pixy-macos-amd64"
+            make: gmake
           - os: macos-14
             artifact: "pixy-macos-arm64"
+            make: gmake
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -34,10 +38,13 @@ jobs:
       - name: Install musl tools
         if: matrix.target
         run: sudo apt-get update && sudo apt-get install --yes musl-tools
+      - name: Install GNU make
+        if: matrix.make == 'gmake'
+        run: brew install make
       - name: Build
-        run: make release-build example-pack TARGET=${{ matrix.target }}
+        run: ${{ matrix.make }} release-build example-pack TARGET=${{ matrix.target }}
       - name: Check the artifact is complete
-        run: make package-check TARGET=${{ matrix.target }}
+        run: ${{ matrix.make }} package-check TARGET=${{ matrix.target }}
       - name: Check the binary is static
         if: matrix.target
         run: |
