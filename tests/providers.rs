@@ -447,3 +447,33 @@ return pixy.config({zones={git=pixy.zone({pixy.segment("value",function(ctx) ret
     assert!(started.elapsed() < std::time::Duration::from_secs(1));
     fs::remove_dir_all(root).expect("cleanup");
 }
+
+#[test]
+fn exec_cache_ignores_unrelated_environment_churn() {
+    let root = root();
+    fs::set_permissions(&root, PermissionsExt::from_mode(0o700)).expect("private cache root");
+    let engine = engine(
+        &root,
+        r#"
+local pixy = require("pixy")
+return pixy.config({zones = {
+  probe = pixy.zone({pixy.segment("value", function()
+    local result = pixy.host.exec({"/bin/sh", "-c", "echo probed"}, {timeout_ms = 500, ttl_ms = 60000})
+    return result.stdout:gsub("%s+$", "")
+  end)}),
+}})
+"#
+        .into(),
+    );
+    assert_eq!(text(&engine, "probe", &[]), "probed");
+    // A shell moves `_`, `PWD` and `SHLVL` between commands. Keying the cache on
+    // the whole inherited environment made every render miss.
+    unsafe { std::env::set_var("_", "/usr/bin/elsewhere") };
+    unsafe { std::env::set_var("SHLVL", "9") };
+    assert_eq!(text(&engine, "probe", &[]), "probed");
+    let entries = fs::read_dir(root.join("v1"))
+        .expect("cache directory")
+        .count();
+    assert_eq!(entries, 1, "one command belongs in one cache entry");
+    fs::remove_dir_all(root).expect("cleanup");
+}

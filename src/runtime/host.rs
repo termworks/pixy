@@ -377,8 +377,14 @@ impl HostState {
             return Err("exec program cannot be empty".into());
         }
         let effective_environment = apply_environment(std::env::vars_os().collect(), environment);
+        // Keyed on what the caller asked for plus the variables that change what
+        // a program resolves to. Keying on the whole inherited environment made
+        // every key unique per shell command — `_`, `PWD` and `SHLVL` move — so
+        // nothing was ever reused between renders.
+        let resolution =
+            ["PATH", "HOME", "TZ", "LANG", "LC_ALL"].map(|name| (name, std::env::var(name).ok()));
         let key = format!(
-            "{argv:?}\u{0}{cwd:?}\u{0}{effective_environment:?}\u{0}{timeout_ms}\u{0}{ttl_ms}"
+            "{argv:?}\u{0}{cwd:?}\u{0}{resolution:?}\u{0}{environment:?}\u{0}{timeout_ms}\u{0}{ttl_ms}"
         );
         let cached = self.cached(&key, ttl_ms);
         if let Some(value) = cached {

@@ -159,17 +159,19 @@ The engine is not where prompts spend their time:
 |---|---|
 | one segment, warm, in process | **25 µs** |
 | a whole prompt, warm, in process | **0.17 ms** |
-| cold: process start + config load + render | **~5 ms** |
+| a whole prompt as a process, providers cached | **5 ms** |
+| the same prompt with every cache entry expired | **~26 ms** |
 
-What actually costs milliseconds is whatever your segments *call*. A profile that
-shells out to `git`, `hostname`, `systemd-detect-virt` and friends pays for those
-processes, and that dwarfs everything above — the bundled compatibility profile
-measures ~55 ms live for exactly that reason, against ~5 ms when the same values
-arrive through `--set` or `--context-file`.
+What costs milliseconds is whatever your segments *call*. The bundled
+compatibility profile shells out for the distro logo, the sudo ticket, the
+container kind and the scratch count; those subprocesses dwarf everything above,
+so `pixy.host.exec` caches each result by `ttl_ms` on disk, and a prompt whose
+providers are all still fresh never leaves the process.
 
-So: hand Pixy the values your shell already knows, and cache the ones it does
-not. `pixy.host.exec` takes `timeout_ms` and `ttl_ms` for that. Run
-`make bench` for the numbers on your machine.
+Give static things a long life (`ttl_ms = 86400000` for a distro logo that will
+not change today), hand Pixy the values your shell already knows through `--set`,
+and let the cache absorb the rest. `make bench` prints the numbers for your
+machine.
 
 ## 🧵 Painting a multiplexer
 

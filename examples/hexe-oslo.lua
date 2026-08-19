@@ -82,20 +82,20 @@ local function distro(ctx)
   return trim(tostring(overridden(ctx, "distro", function()
     local home = pixy.host.env("HOME")
     if not home then return nil end
-    return execute({home .. "/.local/sbin/distrologo"}, {timeout_ms = 100, ttl_ms = 60000})
+    return execute({home .. "/.local/sbin/distrologo"}, {timeout_ms = 100, ttl_ms = 86400000})
   end) or ""))
 end
 
 local function container(ctx)
   return trim(tostring(overridden(ctx, "container", function()
-    return execute({"systemd-detect-virt"}, {timeout_ms = 50, ttl_ms = 60000})
+    return execute({"systemd-detect-virt"}, {timeout_ms = 50, ttl_ms = 86400000})
   end) or ""))
 end
 
 local function scratch_count(ctx)
   local selected = value(ctx, "scratch_count")
   if selected ~= nil then return tonumber(selected) or 0 end
-  local output = execute({"oslo", "scratch", "-l"}, {timeout_ms = 100, ttl_ms = 1000})
+  local output = execute({"oslo", "scratch", "-l"}, {timeout_ms = 100, ttl_ms = 5000})
   if not output then return 0 end
   local count = 0
   for _ in (output .. "\n"):gmatch("[^\n]+\n") do count = count + 1 end

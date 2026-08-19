@@ -182,9 +182,9 @@ function M.network_speed(ctx)
   }
 end
 
-function M.sudo(ctx)
+function M.sudo(ctx, options)
   if ctx and ctx.values and ctx.values.sudo ~= nil then return ctx.values.sudo end
-  local result = execute({"sudo", "-n", "true"}, {env = ctx and ctx.env, timeout_ms = 30, ttl_ms = 1000})
+  local result = execute({"sudo", "-n", "true"}, {env = ctx and ctx.env, timeout_ms = 30, ttl_ms = tonumber(options and options.ttl_ms) or 5000})
   if not result or result.timed_out then return nil end
   return result.status == 0
 end
