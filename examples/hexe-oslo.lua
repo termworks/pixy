@@ -122,18 +122,18 @@ end
 local function prompt_distro(ctx)
   local text = distro(ctx)
   if not text then return nil end
-  return pixy.text(text .. " ", style_git)
+  return pixy.text(" " .. text, style_git)
 end
 
 local function prompt_username(ctx)
   local text = username(ctx)
   if not text then return nil end
-  return pixy.text(text .. " ", style_git)
+  return pixy.text(" " .. text .. " ", style_git)
 end
 
 local function prompt_direnv()
   if not pixy.host.env("DIRENV_DIR") then return nil end
-  return pixy.text("▓ ", style_git)
+  return pixy.text("▓", style_git)
 end
 
 local function prompt_nix()
@@ -145,7 +145,7 @@ local function prompt_sudo(ctx)
   local active = value(ctx, "sudo")
   if active == nil then active = system.sudo(ctx) end
   if active ~= true then return nil end
-  return pixy.text("sudo ", {bold = true, bg = 240, fg = 171})
+  return pixy.text(" sudo ", {bold = true, bg = 240, fg = 171})
 end
 
 local function prompt_scratch(ctx)
@@ -161,36 +161,36 @@ end
 local function prompt_status(ctx)
   local status = tonumber(ctx.values.status or 0) or 0
   if status == 0 then return nil end
-  return pixy.text(tostring(status) .. " ", {bg = 0, fg = 9})
+  return pixy.text(" " .. tostring(status) .. " ", {bg = 0, fg = 9})
 end
 
 local function prompt_container(ctx)
   local kind = container(ctx)
   if not kind or kind == "none" then return nil end
-  local mark = kind == "lxc" and ">> " or ":: "
-  return pixy.text(mark, {bg = 5, fg = 0})
+  local mark = kind == "lxc" and " >> " or " :: "
+  return pixy.row({pixy.text(" ", {bg = 0, fg = 0}), pixy.text(mark, {bg = 5, fg = 0})})
 end
 
 local function prompt_language(ctx)
   if not ctx.values.language then return nil end
-  return pixy.text(ctx.values.language == "lua" and "λ " or "$ ", {bg = 0, fg = 1})
+  return pixy.text(ctx.values.language == "lua" and " λ " or " $ ", {bg = 0, fg = 1})
 end
 
 local function prompt_pod(ctx)
   local name = trim(tostring(value(ctx, "pod_name") or pixy.host.env("HEXE_POD_NAME") or ""))
   if not name then return nil end
-  return pixy.text("| " .. name .. " | ", {bg = 5, fg = 0})
+  return pixy.text("| " .. name .. " |", {bg = 5, fg = 0})
 end
 
 local function prompt_directory(ctx)
   if not cwd_of(ctx) then return nil end
-  return pixy.text(fish_path(cwd_of(ctx)) .. " ", style_directory)
+  return pixy.text(" " .. fish_path(cwd_of(ctx)) .. " ", style_directory)
 end
 
 local function prompt_git_branch(ctx)
   local branch = git.branch(ctx)
   if not branch then return nil end
-  return pixy.text(branch .. " ", style_git)
+  return pixy.text(" " .. branch .. " ", style_git)
 end
 
 local function prompt_git_status(ctx)
@@ -202,13 +202,13 @@ local function prompt_git_status(ctx)
   end
   text = trim(tostring(text or ""))
   if not text then return nil end
-  return pixy.text(text .. " ", style_git)
+  return pixy.text(" " .. text .. " ", style_git)
 end
 
 local function prompt_vimode(ctx)
   if not ctx.values.vimode then return nil end
-  local marks = {I = "I ", insert = "I ", N = "N ", normal = "N ", R = "R ", replace = "R ", V = "V ", visual = "V "}
-  local mark = marks[ctx.values.vimode] or ctx.values.vimode .. " "
+  local marks = {I = " I ", insert = " I ", N = " N ", normal = " N ", R = " R ", replace = " R ", V = " V ", visual = " V "}
+  local mark = marks[ctx.values.vimode] or " " .. ctx.values.vimode .. " "
   local resting = ctx.values.vimode == "I" or ctx.values.vimode == "insert"
   return pixy.text(mark, resting and style_directory or style_git)
 end
@@ -493,7 +493,7 @@ return pixy.config({
       pixy.segment("scratch", prompt_scratch, {priority = 35}),
       pixy.segment("status", prompt_status, {priority = 3}),
       pixy.segment("container", prompt_container, {priority = 50}),
-      pixy.segment("separator", function() return pixy.text("| ", {fg = 7}) end, {priority = 20}),
+      pixy.segment("separator", function() return pixy.text("|", {fg = 7}) end, {priority = 20}),
       pixy.segment("language", prompt_language, {priority = 3}),
     }),
     ["prompt.right"] = pixy.zone({

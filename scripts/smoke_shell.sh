@@ -38,7 +38,7 @@ grep -q 'timeout_ms = 10' "$tmp/oslo"
 grep -q 'async = true' "$tmp/oslo"
 "$pixy" render prompt.left --config "$tmp/hexe-oslo.lua" --target plain --width 20 \
   --context-file tests/fixtures/contexts/hexe-oslo.json --now-ms 0 >"$tmp/hexe-oslo.prompt"
-grep -qx 'bresilla sudo 7 λ ' "$tmp/hexe-oslo.prompt"
+grep -qx ' bresilla  7  λ ' "$tmp/hexe-oslo.prompt"
 for integration in bash zsh fish oslo; do
   if grep -Eqi 'hexe|multiplexer|exit-policy' "$tmp/$integration"; then exit 1; fi
 done

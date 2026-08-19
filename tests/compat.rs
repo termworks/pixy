@@ -45,10 +45,13 @@ fn line(name: &str, width: u16) -> String {
 fn live_hexe_prompt_segments_are_reproduced() {
     assert_eq!(
         line("prompt.left", 200),
-        " //host nix bresilla ▓ | ❄ sudo | 2 7 >> | λ "
+        " //host  nix bresilla ▓| ❄  sudo | 2  7   >> | λ "
     );
-    assert_eq!(line("prompt.right", 200), "| pod | ~d/c/t/pixy main ! N ");
-    assert_eq!(line("prompt.left", 20), "bresilla sudo 7 λ ");
+    assert_eq!(
+        line("prompt.right", 200),
+        "| pod | ~d/c/t/pixy  main  !  N "
+    );
+    assert_eq!(line("prompt.left", 20), " bresilla  7  λ ");
 }
 
 #[test]
