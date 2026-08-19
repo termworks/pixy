@@ -32,6 +32,7 @@ pub fn run() -> Result<()> {
         "init" => init_command(args),
         "stream" => stream_command(args),
         "pack" => pack_command(args),
+        "serve" => serve_command(args),
         "__bench" => bench_command(args),
         value if selector_list(value).is_ok() => {
             args.insert(0, value.to_string());
@@ -278,6 +279,19 @@ fn check_command(args: Vec<String>) -> Result<()> {
         engine.source_name
     );
     Ok(())
+}
+
+fn serve_command(mut args: Vec<String>) -> Result<()> {
+    let mut socket = None;
+    if let Some(index) = args.iter().position(|value| value == "--socket") {
+        if index + 1 >= args.len() {
+            return Err(PixyError::Usage("--socket requires a path".into()));
+        }
+        socket = Some(PathBuf::from(args.remove(index + 1)));
+        args.remove(index);
+    }
+    let config = parse_config_only(args)?;
+    super::serve::serve(socket, config.as_deref())
 }
 
 fn init_command(args: Vec<String>) -> Result<()> {
@@ -719,7 +733,7 @@ fn print_render_help() {
     );
 }
 
-const HELP: &str = "pixy - Lua terminal painter\n\nUsage:\n  pixy render <zone[.segment][,...]> [options]\n  pixy <zone[.segment][,...]> [options]\n  pixy list [--config PATH]\n  pixy check [--config PATH]\n  pixy init <bash|zsh|fish|oslo|hexe-oslo>\n  pixy stream <zone[.segment][,...]> [--fps N] [--duration MS]\n  pixy pack build <directory> --output <file>\n  pixy pack check <file>\n  pixy pack list [<file>]\n";
+const HELP: &str = "pixy - Lua terminal painter\n\nUsage:\n  pixy render <zone[.segment][,...]> [options]\n  pixy <zone[.segment][,...]> [options]\n  pixy list [--config PATH]\n  pixy check [--config PATH]\n  pixy init <bash|zsh|fish|oslo|hexe-oslo>\n  pixy stream <zone[.segment][,...]> [--fps N] [--duration MS]\n  pixy pack build <directory> --output <file>\n  pixy pack check <file>\n  pixy pack list [<file>]\n  pixy serve [--socket PATH] [--config PATH]\n";
 
 const BASH_INIT: &str = r#"__pixy_prompt_command() {
   local pixy_status=${__pixy_last_status:-0}

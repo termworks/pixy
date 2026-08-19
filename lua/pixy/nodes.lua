@@ -99,6 +99,10 @@ function M.surface(lines)
   return node("surface", {lines = lines or {}})
 end
 
+function M.spacer(weight)
+  return node("spacer", {weight = math.max(0, tonumber(weight) or 1)})
+end
+
 function M.transparent(width)
   return node("transparent", {width = math.max(0, tonumber(width) or 0)})
 end

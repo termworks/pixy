@@ -261,3 +261,39 @@ fn loads_only_bundled_or_trusted_config_modules() {
     ));
     std::fs::remove_dir_all(root).expect("cleanup");
 }
+
+#[test]
+fn spacers_absorb_slack_by_weight() {
+    let engine = engine(
+        r#"
+local pixy = require("pixy")
+return pixy.config({zones = {
+  bar = pixy.zone({
+    pixy.segment("a", function() return "A" end),
+    pixy.segment("gap1", function() return pixy.spacer() end),
+    pixy.segment("b", function() return "B" end),
+    pixy.segment("gap2", function() return pixy.spacer(3) end),
+    pixy.segment("c", function() return "C" end),
+  }),
+}})
+"#,
+    );
+    let line = |width: u16| -> (String, usize) {
+        let output = engine
+            .render(RenderRequest {
+                select: vec!["bar".into()],
+                target: Some(LineTarget::Plain),
+                width,
+                now_ms: Some(0),
+                ..RenderRequest::default()
+            })
+            .expect("render bar");
+        match output {
+            RenderOutput::Line { text, width, .. } => (text, width),
+            _ => panic!("line output"),
+        }
+    };
+    assert_eq!(line(20), ("A    B             C".into(), 20));
+    assert_eq!(line(3), ("ABC".into(), 3));
+    assert_eq!(line(2), ("AB".into(), 2));
+}

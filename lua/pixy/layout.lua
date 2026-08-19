@@ -24,6 +24,12 @@ local function run(text, run_style, transparent, region)
   }
 end
 
+local function flex(weight, region)
+  local value = run("", {}, true, region)
+  value.flex = math.max(0, tonumber(weight) or 1)
+  return value
+end
+
 local function skip(cells, region)
   cells = math.max(0, math.floor(tonumber(cells) or 0))
   return run(string.rep(" ", cells), {}, true, region)
@@ -37,6 +43,7 @@ local function copy_runs(runs)
       style = style.merge({}, value.style),
       width = value.width,
       transparent = value.transparent,
+      flex = value.flex,
       region = value.region,
     }
   end
@@ -155,9 +162,11 @@ local function flatten_segments(children, ctx, inherited, limit)
     local present = entry_count(entries)
     for _, entry in ipairs(removal_order(entries)) do
       if total <= limit or present <= 1 then break end
-      entry.present = false
-      total = total - entry.width
-      present = present - 1
+      if entry.width > 0 then
+        entry.present = false
+        total = total - entry.width
+        present = present - 1
+      end
     end
   end
   return entries_lines(entries)
@@ -340,6 +349,7 @@ flatten = function(value, ctx, inherited)
   local kind = value.kind
   if kind == "text" then return {{run(value.text or "", style.merge(inherited, value.style))}}, value.next_frame_ms end
   if kind == "transparent" then return {{skip(value.width)}}, value.next_frame_ms end
+  if kind == "spacer" then return {{flex(value.weight)}}, nil end
   if kind == "row" then return flatten_row(value.children, ctx, inherited) end
   if kind == "segments" then return flatten_segments(value.children, ctx, inherited, ctx.width) end
   if kind == "regions" then return flatten_regions(value, ctx, inherited) end
@@ -420,6 +430,31 @@ function M.measure(lines)
   return measure(lines)
 end
 
+local function resolve_flex(lines, max_width)
+  if max_width == nil or max_width < 0 then return lines end
+  for _, line in ipairs(lines) do
+    local content, total = 0, 0
+    for _, value in ipairs(line) do
+      content = content + value.width
+      if value.flex then total = total + value.flex end
+    end
+    if total > 0 then
+      local slack = math.max(0, max_width - content)
+      local seen, given = 0, 0
+      for _, value in ipairs(line) do
+        if value.flex then
+          seen = seen + value.flex
+          local target = math.floor(slack * seen / total)
+          value.text = string.rep(" ", target - given)
+          value.width = target - given
+          given = target
+        end
+      end
+    end
+  end
+  return lines
+end
+
 function M.compose(entries, ctx, max_width)
   local rendered = {}
   for index, entry in ipairs(entries) do
@@ -446,9 +481,11 @@ function M.compose(entries, ctx, max_width)
     end)
     for _, value in ipairs(removal) do
       if total <= max_width or present <= 1 then break end
-      value.present = false
-      total = total - value.width
-      present = present - 1
+      if value.width > 0 then
+        value.present = false
+        total = total - value.width
+        present = present - 1
+      end
     end
   end
   local parts, next_frame = {}, nil
@@ -458,7 +495,7 @@ function M.compose(entries, ctx, max_width)
       if value.next_frame and (not next_frame or value.next_frame < next_frame) then next_frame = value.next_frame end
     end
   end
-  local lines = horizontal(parts)
+  local lines = resolve_flex(horizontal(parts), max_width)
   if max_width and total > max_width then lines = M.clip(lines, max_width, #lines) end
   return lines, next_frame
 end

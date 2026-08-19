@@ -42,7 +42,7 @@ fn line(name: &str, width: u16) -> String {
 }
 
 #[test]
-fn live_hexe_prompt_segments_are_reproduced() {
+fn hexe_oslo_prompt_zones_render_padded_badges() {
     assert_eq!(
         line("prompt.left", 200),
         " //host  nix bresilla ▓| ❄  sudo | 2  7   >> | λ "
@@ -79,7 +79,7 @@ fn live_hexe_status_zones_and_recording_actions_are_reproduced() {
         text(&render("status.left")),
         " 12:34:56 | session | running build "
     );
-    assert_eq!(text(&render("status.center")), "main | logs");
+    assert_eq!(text(&render("status.center")), " main | logs ");
     let output = render("status.right");
     assert_eq!(text(&output), " REC  87%  ~d/c/t/pixy ");
     let RenderOutput::Run { regions, .. } = output else {

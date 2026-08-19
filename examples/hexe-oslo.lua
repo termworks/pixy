@@ -267,8 +267,8 @@ local function status_tabs(ctx)
   for index, tab in ipairs(tabs) do
     local title = type(tab) == "table" and tostring(tab.title or tab.name or index) or tostring(tab)
     local active = type(tab) == "table" and tab.active == true or value(ctx, "active_tab") == index
-    if #children > 0 then children[#children + 1] = pixy.text(" | ", {fg = 7}) end
-    children[#children + 1] = pixy.text(title, active and style_git or {bg = 237, fg = 250})
+    if #children > 0 then children[#children + 1] = pixy.text("|", {fg = 7}) end
+    children[#children + 1] = pixy.text(" " .. title .. " ", active and style_git or {bg = 237, fg = 250})
   end
   return pixy.row(children)
 end
@@ -480,6 +480,51 @@ local function direnv_report(ctx)
   return pixy.surface(lines)
 end
 
+local status_left = {
+  pixy.segment("clock", function(ctx)
+    return pixy.text(" " .. clock(ctx) .. " ", {bg = 237, fg = 250, bold = true})
+  end, {priority = 10}),
+  pixy.segment("session", function(ctx)
+    local session = trim(tostring(value(ctx, "session") or ""))
+    return session and pixy.text("| " .. session .. " |", style_git) or nil
+  end, {priority = 30}),
+  pixy.segment("spinner", status_spinner, {priority = 20}),
+  pixy.segment("random", status_random, {priority = 200000}),
+
+}
+
+local status_center = {
+  pixy.segment("tabs", status_tabs, {priority = 1}),
+
+}
+
+local status_right = {
+  pixy.segment("recording", status_recording, {
+    priority = 11,
+    id = "recording",
+    actions = {left = "record.switch", right = "record.stop"},
+    hover_style = {bg = 15, fg = 1, bold = true},
+    press_styles = {
+      left = {bg = 2, fg = 0, bold = true},
+      middle = {bg = 3, fg = 0, bold = true},
+      right = style_recording,
+    },
+  }),
+  pixy.segment("battery", status_battery, {priority = 40}),
+  pixy.segment("directory", function(ctx)
+    local cwd = cwd_of(ctx) or pane_value(ctx, "cwd")
+    return cwd and pixy.text(" " .. fish_path(cwd) .. " ", style_directory) or nil
+  end, {priority = 50}),
+
+}
+
+local status_bar = {}
+for _, segment in ipairs(status_left) do status_bar[#status_bar + 1] = segment end
+status_bar[#status_bar + 1] = pixy.segment("gap_left", function() return pixy.spacer() end)
+for _, segment in ipairs(status_center) do status_bar[#status_bar + 1] = segment end
+status_bar[#status_bar + 1] = pixy.segment("gap_right", function() return pixy.spacer() end)
+for _, segment in ipairs(status_right) do status_bar[#status_bar + 1] = segment end
+
 return pixy.config({
   zones = {
     ["prompt.left"] = pixy.zone({
@@ -503,38 +548,10 @@ return pixy.config({
       pixy.segment("git_status", prompt_git_status, {priority = 5}),
       pixy.segment("vimode", prompt_vimode, {priority = 2}),
     }),
-    ["status.left"] = pixy.zone({
-      pixy.segment("clock", function(ctx)
-        return pixy.text(" " .. clock(ctx) .. " ", {bg = 237, fg = 250, bold = true})
-      end, {priority = 10}),
-      pixy.segment("session", function(ctx)
-        local session = trim(tostring(value(ctx, "session") or ""))
-        return session and pixy.text("| " .. session .. " |", style_git) or nil
-      end, {priority = 30}),
-      pixy.segment("spinner", status_spinner, {priority = 20}),
-      pixy.segment("random", status_random, {priority = 200000}),
-    }),
-    ["status.center"] = pixy.zone({
-      pixy.segment("tabs", status_tabs, {priority = 1}),
-    }),
-    ["status.right"] = pixy.zone({
-      pixy.segment("recording", status_recording, {
-        priority = 11,
-        id = "recording",
-        actions = {left = "record.switch", right = "record.stop"},
-        hover_style = {bg = 15, fg = 1, bold = true},
-        press_styles = {
-          left = {bg = 2, fg = 0, bold = true},
-          middle = {bg = 3, fg = 0, bold = true},
-          right = style_recording,
-        },
-      }),
-      pixy.segment("battery", status_battery, {priority = 40}),
-      pixy.segment("directory", function(ctx)
-        local cwd = cwd_of(ctx) or pane_value(ctx, "cwd")
-        return cwd and pixy.text(" " .. fish_path(cwd) .. " ", style_directory) or nil
-      end, {priority = 50}),
-    }),
+    ["status.left"] = pixy.zone(status_left),
+    ["status.center"] = pixy.zone(status_center),
+    ["status.right"] = pixy.zone(status_right),
+    status = pixy.zone(status_bar),
     overlay = pixy.zone({
       pixy.segment("sprite", pokemon_sprite),
     }),

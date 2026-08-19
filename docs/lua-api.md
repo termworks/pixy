@@ -43,8 +43,8 @@ width pruning first. Interaction options attach bounded geometry and action
 identifiers to that segment's result.
 
 Node constructors are `text`, `row`, `column`, `segments`, `regions`, `region`,
-`pad`, `when`, `priority`, `truncate`, `style`, `palette`, `spinner`, `animate`,
-`sprite`, and `surface`.
+`spacer`, `pad`, `when`, `priority`, `truncate`, `style`, `palette`, `spinner`,
+`animate`, `sprite`, and `surface`.
 
 Styles accept `fg`, `bg`, `bold`, `dim`, `italic`, `underline`, and `reverse`.
 Colors are palette indexes 0-255, RGB triples, or one of the basic named
@@ -55,6 +55,14 @@ supports `width`, `step`, `hold`, `trail`, `colors`, `placeholder`, `bg`,
 `prefix`, and `suffix`, and reports its next deterministic frame deadline.
 `sprite` accepts plain or SGR truecolor frames, recursive pack item names,
 transparent spaces, five pane positions, and an optional `fallback_name`.
+
+`spacer` is a flexible gap: it measures zero, and after pruning it absorbs the
+width left over between the rendered content and the requested width. Several
+spacers split that slack in proportion to their weight, `pixy.spacer(3)` taking
+three times what `pixy.spacer()` takes. Where the spacers sit is what makes a
+zone left, centered, right, or anything between, so a status bar needs no
+alignment vocabulary in Rust. A spacer is never pruned, and collapses to zero
+when the content already fills the width.
 
 `segments` is a lower-level responsive layout node; prefer config-level zones
 for independently queryable content. `regions` remains a node for positioning

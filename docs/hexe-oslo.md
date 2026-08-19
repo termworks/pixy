@@ -1,7 +1,9 @@
 # Hexe and Oslo compatibility profile
 
-Pixy ships a profile that reproduces the rendering configured by the reference
-Hexe and Oslo Lua files without loading either project:
+Pixy ships a profile derived from the reference Hexe and Oslo Lua files, rendered
+without loading either project. The prompt zones differ from Hexe by two spaces:
+`username` and `directory` each carry a leading space so their badge never starts
+flush against the text beside it.
 
 ```sh
 pixy init hexe-oslo > ~/.config/pixy/init.lua
