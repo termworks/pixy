@@ -8,6 +8,10 @@ endif
 
 TOP_DIR := $(CURDIR)
 CARGO := cargo
+TARGET ?=
+MUSL_TARGET ?= $(shell uname -m)-unknown-linux-musl
+CARGO_TARGET := $(if $(TARGET),--target $(TARGET),)
+RELEASE_DIR := target/$(if $(TARGET),$(TARGET)/,)release
 ARGS ?=
 PREFIX ?= $(HOME)/.local
 
@@ -17,7 +21,7 @@ $(info ------------------------------------------)
 $(info Project: $(PROJECT_NAME) v$(PROJECT_VERSION))
 $(info ------------------------------------------)
 
-.PHONY: build b compile c run r test t check check-all test-all clippy rustdoc fmt fmt-check clean verify smoke smoke-shell bench package-check example-pack release-build release help h
+.PHONY: build b compile c run r test t check check-all test-all clippy rustdoc fmt fmt-check clean verify smoke smoke-shell bench package-check example-pack release-build release-musl release help h
 
 build:
 	@$(CARGO) build --lib --bin pixy
@@ -76,13 +80,16 @@ bench: release-build
 	@bash scripts/bench.sh
 
 package-check: release-build example-pack
-	@bash scripts/package_check.sh
+	@RELEASE_DIR=$(RELEASE_DIR) bash scripts/package_check.sh
 
 example-pack: release-build
-	@target/release/pixy pack build examples/pack --output target/release/pixy-example.pixypack --source pixy --license MIT --attribution "Pixy contributors"
+	@$(RELEASE_DIR)/pixy pack build examples/pack --output $(RELEASE_DIR)/pixy-example.pixypack --source pixy --license MIT --attribution "Pixy contributors"
+
+release-musl:
+	@$(MAKE) --no-print-directory release-build example-pack TARGET=$(MUSL_TARGET)
 
 release-build:
-	@$(CARGO) build --release --lib --bin pixy
+	@$(CARGO) build --release --lib --bin pixy $(CARGO_TARGET)
 
 release:
 	@if [ -z "$(HAS_REL)" ]; then \
@@ -119,6 +126,7 @@ help:
 	@echo "  package-check Check release artifact contents"
 	@echo "  example-pack Build the original example sprite pack"
 	@echo "  release-build Build release library and binary"
+	@echo "  release-musl Build a static musl binary and pack for this arch"
 	@echo "  release      Release a new version"
 	@echo
 
