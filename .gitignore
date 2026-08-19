@@ -1,7 +1,7 @@
 *.exe
 *.test
 *.out
-/wing
+/pixy
 /coverage.out
 /bin
 /build

@@ -1,0 +1,12 @@
+{
+  "env": {},
+  "values": {
+    "cwd": "/work/project",
+    "status": 0,
+    "duration_ms": 42,
+    "jobs": 0,
+    "language": "rust",
+    "vimode": "insert",
+    "started_at_ms": 0
+  }
+}

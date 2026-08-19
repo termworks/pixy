@@ -8,7 +8,7 @@ endif
 
 TOP_DIR := $(CURDIR)
 CARGO := cargo
-EXAMPLE ?= main
+ARGS ?=
 PREFIX ?= $(HOME)/.local
 
 HAS_REL := $(shell command -v git-rel 2>/dev/null)
@@ -17,10 +17,10 @@ $(info ------------------------------------------)
 $(info Project: $(PROJECT_NAME) v$(PROJECT_VERSION))
 $(info ------------------------------------------)
 
-.PHONY: build b compile c run r test t check check-all test-all clippy rustdoc fmt fmt-check clean verify release help h
+.PHONY: build b compile c run r test t check check-all test-all clippy rustdoc fmt fmt-check clean verify smoke smoke-shell bench package-check example-pack release-build release help h
 
 build:
-	@$(CARGO) build --lib
+	@$(CARGO) build --lib --bin pixy
 
 b: build
 
@@ -31,7 +31,7 @@ compile:
 c: compile
 
 run:
-	@$(CARGO) run --example $(EXAMPLE)
+	@$(CARGO) run --bin pixy -- $(ARGS)
 
 r: run
 
@@ -66,6 +66,24 @@ clean:
 
 verify: fmt-check check test check-all test-all clippy rustdoc
 
+smoke: build
+	@bash scripts/smoke.sh
+
+smoke-shell: build
+	@bash scripts/smoke_shell.sh
+
+bench: release-build
+	@bash scripts/bench.sh
+
+package-check: release-build example-pack
+	@bash scripts/package_check.sh
+
+example-pack: release-build
+	@target/release/pixy pack build examples/pack --output target/release/pixy-example.pixypack --source pixy --license MIT --attribution "Pixy contributors"
+
+release-build:
+	@$(CARGO) build --release --lib --bin pixy
+
 release:
 	@if [ -z "$(HAS_REL)" ]; then \
 		echo "git-rel is not installed. Please install it first."; \
@@ -82,9 +100,9 @@ help:
 	@echo "Usage: make [target]"
 	@echo
 	@echo "Available targets:"
-	@echo "  build        Build the library"
+	@echo "  build        Build the library and binary"
 	@echo "  compile      Clean and rebuild"
-	@echo "  run          Run a development example"
+	@echo "  run          Run Pixy with ARGS='...'"
 	@echo "  test         Run all tests"
 	@echo "  check        Run cargo check on all targets"
 	@echo "  check-all    Run cargo check on all targets/all features"
@@ -95,8 +113,13 @@ help:
 	@echo "  fmt-check    Check formatting"
 	@echo "  clean        Remove Cargo build artifacts"
 	@echo "  verify       Run the full local gate"
+	@echo "  smoke        Run CLI and renderer smoke tests"
+	@echo "  smoke-shell  Check generated shell integrations"
+	@echo "  bench        Run release performance checks"
+	@echo "  package-check Check release artifact contents"
+	@echo "  example-pack Build the original example sprite pack"
+	@echo "  release-build Build release library and binary"
 	@echo "  release      Release a new version"
 	@echo
 
 h: help
-

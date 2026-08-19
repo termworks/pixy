@@ -27,4 +27,5 @@ jobs:
             cargo-${{ runner.os }}-
       - name: Verify
         run: make verify
-
+      - name: Pixy gates
+        run: make smoke smoke-shell bench package-check

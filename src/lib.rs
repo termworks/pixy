@@ -1,16 +1,24 @@
-//! wing.
+//! Lua-powered terminal rendering engine.
 
-/// Returns this crate's display name.
+pub mod application;
+pub mod model;
+pub mod runtime;
+
+pub use application::engine::Engine;
+pub use application::{cli, engine};
+pub use model::error::{PixyError, Result};
+pub use model::output::{LineTarget, OutputRegion, RenderMode, RenderOutput, RenderRequest, Run};
+pub use model::{context, error, output};
+pub use runtime::{assets, config, host, scheduler};
+
 pub fn name() -> &'static str {
-    "wing"
+    "pixy"
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn exposes_name() {
-        assert_eq!(name(), "wing");
+        assert_eq!(super::name(), "pixy");
     }
 }
