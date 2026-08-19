@@ -21,7 +21,7 @@ $(info ------------------------------------------)
 $(info Project: $(PROJECT_NAME) v$(PROJECT_VERSION))
 $(info ------------------------------------------)
 
-.PHONY: build b compile c run r test t check check-all test-all clippy rustdoc fmt fmt-check clean verify smoke smoke-shell bench package-check example-pack release-build release-musl release help h
+.PHONY: build b compile c run r test t check check-all test-all clippy rustdoc fmt fmt-check clean verify smoke smoke-shell bench package-check example-pack release-build release-musl docs-images release help h
 
 build:
 	@$(CARGO) build --lib --bin pixy
@@ -85,6 +85,9 @@ package-check: release-build example-pack
 example-pack: release-build
 	@$(RELEASE_DIR)/pixy pack build examples/pack --output $(RELEASE_DIR)/pixy-example.pixypack --source pixy --license MIT --attribution "Pixy contributors"
 
+docs-images: release-build
+	@bash scripts/docs_images.sh
+
 release-musl:
 	@$(MAKE) --no-print-directory release-build example-pack TARGET=$(MUSL_TARGET)
 
@@ -127,6 +130,7 @@ help:
 	@echo "  example-pack Build the original example sprite pack"
 	@echo "  release-build Build release library and binary"
 	@echo "  release-musl Build a static musl binary and pack for this arch"
+	@echo "  docs-images  Regenerate the README frames from live output"
 	@echo "  release      Release a new version"
 	@echo
 
