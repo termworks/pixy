@@ -321,3 +321,51 @@ fn live_oslo_direnv_reports_are_reproduced() {
         matches!(blocked, RenderOutput::Surface { ansi, height: 1, .. } if ansi.contains("blocked") && ansi.contains("direnv allow"))
     );
 }
+
+#[test]
+fn live_tab_and_pane_activity_follow_the_host_fields() {
+    let styled = |select: &str, values: &str| -> Vec<(String, String)> {
+        let context = serde_json::from_str(values).expect("context values");
+        let output = engine()
+            .render(RenderRequest {
+                select: vec![select.into()],
+                mode: RenderMode::Run,
+                target: None,
+                width: 40,
+                now_ms: Some(0),
+                context,
+                ..RenderRequest::default()
+            })
+            .expect("render view");
+        match output {
+            RenderOutput::Run { runs, .. } => {
+                runs.into_iter().map(|run| (run.text, run.style)).collect()
+            }
+            _ => panic!("run output"),
+        }
+    };
+    let active = "fg:0 bg:1";
+    let idle = "fg:250 bg:237";
+    let tabs = |index: u8| {
+        styled(
+            "status.center",
+            &format!("{{\"values\":{{\"tabs\":[\"main\",\"logs\"],\"active_tab\":{index}}}}}"),
+        )
+    };
+    assert_eq!(
+        tabs(0)[0].1,
+        active,
+        "a zero-based active_tab marks the first tab"
+    );
+    assert_eq!(tabs(0)[2].1, idle);
+    assert_eq!(tabs(1)[0].1, idle);
+    assert_eq!(tabs(1)[2].1, active);
+    let title = |flag: bool| {
+        styled(
+            "container.title",
+            &format!("{{\"values\":{{\"title\":\"editor\",\"active\":{flag}}}}}"),
+        )
+    };
+    assert_eq!(title(true)[1].1, active);
+    assert_eq!(title(false)[1].1, idle);
+}

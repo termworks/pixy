@@ -266,7 +266,7 @@ local function status_tabs(ctx)
   local children = {}
   for index, tab in ipairs(tabs) do
     local title = type(tab) == "table" and tostring(tab.title or tab.name or index) or tostring(tab)
-    local active = type(tab) == "table" and tab.active == true or value(ctx, "active_tab") == index
+    local active = type(tab) == "table" and tab.active == true or value(ctx, "active_tab") == index - 1
     if #children > 0 then children[#children + 1] = pixy.text("|", {fg = 7}) end
     children[#children + 1] = pixy.text(" " .. title .. " ", active and style_git or {bg = 237, fg = 250})
   end
@@ -293,7 +293,8 @@ local function title(ctx, container_title)
   local text = trim(tostring(value(ctx, "title") or ""))
   if not text then return nil end
   local edge = container_title and {bg = 0, fg = 1} or {bg = 1, fg = 1}
-  return pixy.row({pixy.text(" ", edge), pixy.text(text, style_git), pixy.text(" ", edge)})
+  local body = value(ctx, "active") == false and {bg = 237, fg = 250} or style_git
+  return pixy.row({pixy.text(" ", edge), pixy.text(text, body), pixy.text(" ", edge)})
 end
 
 local function popup(ctx, default_offset)
