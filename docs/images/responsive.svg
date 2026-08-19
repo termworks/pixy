@@ -1,0 +1,1071 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="913" height="91" viewBox="0 0 913 91" font-family="DejaVu Sans Mono, monospace" font-size="14">
+<style>
+.frame { visibility: hidden; }
+#f0 { animation: f0 4.59s infinite; }
+@keyframes f0 { 0%,1.9608% { visibility: visible; } 1.9608%,100% { visibility: hidden; } }
+#f1 { animation: f1 4.59s infinite; }
+@keyframes f1 { 0%,1.9608% { visibility: hidden; } 1.9608%,3.9216% { visibility: visible; } 3.9216%,100% { visibility: hidden; } }
+#f2 { animation: f2 4.59s infinite; }
+@keyframes f2 { 0%,3.9216% { visibility: hidden; } 3.9216%,5.8824% { visibility: visible; } 5.8824%,100% { visibility: hidden; } }
+#f3 { animation: f3 4.59s infinite; }
+@keyframes f3 { 0%,5.8824% { visibility: hidden; } 5.8824%,7.8431% { visibility: visible; } 7.8431%,100% { visibility: hidden; } }
+#f4 { animation: f4 4.59s infinite; }
+@keyframes f4 { 0%,7.8431% { visibility: hidden; } 7.8431%,9.8039% { visibility: visible; } 9.8039%,100% { visibility: hidden; } }
+#f5 { animation: f5 4.59s infinite; }
+@keyframes f5 { 0%,9.8039% { visibility: hidden; } 9.8039%,11.7647% { visibility: visible; } 11.7647%,100% { visibility: hidden; } }
+#f6 { animation: f6 4.59s infinite; }
+@keyframes f6 { 0%,11.7647% { visibility: hidden; } 11.7647%,13.7255% { visibility: visible; } 13.7255%,100% { visibility: hidden; } }
+#f7 { animation: f7 4.59s infinite; }
+@keyframes f7 { 0%,13.7255% { visibility: hidden; } 13.7255%,15.6863% { visibility: visible; } 15.6863%,100% { visibility: hidden; } }
+#f8 { animation: f8 4.59s infinite; }
+@keyframes f8 { 0%,15.6863% { visibility: hidden; } 15.6863%,17.6471% { visibility: visible; } 17.6471%,100% { visibility: hidden; } }
+#f9 { animation: f9 4.59s infinite; }
+@keyframes f9 { 0%,17.6471% { visibility: hidden; } 17.6471%,19.6078% { visibility: visible; } 19.6078%,100% { visibility: hidden; } }
+#f10 { animation: f10 4.59s infinite; }
+@keyframes f10 { 0%,19.6078% { visibility: hidden; } 19.6078%,21.5686% { visibility: visible; } 21.5686%,100% { visibility: hidden; } }
+#f11 { animation: f11 4.59s infinite; }
+@keyframes f11 { 0%,21.5686% { visibility: hidden; } 21.5686%,23.5294% { visibility: visible; } 23.5294%,100% { visibility: hidden; } }
+#f12 { animation: f12 4.59s infinite; }
+@keyframes f12 { 0%,23.5294% { visibility: hidden; } 23.5294%,25.4902% { visibility: visible; } 25.4902%,100% { visibility: hidden; } }
+#f13 { animation: f13 4.59s infinite; }
+@keyframes f13 { 0%,25.4902% { visibility: hidden; } 25.4902%,27.4510% { visibility: visible; } 27.4510%,100% { visibility: hidden; } }
+#f14 { animation: f14 4.59s infinite; }
+@keyframes f14 { 0%,27.4510% { visibility: hidden; } 27.4510%,29.4118% { visibility: visible; } 29.4118%,100% { visibility: hidden; } }
+#f15 { animation: f15 4.59s infinite; }
+@keyframes f15 { 0%,29.4118% { visibility: hidden; } 29.4118%,31.3725% { visibility: visible; } 31.3725%,100% { visibility: hidden; } }
+#f16 { animation: f16 4.59s infinite; }
+@keyframes f16 { 0%,31.3725% { visibility: hidden; } 31.3725%,33.3333% { visibility: visible; } 33.3333%,100% { visibility: hidden; } }
+#f17 { animation: f17 4.59s infinite; }
+@keyframes f17 { 0%,33.3333% { visibility: hidden; } 33.3333%,35.2941% { visibility: visible; } 35.2941%,100% { visibility: hidden; } }
+#f18 { animation: f18 4.59s infinite; }
+@keyframes f18 { 0%,35.2941% { visibility: hidden; } 35.2941%,37.2549% { visibility: visible; } 37.2549%,100% { visibility: hidden; } }
+#f19 { animation: f19 4.59s infinite; }
+@keyframes f19 { 0%,37.2549% { visibility: hidden; } 37.2549%,39.2157% { visibility: visible; } 39.2157%,100% { visibility: hidden; } }
+#f20 { animation: f20 4.59s infinite; }
+@keyframes f20 { 0%,39.2157% { visibility: hidden; } 39.2157%,41.1765% { visibility: visible; } 41.1765%,100% { visibility: hidden; } }
+#f21 { animation: f21 4.59s infinite; }
+@keyframes f21 { 0%,41.1765% { visibility: hidden; } 41.1765%,43.1373% { visibility: visible; } 43.1373%,100% { visibility: hidden; } }
+#f22 { animation: f22 4.59s infinite; }
+@keyframes f22 { 0%,43.1373% { visibility: hidden; } 43.1373%,45.0980% { visibility: visible; } 45.0980%,100% { visibility: hidden; } }
+#f23 { animation: f23 4.59s infinite; }
+@keyframes f23 { 0%,45.0980% { visibility: hidden; } 45.0980%,47.0588% { visibility: visible; } 47.0588%,100% { visibility: hidden; } }
+#f24 { animation: f24 4.59s infinite; }
+@keyframes f24 { 0%,47.0588% { visibility: hidden; } 47.0588%,49.0196% { visibility: visible; } 49.0196%,100% { visibility: hidden; } }
+#f25 { animation: f25 4.59s infinite; }
+@keyframes f25 { 0%,49.0196% { visibility: hidden; } 49.0196%,50.9804% { visibility: visible; } 50.9804%,100% { visibility: hidden; } }
+#f26 { animation: f26 4.59s infinite; }
+@keyframes f26 { 0%,50.9804% { visibility: hidden; } 50.9804%,52.9412% { visibility: visible; } 52.9412%,100% { visibility: hidden; } }
+#f27 { animation: f27 4.59s infinite; }
+@keyframes f27 { 0%,52.9412% { visibility: hidden; } 52.9412%,54.9020% { visibility: visible; } 54.9020%,100% { visibility: hidden; } }
+#f28 { animation: f28 4.59s infinite; }
+@keyframes f28 { 0%,54.9020% { visibility: hidden; } 54.9020%,56.8627% { visibility: visible; } 56.8627%,100% { visibility: hidden; } }
+#f29 { animation: f29 4.59s infinite; }
+@keyframes f29 { 0%,56.8627% { visibility: hidden; } 56.8627%,58.8235% { visibility: visible; } 58.8235%,100% { visibility: hidden; } }
+#f30 { animation: f30 4.59s infinite; }
+@keyframes f30 { 0%,58.8235% { visibility: hidden; } 58.8235%,60.7843% { visibility: visible; } 60.7843%,100% { visibility: hidden; } }
+#f31 { animation: f31 4.59s infinite; }
+@keyframes f31 { 0%,60.7843% { visibility: hidden; } 60.7843%,62.7451% { visibility: visible; } 62.7451%,100% { visibility: hidden; } }
+#f32 { animation: f32 4.59s infinite; }
+@keyframes f32 { 0%,62.7451% { visibility: hidden; } 62.7451%,64.7059% { visibility: visible; } 64.7059%,100% { visibility: hidden; } }
+#f33 { animation: f33 4.59s infinite; }
+@keyframes f33 { 0%,64.7059% { visibility: hidden; } 64.7059%,66.6667% { visibility: visible; } 66.6667%,100% { visibility: hidden; } }
+#f34 { animation: f34 4.59s infinite; }
+@keyframes f34 { 0%,66.6667% { visibility: hidden; } 66.6667%,68.6275% { visibility: visible; } 68.6275%,100% { visibility: hidden; } }
+#f35 { animation: f35 4.59s infinite; }
+@keyframes f35 { 0%,68.6275% { visibility: hidden; } 68.6275%,70.5882% { visibility: visible; } 70.5882%,100% { visibility: hidden; } }
+#f36 { animation: f36 4.59s infinite; }
+@keyframes f36 { 0%,70.5882% { visibility: hidden; } 70.5882%,72.5490% { visibility: visible; } 72.5490%,100% { visibility: hidden; } }
+#f37 { animation: f37 4.59s infinite; }
+@keyframes f37 { 0%,72.5490% { visibility: hidden; } 72.5490%,74.5098% { visibility: visible; } 74.5098%,100% { visibility: hidden; } }
+#f38 { animation: f38 4.59s infinite; }
+@keyframes f38 { 0%,74.5098% { visibility: hidden; } 74.5098%,76.4706% { visibility: visible; } 76.4706%,100% { visibility: hidden; } }
+#f39 { animation: f39 4.59s infinite; }
+@keyframes f39 { 0%,76.4706% { visibility: hidden; } 76.4706%,78.4314% { visibility: visible; } 78.4314%,100% { visibility: hidden; } }
+#f40 { animation: f40 4.59s infinite; }
+@keyframes f40 { 0%,78.4314% { visibility: hidden; } 78.4314%,80.3922% { visibility: visible; } 80.3922%,100% { visibility: hidden; } }
+#f41 { animation: f41 4.59s infinite; }
+@keyframes f41 { 0%,80.3922% { visibility: hidden; } 80.3922%,82.3529% { visibility: visible; } 82.3529%,100% { visibility: hidden; } }
+#f42 { animation: f42 4.59s infinite; }
+@keyframes f42 { 0%,82.3529% { visibility: hidden; } 82.3529%,84.3137% { visibility: visible; } 84.3137%,100% { visibility: hidden; } }
+#f43 { animation: f43 4.59s infinite; }
+@keyframes f43 { 0%,84.3137% { visibility: hidden; } 84.3137%,86.2745% { visibility: visible; } 86.2745%,100% { visibility: hidden; } }
+#f44 { animation: f44 4.59s infinite; }
+@keyframes f44 { 0%,86.2745% { visibility: hidden; } 86.2745%,88.2353% { visibility: visible; } 88.2353%,100% { visibility: hidden; } }
+#f45 { animation: f45 4.59s infinite; }
+@keyframes f45 { 0%,88.2353% { visibility: hidden; } 88.2353%,90.1961% { visibility: visible; } 90.1961%,100% { visibility: hidden; } }
+#f46 { animation: f46 4.59s infinite; }
+@keyframes f46 { 0%,90.1961% { visibility: hidden; } 90.1961%,92.1569% { visibility: visible; } 92.1569%,100% { visibility: hidden; } }
+#f47 { animation: f47 4.59s infinite; }
+@keyframes f47 { 0%,92.1569% { visibility: hidden; } 92.1569%,94.1176% { visibility: visible; } 94.1176%,100% { visibility: hidden; } }
+#f48 { animation: f48 4.59s infinite; }
+@keyframes f48 { 0%,94.1176% { visibility: hidden; } 94.1176%,96.0784% { visibility: visible; } 96.0784%,100% { visibility: hidden; } }
+#f49 { animation: f49 4.59s infinite; }
+@keyframes f49 { 0%,96.0784% { visibility: hidden; } 96.0784%,98.0392% { visibility: visible; } 98.0392%,100% { visibility: hidden; } }
+#f50 { animation: f50 4.59s infinite; }
+@keyframes f50 { 0%,98.0392% { visibility: hidden; } 98.0392%,100.0000% { visibility: visible; } 100.0000%,100% { visibility: hidden; } }
+</style>
+<rect width="913" height="91" rx="10" fill="#181825"/>
+<circle cx="20" cy="17" r="6" fill="#f38ba8"/><circle cx="40" cy="17" r="6" fill="#f9e2af"/><circle cx="60" cy="17" r="6" fill="#a6e3a1"/>
+<text x="456" y="22" fill="#6c7086" text-anchor="middle" font-size="12">one zone, every width</text>
+<g class="frame" id="f0">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="456.36" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="456.36" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="506.94" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="515.37" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="565.95" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="700.83" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="700.83" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="742.98" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="742.98" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="785.13" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="785.13" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f1">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">              </text>
+  <rect x="439.50" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="439.50" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="490.08" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="498.51" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="498.51" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="549.09" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">              </text>
+  <rect x="667.11" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="667.11" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="709.26" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="709.26" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="751.41" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="751.41" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f2">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">            </text>
+  <rect x="422.64" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="422.64" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="473.22" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="481.65" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="481.65" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="532.23" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">            </text>
+  <rect x="633.39" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="633.39" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="675.54" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="675.54" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="717.69" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="717.69" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f3">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">          </text>
+  <rect x="405.78" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="405.78" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="456.36" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="464.79" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="464.79" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="515.37" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">          </text>
+  <rect x="599.67" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="599.67" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="641.82" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="641.82" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="683.97" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="683.97" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f4">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">        </text>
+  <rect x="388.92" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="388.92" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="439.50" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="447.93" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="447.93" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="498.51" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">        </text>
+  <rect x="565.95" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="565.95" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="608.10" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="608.10" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="650.25" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="650.25" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f5">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">      </text>
+  <rect x="372.06" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="372.06" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="422.64" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="431.07" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="431.07" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="481.65" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">      </text>
+  <rect x="532.23" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="532.23" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="574.38" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="574.38" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="616.53" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="616.53" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f6">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="355.20" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="355.20" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="405.78" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="414.21" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="414.21" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="464.79" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="498.51" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="498.51" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="540.66" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="540.66" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="582.81" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="582.81" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f7">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="338.34" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="338.34" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="388.92" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="397.35" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="397.35" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="447.93" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="464.79" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="464.79" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="506.94" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="506.94" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="549.09" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="549.09" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f8">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <rect x="321.48" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="321.48" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="372.06" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="380.49" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="380.49" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="431.07" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="431.07" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="473.22" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="473.22" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="515.37" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f9">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve"> </text>
+  <rect x="279.33" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="279.33" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="329.91" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="338.34" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="338.34" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="388.92" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve"> </text>
+  <rect x="397.35" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="397.35" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="439.50" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="439.50" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="481.65" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="481.65" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f10">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">     </text>
+  <rect x="313.05" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="313.05" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="363.63" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="372.06" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="372.06" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="422.64" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">      </text>
+  <rect x="473.22" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="473.22" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="515.37" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+
+</g>
+<g class="frame" id="f11">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">   </text>
+  <rect x="296.19" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="296.19" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="346.77" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="355.20" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="355.20" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="405.78" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="439.50" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="439.50" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="481.65" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="481.65" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+
+</g>
+<g class="frame" id="f12">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve"> </text>
+  <rect x="279.33" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="279.33" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="329.91" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="338.34" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="338.34" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="388.92" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="405.78" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="405.78" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="447.93" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="447.93" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+
+</g>
+<g class="frame" id="f13">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="287.76" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="287.76" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="338.34" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="346.77" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="346.77" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="397.35" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="414.21" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="414.21" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f14">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <rect x="270.90" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="270.90" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="321.48" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="329.91" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="329.91" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="380.49" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="380.49" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f15">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="102.30" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="178.17" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">   </text>
+  <rect x="203.46" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="203.46" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="254.04" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="262.47" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="262.47" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="313.05" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="346.77" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="346.77" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f16">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="102.30" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="178.17" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve"> </text>
+  <rect x="186.60" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="186.60" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="237.18" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="245.61" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="245.61" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="296.19" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="313.05" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="313.05" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f17">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <text x="102.30" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="136.02" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="136.02" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="186.60" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="195.03" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="195.03" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="245.61" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="279.33" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="279.33" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f18">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <text x="102.30" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="119.16" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="119.16" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="169.74" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="178.17" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="178.17" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="228.75" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="245.61" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="245.61" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f19">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="152.88" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="161.31" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="161.31" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="211.89" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="211.89" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f20">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="152.88" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="161.31" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="161.31" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="211.89" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="211.89" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f21">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="152.88" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="161.31" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="161.31" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="211.89" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="211.89" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f22">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="152.88" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="161.31" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="161.31" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="211.89" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="211.89" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f23">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="152.88" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="161.31" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="161.31" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="211.89" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="211.89" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f24">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="152.88" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="161.31" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="161.31" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="211.89" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="211.89" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f25">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="152.88" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="161.31" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="161.31" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="211.89" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="211.89" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f26">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <text x="102.30" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="119.16" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="119.16" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="169.74" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="178.17" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="178.17" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="228.75" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="245.61" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="245.61" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f27">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <text x="102.30" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="136.02" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="136.02" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="186.60" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="195.03" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="195.03" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="245.61" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="279.33" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="279.33" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f28">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="102.30" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="178.17" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve"> </text>
+  <rect x="186.60" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="186.60" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="237.18" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="245.61" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="245.61" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="296.19" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="313.05" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="313.05" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f29">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="102.30" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="178.17" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">   </text>
+  <rect x="203.46" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="203.46" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="254.04" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="262.47" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="262.47" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="313.05" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="346.77" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="346.77" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f30">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <rect x="270.90" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="270.90" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="321.48" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="329.91" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="329.91" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="380.49" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="380.49" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f31">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="287.76" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="287.76" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="338.34" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="346.77" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="346.77" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="397.35" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="414.21" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="414.21" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+
+</g>
+<g class="frame" id="f32">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve"> </text>
+  <rect x="279.33" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="279.33" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="329.91" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="338.34" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="338.34" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="388.92" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="405.78" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="405.78" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="447.93" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="447.93" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+
+</g>
+<g class="frame" id="f33">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">   </text>
+  <rect x="296.19" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="296.19" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="346.77" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="355.20" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="355.20" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="405.78" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="439.50" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="439.50" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="481.65" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="481.65" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+
+</g>
+<g class="frame" id="f34">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">     </text>
+  <rect x="313.05" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="313.05" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="363.63" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="372.06" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="372.06" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="422.64" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">      </text>
+  <rect x="473.22" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="473.22" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="515.37" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+
+</g>
+<g class="frame" id="f35">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="75.87" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running </text>
+  <text x="270.90" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve"> </text>
+  <rect x="279.33" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="279.33" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="329.91" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="338.34" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="338.34" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="388.92" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve"> </text>
+  <rect x="397.35" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="397.35" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="439.50" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="439.50" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="481.65" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="481.65" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f36">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <rect x="321.48" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="321.48" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="372.06" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="380.49" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="380.49" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <rect x="431.07" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="431.07" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="473.22" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="473.22" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="515.37" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f37">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="338.34" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="338.34" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="388.92" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="397.35" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="397.35" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="447.93" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">  </text>
+  <rect x="464.79" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="464.79" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="506.94" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="506.94" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="549.09" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="549.09" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f38">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="355.20" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="355.20" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="405.78" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="414.21" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="414.21" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="464.79" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">    </text>
+  <rect x="498.51" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="498.51" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="540.66" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="540.66" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="582.81" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="582.81" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f39">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">      </text>
+  <rect x="372.06" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="372.06" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="422.64" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="431.07" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="431.07" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="481.65" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">      </text>
+  <rect x="532.23" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="532.23" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="574.38" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="574.38" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="616.53" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="616.53" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f40">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">        </text>
+  <rect x="388.92" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="388.92" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="439.50" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="447.93" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="447.93" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="498.51" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">        </text>
+  <rect x="565.95" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="565.95" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="608.10" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="608.10" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="650.25" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="650.25" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f41">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">          </text>
+  <rect x="405.78" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="405.78" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="456.36" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="464.79" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="464.79" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="515.37" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">          </text>
+  <rect x="599.67" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="599.67" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="641.82" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="641.82" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="683.97" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="683.97" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f42">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">            </text>
+  <rect x="422.64" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="422.64" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="473.22" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="481.65" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="481.65" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="532.23" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">            </text>
+  <rect x="633.39" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="633.39" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="675.54" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="675.54" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="717.69" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="717.69" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f43">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">              </text>
+  <rect x="439.50" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="439.50" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="490.08" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="498.51" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="498.51" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="549.09" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">              </text>
+  <rect x="667.11" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="667.11" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="709.26" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="709.26" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="751.41" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="751.41" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f44">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="456.36" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="456.36" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="506.94" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="515.37" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="565.95" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="700.83" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="700.83" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="742.98" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="742.98" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="785.13" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="785.13" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f45">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="456.36" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="456.36" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="506.94" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="515.37" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="565.95" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="700.83" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="700.83" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="742.98" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="742.98" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="785.13" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="785.13" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f46">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="456.36" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="456.36" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="506.94" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="515.37" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="565.95" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="700.83" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="700.83" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="742.98" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="742.98" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="785.13" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="785.13" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f47">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="456.36" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="456.36" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="506.94" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="515.37" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="565.95" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="700.83" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="700.83" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="742.98" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="742.98" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="785.13" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="785.13" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f48">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="456.36" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="456.36" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="506.94" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="515.37" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="565.95" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="700.83" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="700.83" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="742.98" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="742.98" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="785.13" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="785.13" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f49">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="456.36" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="456.36" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="506.94" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="515.37" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="565.95" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="700.83" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="700.83" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="742.98" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="742.98" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="785.13" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="785.13" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+<g class="frame" id="f50">
+  <rect x="18.00" y="52.00" width="84.30" height="21.00" fill="#3a3a3a"/>
+  <text x="18.00" y="67.54" fill="#bcbcbc" fill-opacity="1" font-weight="700" xml:space="preserve"> 12:34:56 </text>
+  <rect x="102.30" y="52.00" width="92.73" height="21.00" fill="#f38ba8"/>
+  <text x="102.30" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve">| session |</text>
+  <rect x="195.03" y="52.00" width="126.45" height="21.00" fill="#1e1e2e"/>
+  <text x="195.03" y="67.54" fill="#f38ba8" fill-opacity="1" xml:space="preserve"> running build </text>
+  <text x="321.48" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="456.36" y="52.00" width="50.58" height="21.00" fill="#f38ba8"/>
+  <text x="456.36" y="67.54" fill="#1e1e2e" fill-opacity="1" xml:space="preserve"> main </text>
+  <text x="506.94" y="67.54" fill="#bac2de" fill-opacity="1" xml:space="preserve">|</text>
+  <rect x="515.37" y="52.00" width="50.58" height="21.00" fill="#3a3a3a"/>
+  <text x="515.37" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> logs </text>
+  <text x="565.95" y="67.54" fill="#cdd6f4" fill-opacity="1" xml:space="preserve">                </text>
+  <rect x="700.83" y="52.00" width="42.15" height="21.00" fill="#f38ba8"/>
+  <text x="700.83" y="67.54" fill="#a6adc8" fill-opacity="1" font-weight="700" xml:space="preserve"> REC </text>
+  <rect x="742.98" y="52.00" width="42.15" height="21.00" fill="#3a3a3a"/>
+  <text x="742.98" y="67.54" fill="#bcbcbc" fill-opacity="1" xml:space="preserve"> 87% </text>
+  <rect x="785.13" y="52.00" width="109.59" height="21.00" fill="#3a3a3a"/>
+  <text x="785.13" y="67.54" fill="#a6adc8" fill-opacity="1" xml:space="preserve"> ~d/c/t/pixy </text>
+
+</g>
+</svg>

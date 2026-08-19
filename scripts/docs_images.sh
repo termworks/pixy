@@ -58,4 +58,6 @@ frame responsive "one zone, four widths" "$tmp/responsive.ansi"
   --context-json '{"values":{"sprite_name":"pikachu","sprite_position":"center"}}' --now-ms 0 >"$tmp/sprite.ansi"
 frame sprite "surface" "$tmp/sprite.ansi"
 
+bash scripts/docs_anim.sh docs/images/responsive.svg
+
 printf 'docs images written\n'

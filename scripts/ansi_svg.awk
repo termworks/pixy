@@ -139,6 +139,7 @@ BEGIN {
 }
 
 END {
+    if (bare != "") { printf "%s", body; exit }
     if (rows == "") rows = line
     if (cols == "") cols = maxcol
     w = cols * cw + pad * 2
