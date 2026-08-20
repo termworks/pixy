@@ -24,6 +24,9 @@ CFLAGS_COMMON := $(WARNINGS) $(INCLUDES) $(DEFINES) -std=c11
 CFLAGS_DEBUG := $(CFLAGS_COMMON) -g -O0
 CFLAGS_RELEASE := $(CFLAGS_COMMON) -O2 -DNDEBUG
 LDLIBS := -lm
+# musl-gcc links dynamically by default; a release binary should need nothing
+# on the target machine at all.
+LDFLAGS ?=
 
 ifneq ($(TARGET),)
     CC_TARGET := -target $(TARGET)
@@ -74,11 +77,11 @@ $(BUILD)/pixy: $(PIXY_SRC) $(LUA_SRC) $(MINIZ_SRC) $(GENERATED) $(BUILD)/pokemon
 
 release-build: $(PIXY_SRC) $(LUA_SRC) $(MINIZ_SRC) $(GENERATED) $(BUILD)/pokemon.pack
 	@mkdir -p $(BUILD)
-	@$(CC) $(CC_TARGET) $(CFLAGS_RELEASE) -o $(BUILD)/pixy $(PIXY_SRC) $(GENERATED) $(LUA_SRC) $(MINIZ_SRC) $(LDLIBS)
+	@$(CC) $(CC_TARGET) $(CFLAGS_RELEASE) $(LDFLAGS) -o $(BUILD)/pixy $(PIXY_SRC) $(GENERATED) $(LUA_SRC) $(MINIZ_SRC) $(LDLIBS)
 	@strip $(BUILD)/pixy 2>/dev/null || true
 
 release-musl:
-	@$(MAKE) --no-print-directory release-build TARGET=$(MUSL_TARGET)
+	@$(MAKE) --no-print-directory release-build TARGET=$(MUSL_TARGET) LDFLAGS="-static $(LDFLAGS)"
 
 run: build
 	@$(BUILD)/pixy $(ARGS)

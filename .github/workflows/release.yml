@@ -29,9 +29,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes musl-tools clang
       - name: Build
-        run: make release-build example-pack CC=${{ matrix.cc }}
+        run: make release-build example-pack CC=${{ matrix.cc }} LDFLAGS=-static
       - name: Check the artifact is complete
-        run: make package-check CC=${{ matrix.cc }}
+        run: make package-check CC=${{ matrix.cc }} LDFLAGS=-static
       - name: Check the binary is static
         run: |
           file build/pixy
