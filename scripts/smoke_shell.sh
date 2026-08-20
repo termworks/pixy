@@ -36,6 +36,12 @@ grep -q '\$language' "$tmp/oslo"
 grep -q '\$vimode' "$tmp/oslo"
 grep -q 'timeout_ms = 10' "$tmp/oslo"
 grep -q 'async = true' "$tmp/oslo"
+
+# Every integration defines its colours once and selects the slot per prompt.
+for integration in bash zsh fish oslo; do
+  grep -q 'palette set' "$tmp/$integration"
+  grep -q -- '--palette' "$tmp/$integration"
+done
 "$pixy" render prompt.left --config "$tmp/hexe-oslo.lua" --target plain --width 20 \
   --context-file tests/fixtures/contexts/hexe-oslo.json --now-ms 0 >"$tmp/hexe-oslo.prompt"
 grep -qx ' bresilla  7  λ ' "$tmp/hexe-oslo.prompt"
@@ -49,5 +55,16 @@ done
 grep -Fq '\[' "$tmp/prompt.bash"
 grep -Fq '%{' "$tmp/prompt.zsh"
 grep -q 'rust' "$tmp/prompt.fish"
+
+# A prompt claims the slot and releases it, with the sequences marked invisible
+# so the shell does not count them as printable width.
+"$pixy" render prompt.left --target bash --palette --set cwd=/work/project >"$tmp/palette.bash"
+"$pixy" render prompt.left --target zsh --palette --set cwd=/work/project >"$tmp/palette.zsh"
+osc=$'\033]1330'
+st=$'\033\\'
+grep -Fq "\\[${osc};use;2${st}\\]" "$tmp/palette.bash"
+grep -Fq "\\[${osc};end${st}\\]" "$tmp/palette.bash"
+grep -Fq "%{${osc};use;2${st}%}" "$tmp/palette.zsh"
+grep -Fq "%{${osc};end${st}%}" "$tmp/palette.zsh"
 
 printf 'shell smoke ok\n'

@@ -1,6 +1,6 @@
 oslo.prompt.left = {
   command = "pixy",
-  args = { "render", "prompt.left", "--target=ansi",
+  args = { "render", "prompt.left", "--target=ansi", "--palette",
            "--set", "status=$status", "--set", "duration_ms=$duration_ms",
            "--set", "jobs=$jobs", "--set", "language=$language",
            "--set", "vimode=$vimode" },
@@ -10,9 +10,13 @@ oslo.prompt.left = {
 
 oslo.prompt.right = {
   command = "pixy",
-  args = { "render", "prompt.right", "--target=ansi",
+  args = { "render", "prompt.right", "--target=ansi", "--palette",
            "--set", "status=$status", "--set", "language=$language",
            "--set", "vimode=$vimode" },
   timeout_ms = 10,
   async = true,
 }
+
+-- The colours the pixy config declares, emitted once at load; the `--palette`
+-- above then only selects the slot, which costs two sequences a prompt.
+os.execute("pixy palette set")

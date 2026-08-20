@@ -200,6 +200,51 @@ equals "a closed pipe is quiet" 0 "${PIPESTATUS[0]}"
 equals "render writes no trailing newline" "1" \
   "$("$pixy" render prompt.left --config "$config" --target plain --context-file "$context" | wc -l | tr -d ' ' | sed 's/^0$/1/')"
 
+# ---- palette namespaces --------------------------------------------------------
+
+esc=$'\033'
+st=$'\033\\'
+palette() { "$pixy" palette "$@" 2>&1; }
+
+equals "use claims a slot" "${esc}]1330;use;4${st}" "$(palette use --slot 4)"
+equals "end releases it" "${esc}]1330;end${st}" "$(palette end)"
+equals "ask is the capability query" "${esc}]1330;ask${st}" "$(palette ask)"
+equals "reset forgets a slot" "${esc}]1330;reset;4${st}" "$(palette reset --slot 4)"
+equals "a star addresses every slot in use" "${esc}]1330;set;*;7=#ff00aa${st}" \
+  "$(palette set --slot '*' 7=#ff00aa)"
+equals "hexe spells the flag --ns" "${esc}]1330;use;4${st}" "$(palette use --ns 4)"
+equals "set patches named entries only" "${esc}]1330;set;2;1=#ff5555;bg=#0a0a0a${st}" \
+  "$(palette set 1=#ff5555 bg=#0a0a0a)"
+equals "the OSC number follows the terminal" "${esc}]1400;use;4${st}" \
+  "$(HEXE_PALETTE_OSC=1400 palette use --slot 4)"
+
+# Slot 0 is the ordinary palette and slot 1 the terminal's own chrome: both can
+# be themed, neither can be claimed, or output would be tagged as someone else's.
+exits "use refuses the ordinary palette" 2 palette use --slot 0
+exits "use refuses the terminal's chrome" 2 palette use --slot 1
+exits "use refuses a slot past the last" 2 palette use --slot 32
+exits "set themes the ordinary palette" 0 palette set --slot 0 1=#c04040
+exits "set themes the terminal's chrome" 0 palette set --slot 1 237=#123456
+exits "a colour may not carry a separator" 2 palette set 1='#ff00aa;boom'
+exits "a key is an index or a name" 2 palette set 300=#ff00aa
+exits "cursor is a key" 0 palette set cursor=#00ff88
+exits "rgb: is a colour" 0 palette set 1=rgb:ff/00/aa
+
+# A prompt claims the slot the config declares, so the startup `set` and the
+# per-prompt `use` cannot drift apart.
+declared=tests/fixtures/palette.lua
+equals "set emits what the config declared" "${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${st}" \
+  "$("$pixy" palette set --config "$declared")"
+equals "a render claims the declared slot" \
+  "${esc}]1330;use;3${st} hi ${esc}]1330;end${st}" \
+  "$("$pixy" render prompt.left --config "$declared" --target plain --palette)"
+equals "an explicit slot wins over the config" \
+  "${esc}]1330;use;9${st} hi ${esc}]1330;end${st}" \
+  "$("$pixy" render prompt.left --config "$declared" --target plain --palette 9)"
+equals "a config that declares nothing emits nothing" "" \
+  "$("$pixy" palette set --config examples/minimal.lua)"
+equals "palette help answers" 1 "$("$pixy" palette --help | grep -c '^pixy palette')"
+
 # ---- the painter socket --------------------------------------------------------
 
 socket=$(mktemp -u /tmp/pixy-test-XXXXXX.sock)

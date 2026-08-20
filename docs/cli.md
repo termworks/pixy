@@ -8,6 +8,7 @@ pixy init bash|zsh|fish|oslo|hexe-oslo
 pixy stream <names> [--fps N] [--duration MS]
 pixy pack build|check|list ...
 pixy names [<pack>]
+pixy palette set|use|end|reset|ask [--slot N] [key=colour ...]
 pixy serve [--socket PATH]
 pixy --help | --version
 ```
@@ -29,14 +30,14 @@ stdin. JSON fields replace render flags.
 Caller state reaches Lua only through repeatable `--set key=value`,
 `--context-json`, and `--context-file`, all of which land in `ctx.values`.
 There are no per-concept flags: Pixy has no opinion about what a prompt is made
-of, so a new value needs a zone that reads it and nothing in Rust. A `--set`
+of, so a new value needs a zone that reads it and nothing in the host. A `--set`
 value is read as the number, boolean, or null it spells and as text otherwise;
 an empty value is absent, so an unset shell variable reads as nil.
 
 `--context-json` and `--context-file` carry a whole context and replace what
 `--set` built, rather than merging into it: one argument describes the caller's
 state completely. To override a single value from a fixture, edit the fixture or
-drop the file argument � mixing the two means the file wins.
+drop the file argument — mixing the two means the file wins.
 
 When `--width` is absent, Pixy uses a positive inherited `COLUMNS`, then the
 controlling terminal geometry, then 80 columns.
@@ -69,6 +70,54 @@ pixy names                    # 1017 ids
 pixy names | shuf -n 1        # one, at random
 pixy names nope               # exit 2, names what is installed
 ```
+
+## Palette namespaces
+
+A palette namespace is a private 256-colour table for one region of output. A
+prompt claims a **slot**, prints, and releases it; every cell it wrote remembers
+the slot, so repainting the slot later recolours exactly that prompt — on screen
+and in scrollback — with nothing rendered again.
+
+The protocol is hexe's, documented in its `docs/palette.md`. Pixy is a client of
+it, and `pixy palette` is a front door onto the same sequences, so anything the
+CLI does a configuration can do.
+
+```sh
+pixy palette set 1=#ff5555 bg=#0a0a0a   # define colours; does not select
+pixy palette use --slot 4               # claim, until `end`
+pixy palette end                        # release
+pixy palette reset --slot 4             # forget its colours
+pixy palette ask                        # capability query
+```
+
+A slot is `0`–`31`. Slot 0 is the ordinary palette and slot 1 the terminal's own
+chrome: both can be themed, neither can be claimed, so `use` starts at 2 and
+pixy's own default slot is **2**. `*` in `set` and `reset` addresses every slot
+already in use. A key is an index `0`–`255` or `fg`, `bg`, `cursor`; a colour is
+`#rrggbb`, `rrggbb`, or `rgb:rr/gg/bb`. `set` is a patch, so indexes left unnamed
+keep passing through to the terminal's own theme.
+
+With no `key=colour` pair, `pixy palette set` emits what the configuration
+declared, which is where a prompt's colours belong:
+
+```lua
+palette = {slot = 2, [1] = "#f38ba8", [237] = "#313244", bg = "#11111b"}
+```
+
+Entries are emitted indexes-ascending then names, so the same configuration
+always writes the same bytes. A configuration that declares no palette emits
+nothing.
+
+`render --palette [N]` wraps the line in `use` and `end`, taking the slot from
+the configuration unless one is given. For `--target bash` and `--target zsh`
+the sequences are marked invisible, so the shell does not count them as
+printable width. This is what the shell integrations do, on by default: one
+`palette set` at startup, then two sequences a prompt.
+
+Every failure is benign. A terminal without support discards the sequences and
+the indexed colours render exactly as they did before, so pixy emits
+optimistically and never waits for an answer. `PIXY_PALETTE_OSC`, then
+`HEXE_PALETTE_OSC`, moves the sequences off OSC 1330 when the terminal says so.
 
 ## Help and colour
 

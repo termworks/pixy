@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "host.h"
+#include "palette.h"
 
 int pixy_bench(int argc, char **argv);
 
@@ -79,6 +80,7 @@ static void print_help(void) {
         {"names", "[<pack>]", "the vocabulary a pack can draw, one id per line"},
         {"init", "<shell>", "shell integration for bash|zsh|fish|oslo|hexe-oslo"},
         {"pack", "<build|check|list>", "build and inspect sprite packs"},
+        {"palette", "<set|use|end|...>", "colour namespaces for the output pixy writes"},
     };
     for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
         char cell[128];
@@ -105,6 +107,7 @@ static void print_help(void) {
         {"--set key=value", "a context value, repeatable"},
         {"--context-json  --context-file", "the whole context at once"},
         {"--now-ms MS", "pin the clock, so animation is reproducible"},
+        {"--palette [N]", "wrap the line in a colour namespace"},
         {"--newline", "end the output with a newline"},
         {"-h, --help  -V, --version", "this text, or the version"},
     };
@@ -166,6 +169,16 @@ static bool command_help(const char *name) {
         "list [<file>]|installed packs, or one pack's items",
         NULL,
     };
+    static const char *palette_lines[] = {
+        "set [<key>=<colour> ...]|define colours; without pairs, the config's",
+        "use|claim the slot, until end",
+        "end|release it",
+        "reset|forget a slot's colours",
+        "ask|capability query; silence means unsupported",
+        "--slot N|0-31, and 2-31 to claim; the config's by default",
+        "|a key is 0-255, fg, bg or cursor; a colour is #rrggbb",
+        NULL,
+    };
     static const char *init_lines[] = {"|prints integration text; writes nothing", NULL};
     static const char *config_lines[] = {
         "--config PATH|load this config instead of the discovered one", NULL};
@@ -185,6 +198,9 @@ static bool command_help(const char *name) {
     } else if (strcmp(name, "pack") == 0) {
         usage = "pixy pack <build|check|list>";
         lines = pack_lines;
+    } else if (strcmp(name, "palette") == 0) {
+        usage = "pixy palette <set|use|end|reset|ask> [--slot N] [<key>=<colour> ...]";
+        lines = palette_lines;
     } else if (strcmp(name, "init") == 0) {
         usage = "pixy init <bash|zsh|fish|oslo|hexe-oslo>";
         lines = init_lines;
@@ -306,6 +322,9 @@ typedef struct {
     PixyRequest request;
     char config[4096];
     bool newline;
+    bool palette;
+    long palette_slot;
+    bool palette_slot_given;
     PixyBuf context;
     unsigned fps;
     unsigned long duration_ms;
@@ -320,6 +339,7 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
     options->request.height = 1;
     options->fps = 12;
     options->duration_ms = 1000;
+    options->palette_slot = PIXY_PALETTE_DEFAULT_SLOT;
 
     PixyBuf sets = {0};
     bool first_set = true;
@@ -443,6 +463,15 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
                 }
                 free(request_body);
                 request_body = body.data;
+            }
+        } else if (strcmp(arg, "--palette") == 0) {
+            options->palette = true;
+            /* The slot is optional: without one the config decides, so a prompt
+             * and its startup `palette set` cannot drift apart. */
+            if (next && next[0] >= '0' && next[0] <= '9') {
+                options->palette_slot = strtol(next, NULL, 10);
+                options->palette_slot_given = true;
+                needs_value = true;
             }
         } else if (strcmp(arg, "--newline") == 0) {
             options->newline = true;
@@ -580,6 +609,12 @@ static int render_command(int argc, char **argv, bool selector_first) {
         free_options(&options);
         return pixy_error_code();
     }
+    if (options.palette && !options.palette_slot_given) {
+        PixyPaletteEntry *entries = NULL;
+        size_t count = 0;
+        if (pixy_engine_palette(engine, &entries, &count, &options.palette_slot)) free(entries);
+        else pixy_clear_error();
+    }
     PixyOutput output;
     if (!pixy_engine_render(engine, &options.request, &output)) {
         pixy_engine_free(engine);
@@ -587,7 +622,26 @@ static int render_command(int argc, char **argv, bool selector_first) {
         return pixy_error_code();
     }
     if (output.mode == PIXY_MODE_LINE) {
+        if (options.palette) {
+            /* Claim, print, release: every cell written between the two carries
+             * the slot, so repainting it later recolours exactly this prompt. */
+            PixyBuf sequence = {0}, wrapped = {0};
+            if (pixy_palette_use(&sequence, options.palette_slot)) {
+                pixy_palette_wrap(&wrapped, sequence.data, options.request.target);
+                fwrite(wrapped.data, 1, wrapped.len, stdout);
+            }
+            pixy_buf_free(&sequence);
+            pixy_buf_free(&wrapped);
+        }
         fwrite(output.payload.data, 1, output.payload.len, stdout);
+        if (options.palette) {
+            PixyBuf sequence = {0}, wrapped = {0};
+            pixy_palette_end(&sequence);
+            pixy_palette_wrap(&wrapped, sequence.data, options.request.target);
+            fwrite(wrapped.data, 1, wrapped.len, stdout);
+            pixy_buf_free(&sequence);
+            pixy_buf_free(&wrapped);
+        }
     } else if (output.mode == PIXY_MODE_SURFACE) {
         fwrite(output.payload.data, 1, output.payload.len, stdout);
     } else {
@@ -858,6 +912,112 @@ static int pack_command(int argc, char **argv) {
     return PIXY_EXIT_USAGE;
 }
 
+/* `pixy palette …` is a front door onto the sequences a config would emit, so
+ * anything the CLI does an application can do, byte for byte. */
+static int palette_command(int argc, char **argv) {
+    if (argc == 0) {
+        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy palette <set|use|end|reset|ask> [--slot N]");
+        return PIXY_EXIT_USAGE;
+    }
+    const char *verb = argv[0];
+    const char *config_path = NULL;
+    char slot[8];
+    snprintf(slot, sizeof(slot), "%d", PIXY_PALETTE_DEFAULT_SLOT);
+    bool slot_given = false;
+
+    PixyPaletteEntry *given = calloc(256, sizeof(PixyPaletteEntry));
+    size_t given_count = 0;
+    for (int i = 1; i < argc; i++) {
+        if ((strcmp(argv[i], "--slot") == 0 || strcmp(argv[i], "--ns") == 0) && i + 1 < argc) {
+            snprintf(slot, sizeof(slot), "%s", argv[++i]);
+            slot_given = true;
+            continue;
+        }
+        if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
+            config_path = argv[++i];
+            continue;
+        }
+        char *equals = strchr(argv[i], '=');
+        if (equals && given_count < 256) {
+            size_t key_len = (size_t)(equals - argv[i]);
+            if (key_len >= sizeof(given[0].key)) continue;
+            memcpy(given[given_count].key, argv[i], key_len);
+            given[given_count].key[key_len] = '\0';
+            snprintf(given[given_count].colour, sizeof(given[given_count].colour), "%s", equals + 1);
+            if (!pixy_palette_valid_key(given[given_count].key)) {
+                pixy_fail(PIXY_EXIT_USAGE, "'%s' is not an index 0-255, fg, bg or cursor",
+                          given[given_count].key);
+                free(given);
+                return PIXY_EXIT_USAGE;
+            }
+            if (!pixy_palette_valid_colour(given[given_count].colour)) {
+                pixy_fail(PIXY_EXIT_USAGE, "'%s' is not #rrggbb, rrggbb or rgb:rr/gg/bb",
+                          given[given_count].colour);
+                free(given);
+                return PIXY_EXIT_USAGE;
+            }
+            given_count++;
+        }
+    }
+
+    /* `*` addresses every slot already in use except the terminal's own. */
+    bool star = strcmp(slot, "*") == 0;
+    if (!star) {
+        char *stop = NULL;
+        long value = strtol(slot, &stop, 10);
+        bool selecting = strcmp(verb, "use") == 0;
+        if (!stop || *stop != '\0' || !pixy_palette_valid_slot(value, selecting)) {
+            pixy_fail(PIXY_EXIT_USAGE, "slot must be %s-%d%s", selecting ? "2" : "0",
+                      PIXY_PALETTE_MAX_SLOT, selecting ? " (0 is the palette, 1 the terminal's)" : "");
+            free(given);
+            return PIXY_EXIT_USAGE;
+        }
+    }
+
+    PixyBuf out = {0};
+    int code = 0;
+    if (strcmp(verb, "set") == 0) {
+        if (given_count == 0) {
+            /* Nothing named on the command line: emit what the config declared,
+             * which is where a prompt's colours belong. */
+            PixyEngine *engine = open_engine(config_path);
+            if (!engine) {
+                free(given);
+                return pixy_error_code();
+            }
+            PixyPaletteEntry *entries = NULL;
+            size_t count = 0;
+            long config_slot = PIXY_PALETTE_DEFAULT_SLOT;
+            bool ok = pixy_engine_palette(engine, &entries, &count, &config_slot);
+            pixy_engine_free(engine);
+            if (!ok) {
+                free(given);
+                return pixy_error_code();
+            }
+            if (!slot_given && !star) snprintf(slot, sizeof(slot), "%ld", config_slot);
+            pixy_palette_set(&out, slot, entries, count);
+            free(entries);
+        } else {
+            pixy_palette_set(&out, slot, given, given_count);
+        }
+    } else if (strcmp(verb, "use") == 0) {
+        pixy_palette_use(&out, strtol(slot, NULL, 10));
+    } else if (strcmp(verb, "end") == 0) {
+        pixy_palette_end(&out);
+    } else if (strcmp(verb, "reset") == 0) {
+        pixy_palette_reset(&out, slot);
+    } else if (strcmp(verb, "ask") == 0) {
+        pixy_palette_ask(&out);
+    } else {
+        pixy_fail(PIXY_EXIT_USAGE, "unknown palette command '%s'", verb);
+        code = PIXY_EXIT_USAGE;
+    }
+    if (code == 0 && out.len) fwrite(out.data, 1, out.len, stdout);
+    pixy_buf_free(&out);
+    free(given);
+    return code;
+}
+
 static int serve_command(int argc, char **argv) {
     const char *socket_path = NULL;
     const char *config_path = NULL;
@@ -900,6 +1060,7 @@ int pixy_main(int argc, char **argv) {
     if (strcmp(command, "names") == 0) return names_command(rest, args);
     if (strcmp(command, "init") == 0) return init_command(rest, args);
     if (strcmp(command, "pack") == 0) return pack_command(rest, args);
+    if (strcmp(command, "palette") == 0) return palette_command(rest, args);
     if (strcmp(command, "__bench") == 0) return pixy_bench(rest, args);
 
     if (valid_selector(command)) {

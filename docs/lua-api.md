@@ -70,6 +70,25 @@ left, center, and right children inside one result. `region` adds interaction
 metadata to an arbitrary node. Callers select hover and pressed appearance
 through `ctx.values.hover_region`, `press_region`, and `press_button`.
 
+## Palette
+
+A config may declare the colours its indexes should resolve to, alongside the
+slot the prompt claims:
+
+```lua
+palette = {slot = 2, [1] = "#f38ba8", [237] = "#313244", bg = "#11111b"},
+```
+
+Keys are indexes `0`–`255` or `fg`, `bg`, `cursor`; colours are `#rrggbb`,
+`rrggbb`, or `rgb:rr/gg/bb`; the slot is `2`–`31`, since 0 is the ordinary
+palette and 1 the terminal's own chrome. Anything else is a config error, named
+with the key that caused it.
+
+`pixy palette set` emits the table and `render --palette` claims the slot, so a
+zone keeps naming plain indexes while the exact shades stay pixy's rather than
+the terminal theme's — and stay repaintable afterwards without rendering again.
+Declaring no palette is normal and costs nothing. See [the CLI](cli.md#palette-namespaces).
+
 ## Run style grammar
 
 Each run and interaction style is a space-separated list of `fg:<color>`,

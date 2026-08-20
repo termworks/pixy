@@ -74,10 +74,27 @@ compare "check" check --config "$config"
 compare "names" names
 compare "names unknown" names definitely-not-a-pack
 compare "pack list" pack list
-compare "init bash" init bash
-compare "init zsh" init zsh
-compare "init fish" init fish
-compare "init oslo" init oslo
+# The integrations gained palette namespaces, which the reference predates. Take
+# the palette back out and the rest must still match it line for line, so the
+# one intended difference stays the only one.
+compare_without_palette() {
+  local shell=$1 left right
+  left=$("$reference" init "$shell" 2>&1)
+  right=$("$candidate" init "$shell" 2>&1 | sed \
+    -e 's/ --palette//' -e 's/, "--palette"//' \
+    -e '/^command pixy palette set$/d' \
+    -e '/^-- The colours the pixy config declares/,/^os.execute("pixy palette set")$/d')
+  if [ "$left" = "$right" ]; then
+    pass=$((pass + 1))
+  else
+    fail=$((fail + 1))
+    printf 'DIFF init %s beyond the palette\n  reference: %s\n  candidate: %s\n' "$shell" "$left" "$right"
+  fi
+}
+
+for shell in bash zsh fish oslo; do
+  compare_without_palette "$shell"
+done
 compare "init hexe-oslo" init hexe-oslo
 # The version is expected to differ from an older reference; only its shape is
 # part of the contract.

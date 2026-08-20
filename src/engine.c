@@ -10,8 +10,9 @@
 #include "lauxlib.h"
 #include "lua.h"
 #include "lualib.h"
+#include "palette.h"
 
-/* Generated from lua/pixy/**.lua at build time. */
+/* Generated from the lua/pixy tree at build time. */
 extern const PixyModule PIXY_MODULES[];
 extern const size_t PIXY_MODULE_COUNT;
 
@@ -685,5 +686,108 @@ bool pixy_engine_inventory(PixyEngine *engine, char ***names_out, size_t *count_
     *count_out = count;
     if (zones_out) *zones_out = zones;
     if (segments_out) *segments_out = segments;
+    return true;
+}
+
+/* ------------------------------------------------------------- palette */
+
+/* A configuration may declare the colours its indexes should resolve to:
+ *
+ *   return pixy.config({
+ *     palette = {slot = 2, [1] = "#f38ba8", bg = "#11111b"},
+ *     zones = {...},
+ *   })
+ *
+ * pixy never picks colours itself; it only carries what the Lua named.
+ */
+static int compare_palette_entries(const void *left, const void *right) {
+    const PixyPaletteEntry *a = left, *b = right;
+    bool a_index = a->key[0] >= '0' && a->key[0] <= '9';
+    bool b_index = b->key[0] >= '0' && b->key[0] <= '9';
+    if (a_index != b_index) return a_index ? -1 : 1;
+    if (a_index) return (int)(atol(a->key) - atol(b->key));
+    return strcmp(a->key, b->key);
+}
+
+bool pixy_engine_palette(PixyEngine *engine, PixyPaletteEntry **entries_out, size_t *count_out,
+                         long *slot_out) {
+    lua_State *L = engine->L;
+    *entries_out = NULL;
+    *count_out = 0;
+    if (slot_out) *slot_out = PIXY_PALETTE_DEFAULT_SLOT;
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, engine->config_ref);
+    lua_getfield(L, -1, "palette");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 2);
+        return true;
+    }
+    int palette = lua_gettop(L);
+
+    lua_getfield(L, palette, "slot");
+    if (lua_isnumber(L, -1)) {
+        long slot = (long)lua_tointeger(L, -1);
+        if (!pixy_palette_valid_slot(slot, true)) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: palette slot %ld is not claimable; use 2-%d",
+                      engine->source_name, slot, PIXY_PALETTE_MAX_SLOT);
+            lua_pop(L, 3);
+            return false;
+        }
+        if (slot_out) *slot_out = slot;
+    }
+    lua_pop(L, 1);
+
+    size_t capacity = 16, count = 0;
+    PixyPaletteEntry *entries = calloc(capacity, sizeof(PixyPaletteEntry));
+    if (!entries) {
+        lua_pop(L, 2);
+        return false;
+    }
+
+    lua_pushnil(L);
+    while (lua_next(L, palette) != 0) {
+        char key[16] = {0};
+        if (lua_type(L, -2) == LUA_TNUMBER) {
+            snprintf(key, sizeof(key), "%lld", (long long)lua_tointeger(L, -2));
+        } else if (lua_type(L, -2) == LUA_TSTRING) {
+            snprintf(key, sizeof(key), "%s", lua_tostring(L, -2));
+        }
+        if (strcmp(key, "slot") == 0 || !lua_isstring(L, -1)) {
+            lua_pop(L, 1);
+            continue;
+        }
+        const char *colour = lua_tostring(L, -1);
+        if (!pixy_palette_valid_key(key)) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: palette key \"%s\" is not an index 0-255, fg, bg or cursor",
+                      engine->source_name, key);
+            free(entries);
+            lua_pop(L, 4);
+            return false;
+        }
+        if (!pixy_palette_valid_colour(colour)) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: palette colour \"%s\" for %s is not #rrggbb",
+                      engine->source_name, colour, key);
+            free(entries);
+            lua_pop(L, 4);
+            return false;
+        }
+        if (count == capacity) {
+            capacity *= 2;
+            PixyPaletteEntry *grown = realloc(entries, capacity * sizeof(PixyPaletteEntry));
+            if (!grown) break;
+            entries = grown;
+        }
+        snprintf(entries[count].key, sizeof(entries[count].key), "%s", key);
+        snprintf(entries[count].colour, sizeof(entries[count].colour), "%s", colour);
+        count++;
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 2);
+    /* Lua hands a table back in hash order, which would make the same config
+     * emit a different sequence between runs. Indexes ascending then the names
+     * keeps a replay byte-identical and a diff readable. */
+    qsort(entries, count, sizeof(entries[0]), compare_palette_entries);
+    *entries_out = entries;
+    *count_out = count;
     return true;
 }
