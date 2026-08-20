@@ -24,7 +24,7 @@ render() {
 
 frame() {
   local name=$1 title=$2 source=$3
-  awk -f scripts/ansi_svg.awk -v title="$title" "$source" >"$tmp/$name.svg"
+  awk -f scripts/ansi_svg.awk "$source" >"$tmp/$name.svg"
   resvg --zoom 2 "$tmp/$name.svg" "$out/$name.png"
   printf '  %s\n' "$out/$name.png"
 }

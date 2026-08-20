@@ -1,12 +1,12 @@
-# Turns ANSI output into an SVG terminal frame, for the images in README.md.
+# Turns ANSI output into an SVG of the line itself — no window frame, no title.
 #
 #   pixy render prompt.left --target ansi | awk -f scripts/ansi_svg.awk >frame.svg
 #
-# Variables: cols, rows, title, pad, fs (font size), cw (cell width), lh (line height).
+# Variables: cols, rows, pad, fs (font size), cw (cell width), lh (line height).
 
 function hex2(n) { return sprintf("%02x", n) }
 
-function palette(i,   r, g, b, level, n) {
+function palette(i,   r, g, b, n) {
     if (i < 16) return base[i]
     if (i > 231) { n = 8 + 10 * (i - 232); return "#" hex2(n) hex2(n) hex2(n) }
     i -= 16
@@ -55,11 +55,11 @@ function blocks(   i, ch, only) {
 }
 
 function tile(   i, ch, x, y, half) {
-    y = originy + line * lh
+    y = pad + line * lh
     half = lh / 2
     for (i = 1; i <= length(run); i++) {
         ch = substr(run, i, 1)
-        x = originx + (col + i - 1) * cw
+        x = pad + (col + i - 1) * cw
         if (bg != "") body = body sprintf("  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" fill=\"%s\"/>\n", x, y, cw, lh, bg)
         if (ch == "█") body = body sprintf("  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" fill=\"%s\"/>\n", x, y, cw, lh, fg)
         else if (ch == "▀") body = body sprintf("  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" fill=\"%s\"/>\n", x, y, cw, half, fg)
@@ -73,15 +73,15 @@ function tile(   i, ch, x, y, half) {
 function flush(   x, w, style) {
     if (run == "") return
     if (fg != "" && blocks()) { tile(); return }
-    x = originx + col * cw
+    x = pad + col * cw
     w = length(run) * cw
-    if (bg != "") body = body sprintf("  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" fill=\"%s\"/>\n", x, originy + line * lh, w, lh, bg)
+    if (bg != "") body = body sprintf("  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" fill=\"%s\"/>\n", x, pad + line * lh, w, lh, bg)
     style = ""
     if (bold) style = style " font-weight=\"700\""
     if (italic) style = style " font-style=\"italic\""
     if (under) style = style " text-decoration=\"underline\""
     body = body sprintf("  <text x=\"%.2f\" y=\"%.2f\" fill=\"%s\" fill-opacity=\"%s\"%s xml:space=\"preserve\">%s</text>\n",
-        x, originy + line * lh + lh * 0.74, (fg == "" ? fgdefault : fg), (dim ? "0.55" : "1"), style, escape(run))
+        x, pad + line * lh + lh * 0.74, (fg == "" ? fgdefault : fg), (dim ? "0.55" : "1"), style, escape(run))
     col += length(run)
     if (col > maxcol) maxcol = col
     run = ""
@@ -95,17 +95,15 @@ BEGIN {
     for (i = 0; i < 6; i++) cube[i] = cube[i + 1]
 
     if (cw == "") cw = 8.43
-    if (lh == "") lh = 21
+    if (lh == "") lh = 22
     if (fs == "") fs = 14
-    if (pad == "") pad = 18
+    if (pad == "") pad = 10
     maxcol = 0
-    bar = (title == "" ? 0 : 34)
     fgdefault = "#cdd6f4"
-    originx = pad
-    originy = pad + bar
     line = 0; col = 0; run = ""
     reset()
     body = ""
+    ground = ""
 }
 
 {
@@ -135,28 +133,23 @@ BEGIN {
         }
     }
     flush()
+    # Each line gets a ground exactly as wide as the line. Lines of different
+    # widths then read as separate lines instead of one ragged block.
+    if (col > 0) {
+        ground = ground sprintf("  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" fill=\"#181825\"/>\n",
+            pad, pad + line * lh, col * cw, lh)
+    }
     line++
 }
 
 END {
-    if (bare != "") { printf "%s", body; exit }
     if (rows == "") rows = line
     if (cols == "") cols = maxcol
     w = cols * cw + pad * 2
-    if (bar > 0 && w < pad + 60 + length(title) * 7.3 + pad) w = pad + 60 + length(title) * 7.3 + pad
-    h = rows * lh + pad * 2 + bar
+    h = rows * lh + pad * 2
     print "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
     printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%.0f\" height=\"%.0f\" viewBox=\"0 0 %.0f %.0f\" font-family=\"DejaVu Sans Mono, monospace\" font-size=\"%d\">\n", w, h, w, h, fs
-    printf "  <rect width=\"%.0f\" height=\"%.0f\" rx=\"10\" fill=\"#181825\"/>\n", w, h
-    if (bar > 0) {
-        printf "  <circle cx=\"%d\" cy=\"17\" r=\"6\" fill=\"#f38ba8\"/>\n", pad + 2
-        printf "  <circle cx=\"%d\" cy=\"17\" r=\"6\" fill=\"#f9e2af\"/>\n", pad + 22
-        printf "  <circle cx=\"%d\" cy=\"17\" r=\"6\" fill=\"#a6e3a1\"/>\n", pad + 42
-        title_x = w / 2
-        anchor = "middle"
-        if (title_x < pad + 78) { title_x = pad + 60; anchor = "start" }
-        printf "  <text x=\"%.0f\" y=\"22\" fill=\"#6c7086\" text-anchor=\"%s\" font-size=\"12\">%s</text>\n", title_x, anchor, escape(title)
-    }
+    printf "%s", ground
     printf "%s", body
     print "</svg>"
 }

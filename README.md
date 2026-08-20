@@ -144,7 +144,7 @@ pixy render overlay --config examples/hexe-oslo.lua --mode surface \
   --width 34 --height 16 --context-json '{"values":{"sprite_name":"pikachu"}}'
 ```
 
-<img src="docs/images/sprite.png" alt="a truecolor sprite" width="360">
+<img src="docs/images/sprite.png" alt="a truecolor sprite" width="240">
 
 ## Install
 
