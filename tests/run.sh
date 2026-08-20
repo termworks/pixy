@@ -193,9 +193,16 @@ equals "a typo names the commands" 1 \
   "$("$pixy" frobnicate 2>&1 | grep -c 'no zone or command named')"
 equals "diagnostics go to stderr" "" "$("$pixy" render nope --config "$config" 2>/dev/null)"
 
-# `pixy names | head` closes the pipe early and must exit quietly.
+# `pixy names | head` closes the pipe early and must exit quietly. Quiet means
+# saying nothing, not any one status: whether the writer finishes into the pipe
+# buffer first (0) or is killed by SIGPIPE (141) is a race, and dying on SIGPIPE
+# is what every other filter does.
+noise=$("$pixy" names 2>&1 >/dev/null | head -1)
 "$pixy" names 2>/dev/null | head -1 >/dev/null
-equals "a closed pipe is quiet" 0 "${PIPESTATUS[0]}"
+case "${PIPESTATUS[0]}" in
+  0 | 141) equals "a closed pipe is quiet" "" "$noise" ;;
+  *) bad "a closed pipe is quiet" "exit 0 or 141" "exit ${PIPESTATUS[0]}" ;;
+esac
 
 equals "render writes no trailing newline" "1" \
   "$("$pixy" render prompt.left --config "$config" --target plain --context-file "$context" | wc -l | tr -d ' ' | sed 's/^0$/1/')"
@@ -244,6 +251,65 @@ equals "an explicit slot wins over the config" \
 equals "a config that declares nothing emits nothing" "" \
   "$("$pixy" palette set --config examples/minimal.lua)"
 equals "palette help answers" 1 "$("$pixy" palette --help | grep -c '^pixy palette')"
+
+# A slot that cannot be claimed has to fail before anything is written. Emitting
+# the release without the claim would pop whatever namespace the surrounding
+# application was holding, and mis-colour the rest of its output.
+for slot in 0 1 32 99 -1 abc 2.5; do
+  exits "--palette $slot is refused, not half-applied" 2 \
+    render prompt.left --config "$declared" --target plain --palette "$slot"
+done
+equals "nothing is written when the slot is refused" "" \
+  "$("$pixy" render prompt.left --config "$declared" --target plain --palette 99 2>/dev/null)"
+exits "--palette is refused where it cannot be carried" 2 \
+  render prompt.left --config "$declared" --mode run --palette
+
+# Anything that writes cells can claim a slot, and each claim is released. A
+# surface is always ANSI, so only the wrapper is pinned here.
+surface=$("$pixy" render prompt.left --config "$declared" --mode surface --palette)
+equals "a surface claims the slot too" "yes" \
+  "$(case $surface in "${esc}]1330;use;3${st}"*"${esc}]1330;end${st}") echo yes ;; *) echo "$surface" ;; esac)"
+# How many frames a stream writes is a matter of timing; that every one of them
+# is released is not.
+stream=$("$pixy" stream work --config examples/spinner.lua --palette 4 --fps 20 --duration 200 2>/dev/null)
+claims=$(printf '%s' "$stream" | grep -o "${esc}]1330;use;4" | wc -l | tr -d ' ')
+releases=$(printf '%s' "$stream" | grep -o "${esc}]1330;end" | wc -l | tr -d ' ')
+equals "every stream frame is balanced" "balanced" \
+  "$([ "$claims" -ge 1 ] && [ "$claims" = "$releases" ] && echo balanced || echo "$claims/$releases")"
+
+# Arguments are checked whole. A truncated one would silently address something
+# else: `--slot 00000002` cut short is slot 0, the whole pane's palette.
+equals "a padded slot addresses the slot it spells" "${esc}]1330;set;2;1=#ff0000${st}" \
+  "$(palette set --slot 00000002 1=#ff0000)"
+exits "an overlong slot is refused" 2 palette set --slot 000000000000000002 1=#ff0000
+exits "an overlong entry is refused" 2 palette set 1=#ffffffffffffffffffffffffffffffffffff
+exits "a typo is not silently ignored" 2 palette set nonsense
+exits "--slot needs a value" 2 palette use --slot
+exits "--config needs a value" 2 palette set --config
+exits "use takes one slot, not every slot" 2 palette use --slot '*'
+exits "end takes no slot" 2 palette end --slot 4
+exits "ask takes no slot" 2 palette ask --slot 4
+
+# A config declaring a broken palette is named, never guessed at.
+broken() {
+  printf 'local pixy = require("pixy")\nreturn pixy.config({palette = %s, zones = {z = pixy.zone({pixy.segment("s", function() return pixy.text("x") end)})}})\n' "$1" >"$tmpdir/broken.lua"
+}
+tmpdir=$(mktemp -d)
+for bad in '"blue"' '{[1.5] = "#ff0000"}' '{[1] = 16711680}' '{[1] = true}' '{[1] = {}}' '{slot = 2.7}' '{slot = 1}' '{slot = 99}'; do
+  broken "$bad"
+  exits "palette $bad is a config error" 3 palette set --config "$tmpdir/broken.lua"
+  exits "check reports palette $bad" 3 check --config "$tmpdir/broken.lua"
+  # A prompt that stops drawing is worse than one wearing the terminal's colours,
+  # so a render forgives what check refuses.
+  exits "a render survives palette $bad" 0 \
+    render z --config "$tmpdir/broken.lua" --target plain --palette
+done
+rm -rf "$tmpdir"
+
+equals "check counts the palette it accepts" 1 \
+  "$("$pixy" check --config "$declared" | grep -c '2 palette colours in slot 3')"
+equals "check stays quiet without one" 0 \
+  "$("$pixy" check --config examples/minimal.lua | grep -c palette)"
 
 # ---- the painter socket --------------------------------------------------------
 

@@ -25,3 +25,5 @@ jobs:
         env:
           PIXY_BENCH_SCALE: "3"
         run: make smoke smoke-shell bench package-check
+      - name: Sanitizers and fuzz
+        run: make sanitize fuzz ROUNDS=400

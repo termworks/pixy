@@ -79,10 +79,17 @@ slot the prompt claims:
 palette = {slot = 2, [1] = "#f38ba8", [237] = "#313244", bg = "#11111b"},
 ```
 
-Keys are indexes `0`–`255` or `fg`, `bg`, `cursor`; colours are `#rrggbb`,
-`rrggbb`, or `rgb:rr/gg/bb`; the slot is `2`–`31`, since 0 is the ordinary
-palette and 1 the terminal's own chrome. Anything else is a config error, named
-with the key that caused it.
+Keys are whole numbers `0`–`255` or `fg`, `bg`, `cursor`; colours are strings
+spelling `#rrggbb`, `rrggbb`, or `rgb:rr/gg/bb`; the slot is a whole number
+`2`–`31`, since 0 is the ordinary palette and 1 the terminal's own chrome.
+Anything else is a config error naming the key that caused it, rather than a
+value quietly reinterpreted — `[1.5]` is not index 1, and `16711680` is not a
+colour.
+
+`pixy check` reports the palette it accepts and refuses a broken one. A render
+does not: a prompt that stops drawing is worse than a prompt wearing the
+terminal's own colours, so `render --palette` falls back to the default slot and
+draws anyway. `check` is therefore where a mistake surfaces.
 
 `pixy palette set` emits the table and `render --palette` claims the slot, so a
 zone keeps naming plain indexes while the exact shades stay pixy's rather than

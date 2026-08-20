@@ -108,11 +108,21 @@ Entries are emitted indexes-ascending then names, so the same configuration
 always writes the same bytes. A configuration that declares no palette emits
 nothing.
 
-`render --palette [N]` wraps the line in `use` and `end`, taking the slot from
-the configuration unless one is given. For `--target bash` and `--target zsh`
-the sequences are marked invisible, so the shell does not count them as
-printable width. This is what the shell integrations do, on by default: one
-`palette set` at startup, then two sequences a prompt.
+`--palette [N]` wraps the output in `use` and `end`, taking the slot from the
+configuration unless one is given. It applies to anything that writes cells —
+`render --mode line`, `--mode surface`, and every frame of `stream`, wrapped
+frame by frame so a stream killed mid-flight leaves no slot claimed. For
+`--target bash` and `--target zsh` the sequences are marked invisible, so the
+shell does not count them as printable width. This is what the shell
+integrations do, on by default: one `palette set` at startup, then two sequences
+a prompt. Run mode is a description for a host that paints for itself and has
+nowhere to carry a sequence, so `--mode run --palette` is a usage error rather
+than a flag that quietly does nothing.
+
+An unclaimable slot is refused before anything is written. Half-applying it —
+emitting the release without the claim — would pop whatever namespace the
+surrounding application was holding and mis-colour the rest of its output, so
+`--palette 1` and `--palette 99` are usage errors, not silent no-ops.
 
 Every failure is benign. A terminal without support discards the sequences and
 the indexed colours render exactly as they did before, so pixy emits

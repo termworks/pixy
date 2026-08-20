@@ -9,6 +9,7 @@ TARGET ?=
 MUSL_TARGET ?= $(shell uname -m)-unknown-linux-musl
 BUILD := build
 ARGS ?=
+ROUNDS ?= 1000
 PREFIX ?= $(HOME)/.local
 
 HAS_REL := $(shell command -v git-rel 2>/dev/null)
@@ -23,6 +24,7 @@ DEFINES  := -DLUA_USE_POSIX -D_GNU_SOURCE -DPIXY_VERSION_STRING=\"$(PROJECT_VERS
 CFLAGS_COMMON := $(WARNINGS) $(INCLUDES) $(DEFINES) -std=c11
 CFLAGS_DEBUG := $(CFLAGS_COMMON) -g -O0
 CFLAGS_RELEASE := $(CFLAGS_COMMON) -O2 -DNDEBUG
+CFLAGS_SANITIZE := $(CFLAGS_COMMON) -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer
 LDLIBS := -lm
 # musl-gcc links dynamically by default; a release binary should need nothing
 # on the target machine at all.
@@ -44,7 +46,7 @@ LUA_MODULES := lua/pixy/style.lua lua/pixy/nodes.lua lua/pixy/layout.lua lua/pix
                lua/pixy/segments/system.lua lua/pixy/segments/progress.lua lua/pixy/init.lua
 
 .PHONY: build b compile c run r test t check fmt fmt-check clean verify smoke smoke-shell bench \
-        package-check example-pack release-build release-musl docs-images install release help h
+        package-check example-pack release-build release-musl sanitize fuzz docs-images install release help h
 
 build: $(BUILD)/pixy
 b: build
@@ -82,6 +84,21 @@ release-build: $(PIXY_SRC) $(LUA_SRC) $(MINIZ_SRC) $(GENERATED) $(BUILD)/pokemon
 
 release-musl:
 	@$(MAKE) --no-print-directory release-build TARGET=$(MUSL_TARGET) LDFLAGS="-static $(LDFLAGS)"
+
+# The suite again, against a binary that traps what a release build carries
+# silently. Slower, so it is its own target rather than part of `test`.
+$(BUILD)/pixy-sanitize: $(PIXY_SRC) $(LUA_SRC) $(MINIZ_SRC) $(GENERATED) $(BUILD)/pokemon.pack
+	@mkdir -p $(BUILD)
+	@$(CC) $(CC_TARGET) $(CFLAGS_SANITIZE) -o $@ $(PIXY_SRC) $(GENERATED) $(LUA_SRC) $(MINIZ_SRC) $(LDLIBS)
+
+sanitize: $(BUILD)/pixy-sanitize
+	@PIXY=$(BUILD)/pixy-sanitize PIXY_BIN=$(BUILD)/pixy-sanitize \
+	  ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
+	  bash tests/run.sh
+
+fuzz: $(BUILD)/pixy-sanitize
+	@ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 \
+	  bash tests/fuzz.sh $(BUILD)/pixy-sanitize $(ROUNDS)
 
 run: build
 	@$(BUILD)/pixy $(ARGS)
@@ -147,6 +164,8 @@ help:
 	@echo "  release-musl Build a static musl binary for this arch"
 	@echo "  test         Run the test suite"
 	@echo "  verify       Format check plus tests"
+	@echo "  sanitize     The suite under address and UB sanitizers"
+	@echo "  fuzz         Random input at the palette surface"
 	@echo "  smoke        Run the CLI smoke"
 	@echo "  smoke-shell  Run the shell integration smoke"
 	@echo "  bench        Run release performance checks"

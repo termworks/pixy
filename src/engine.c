@@ -718,14 +718,28 @@ bool pixy_engine_palette(PixyEngine *engine, PixyPaletteEntry **entries_out, siz
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, engine->config_ref);
     lua_getfield(L, -1, "palette");
-    if (!lua_istable(L, -1)) {
+    if (lua_isnil(L, -1)) {
         lua_pop(L, 2);
         return true;
+    }
+    /* Declaring a palette that is not a table is a mistake worth naming: the
+     * alternative is a prompt that silently keeps the terminal's colours. */
+    if (!lua_istable(L, -1)) {
+        pixy_fail(PIXY_EXIT_CONFIG, "%s: palette must be a table, not a %s", engine->source_name,
+                  luaL_typename(L, -1));
+        lua_pop(L, 2);
+        return false;
     }
     int palette = lua_gettop(L);
 
     lua_getfield(L, palette, "slot");
-    if (lua_isnumber(L, -1)) {
+    if (!lua_isnil(L, -1)) {
+        if (!lua_isinteger(L, -1)) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: palette slot must be a whole number 2-%d",
+                      engine->source_name, PIXY_PALETTE_MAX_SLOT);
+            lua_pop(L, 3);
+            return false;
+        }
         long slot = (long)lua_tointeger(L, -1);
         if (!pixy_palette_valid_slot(slot, true)) {
             pixy_fail(PIXY_EXIT_CONFIG, "%s: palette slot %ld is not claimable; use 2-%d",
@@ -746,15 +760,41 @@ bool pixy_engine_palette(PixyEngine *engine, PixyPaletteEntry **entries_out, siz
 
     lua_pushnil(L);
     while (lua_next(L, palette) != 0) {
+        /* The key is read but never converted in place: doing that to a key
+         * mid-traversal is what breaks lua_next. */
         char key[16] = {0};
         if (lua_type(L, -2) == LUA_TNUMBER) {
+            if (!lua_isinteger(L, -2)) {
+                pixy_fail(PIXY_EXIT_CONFIG, "%s: palette index %g is not a whole number 0-255",
+                          engine->source_name, lua_tonumber(L, -2));
+                free(entries);
+                lua_pop(L, 4);
+                return false;
+            }
             snprintf(key, sizeof(key), "%lld", (long long)lua_tointeger(L, -2));
         } else if (lua_type(L, -2) == LUA_TSTRING) {
-            snprintf(key, sizeof(key), "%s", lua_tostring(L, -2));
+            const char *name = lua_tostring(L, -2);
+            if (strcmp(name, "slot") == 0) {
+                lua_pop(L, 1);
+                continue;
+            }
+            if (strlen(name) >= sizeof(key)) {
+                pixy_fail(PIXY_EXIT_CONFIG, "%s: palette key \"%s\" is not fg, bg or cursor",
+                          engine->source_name, name);
+                free(entries);
+                lua_pop(L, 4);
+                return false;
+            }
+            snprintf(key, sizeof(key), "%s", name);
         }
-        if (strcmp(key, "slot") == 0 || !lua_isstring(L, -1)) {
-            lua_pop(L, 1);
-            continue;
+        /* A number would convert to a string here and read as a colour; only a
+         * string was ever meant, so anything else is named as the error it is. */
+        if (lua_type(L, -1) != LUA_TSTRING) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: palette colour for %s must be a string, not a %s",
+                      engine->source_name, key[0] ? key : "?", luaL_typename(L, -1));
+            free(entries);
+            lua_pop(L, 4);
+            return false;
         }
         const char *colour = lua_tostring(L, -1);
         if (!pixy_palette_valid_key(key)) {
@@ -774,7 +814,12 @@ bool pixy_engine_palette(PixyEngine *engine, PixyPaletteEntry **entries_out, siz
         if (count == capacity) {
             capacity *= 2;
             PixyPaletteEntry *grown = realloc(entries, capacity * sizeof(PixyPaletteEntry));
-            if (!grown) break;
+            if (!grown) {
+                pixy_fail(PIXY_EXIT_TRANSPORT, "out of memory reading the palette");
+                free(entries);
+                lua_pop(L, 4);
+                return false;
+            }
             entries = grown;
         }
         snprintf(entries[count].key, sizeof(entries[count].key), "%s", key);
