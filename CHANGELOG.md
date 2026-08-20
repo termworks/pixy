@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.5] - 2026-08-20
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- Accept the joined --flag=value spelling
+
+### <!-- 2 -->🚜 Refactor
+
+- [**breaking**] Rewrite the host in C, keeping every config working
+
+### <!-- 7 -->⚙️ Miscellaneous Tasks
+
+- Keep sprite art under docs
+- Tidy the tree and keep the version in one line
+- Link release binaries statically
+
+## [0.1.4] - 2026-08-20
+
 ## [0.1.4] - 2026-08-20
 
 ### <!-- 0 -->⛰️  Features
