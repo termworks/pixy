@@ -143,6 +143,7 @@ END {
     if (rows == "") rows = line
     if (cols == "") cols = maxcol
     w = cols * cw + pad * 2
+    if (bar > 0 && w < pad + 60 + length(title) * 7.3 + pad) w = pad + 60 + length(title) * 7.3 + pad
     h = rows * lh + pad * 2 + bar
     print "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
     printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%.0f\" height=\"%.0f\" viewBox=\"0 0 %.0f %.0f\" font-family=\"DejaVu Sans Mono, monospace\" font-size=\"%d\">\n", w, h, w, h, fs
@@ -151,7 +152,10 @@ END {
         printf "  <circle cx=\"%d\" cy=\"17\" r=\"6\" fill=\"#f38ba8\"/>\n", pad + 2
         printf "  <circle cx=\"%d\" cy=\"17\" r=\"6\" fill=\"#f9e2af\"/>\n", pad + 22
         printf "  <circle cx=\"%d\" cy=\"17\" r=\"6\" fill=\"#a6e3a1\"/>\n", pad + 42
-        printf "  <text x=\"%.0f\" y=\"22\" fill=\"#6c7086\" text-anchor=\"middle\" font-size=\"12\">%s</text>\n", w / 2, escape(title)
+        title_x = w / 2
+        anchor = "middle"
+        if (title_x < pad + 78) { title_x = pad + 60; anchor = "start" }
+        printf "  <text x=\"%.0f\" y=\"22\" fill=\"#6c7086\" text-anchor=\"%s\" font-size=\"12\">%s</text>\n", title_x, anchor, escape(title)
     }
     printf "%s", body
     print "</svg>"

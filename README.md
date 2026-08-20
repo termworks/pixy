@@ -1,21 +1,11 @@
-<div align="center">
-
 # Pixy
 
-**Lua decides what your terminal says. Rust hosts it, bounds it, and gets out of the way.**
+Lua decides what your terminal says. Rust hosts it, bounds it, and gets out of the way.
 
 [![tests](https://github.com/termworks/pixy/actions/workflows/tests.yml/badge.svg)](https://github.com/termworks/pixy/actions/workflows/tests.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-![static musl](https://img.shields.io/badge/linux-static%20musl-informational)
-![no daemon](https://img.shields.io/badge/daemon-none-success)
 
-<img src="docs/images/responsive.svg" alt="one zone rendered at every terminal width" width="100%">
-
-*One zone. Every width. Segments drop by priority, spacers take up the slack.*
-
-</div>
-
----
+![a pixy prompt](docs/images/prompt.png)
 
 Pixy paints prompts, status bars, titles and sprites. A Lua config defines named
 **zones** made of ordered named **segments**; a caller asks for a whole zone or a
@@ -24,82 +14,12 @@ bounded terminal surface.
 
 What a prompt *is* lives entirely in your Lua. Rust never learns the word
 "branch", "battery" or "hostname" — it loads your config, enforces the limits,
-prints the answer and exits.
+prints the answer, and exits. No daemon, no rewriting of your shell config, no
+second repository.
 
-## ✨ Why
+## A first prompt
 
-- **🧩 Zones and segments, not flags.** Address `prompt.left` or
-  `prompt.left.directory`. Add a segment by writing one, not by waiting for a
-  release.
-- **📐 Width is an input.** Segments carry priorities and drop in order;
-  `pixy.spacer()` absorbs the leftovers. One zone is a prompt at 40 columns and a
-  status bar at 200.
-- **🎨 Four output shapes.** Plain text, ANSI, styled runs as JSON, or a surface
-  clipped to a rectangle — the same zone through any of them.
-- **⛓️ Bounded on purpose.** 32 MiB of Lua, a 100 ms render deadline, a 250 ms
-  load deadline. A bad config gets stopped, not your shell.
-- **👻 No daemon, no rewrite.** Every render is one process that renders and
-  exits. Pixy never edits your shell config or needs a second repository.
-- **🐭 Sprites included.** 1,017 regular and 1,017 shiny Pokémon are embedded in
-  the binary.
-
-## 📸 What it looks like
-
-A prompt — left zone, right zone, both from the same config:
-
-![a pixy prompt](docs/images/prompt.png)
-
-The same machinery as a full-width status bar, spacers doing the alignment:
-
-![a status bar](docs/images/status.png)
-
-A surface: raw ANSI, clipped to a rectangle you name:
-
-<img src="docs/images/sprite.png" alt="a truecolor sprite" width="380">
-
-## 📦 Install
-
-<details open>
-<summary><b>Release binary</b> — Linux builds are fully static musl, no runtime deps</summary>
-
-```sh
-tar -xzf pixy-linux-amd64.tar.gz
-install -m 755 pixy ~/.local/bin/pixy
-pixy --help
-```
-
-</details>
-
-<details>
-<summary><b>From source</b></summary>
-
-```sh
-make build          # debug
-make release-build  # optimized
-make release-musl   # static, this arch
-```
-
-</details>
-
-<details>
-<summary><b>Shell integration</b></summary>
-
-```sh
-pixy init bash >> ~/.bashrc
-pixy init zsh  >> ~/.zshrc
-pixy init fish >> ~/.config/fish/config.fish
-pixy init oslo             # prints the assignments, edits nothing
-```
-
-The integrations pass `status`, `duration_ms`, `jobs`, `language` and `vimode`
-through `--set`. Those names are the integration's vocabulary, not Pixy's — a
-config is free to expect entirely different ones.
-
-</details>
-
-## 🔧 Configure
-
-`~/.config/pixy/init.lua`, or `$PIXY_CONFIG`:
+[`examples/minimal.lua`](examples/minimal.lua) — two segments and a priority:
 
 ```lua
 local pixy = require("pixy")
@@ -120,18 +40,49 @@ return pixy.config({
 ```
 
 ```sh
-pixy check                                            # validate
-pixy render prompt.left --target ansi --set status=7  # look at it
-pixy render prompt.left.status --target plain         # one segment alone
-pixy list                                             # every address
+pixy render prompt.left --config examples/minimal.lua \
+  --set cwd=/home/you/dev/pixy --set status=7
 ```
 
-Prefer to start from something finished? `pixy init hexe-oslo` prints a complete
-profile — prompt, status bar, knight-rider spinner, sprite overlay, float titles,
-popups.
+![the minimal example rendered](docs/images/minimal.png)
 
-<details>
-<summary><b>Building a bar with spacers</b></summary>
+The status badge returns `nil` when the last command succeeded, and a segment
+that returns `nil` takes no space. Priorities decide who survives when the
+terminal is too narrow for everyone.
+
+## Calling out to the world
+
+[`examples/git.lua`](examples/git.lua) — a provider, cached:
+
+```lua
+local git = require("pixy.segments.git")
+
+local function branch(ctx)
+  local name = git.branch(ctx)
+  if not name then return nil end
+  return pixy.text(" " .. name .. " ", {bg = 4, fg = 0, bold = true})
+end
+
+local function dirty(ctx)
+  if git.status(ctx) ~= "dirty" then return nil end
+  return pixy.text(" ! ", {bg = 3, fg = 0})
+end
+```
+
+![the git example rendered](docs/images/git.png)
+
+`git.branch` runs one `git` process and caches the answer for `ttl_ms`, so a
+prompt rendered twice in a second pays for one. A caller that already knows the
+answer skips the process entirely:
+
+```sh
+pixy render prompt.right --config examples/git.lua --set git_branch=main --set git_status=dirty
+```
+
+## Width is an input
+
+The same zone is a prompt at 28 columns and a status bar at 104. Segments drop by
+priority as the room runs out, and `pixy.spacer()` absorbs whatever is left:
 
 ```lua
 status = pixy.zone({
@@ -144,36 +95,114 @@ status = pixy.zone({
 })
 ```
 
-A spacer measures zero and absorbs whatever width is left after pruning. Two of
-them centre the tabs. `pixy.spacer(3)` takes three times the share of a plain
-one. Where the spacers sit is what makes a zone left, centred or right — there is
-no alignment vocabulary in the Rust.
+![one zone at four widths](docs/images/responsive.png)
 
-</details>
+A spacer measures zero and is never pruned. Two of them centre the tabs;
+`pixy.spacer(3)` takes three times the share of a plain one. Where the spacers
+sit is what makes a zone left, centred or right — there is no alignment
+vocabulary in the Rust.
 
-## ⚡ Speed, honestly
+At full width, that same zone is the bar:
+
+![a status bar](docs/images/status.png)
+
+## Animation without a timer
+
+[`examples/spinner.lua`](examples/spinner.lua) — an animated node reports the
+deadline of its next distinct frame, so a caller polls when the picture changes
+rather than on a clock:
+
+```lua
+pixy.segment("spinner", function()
+  return pixy.spinner({
+    kind = "knight_rider",
+    width = 12, step = 40, hold = 20,
+    colors = {117, 75, 68, 61, 60, 59, 238, 237},
+    bg = 0,
+  })
+end)
+```
+
+![the spinner at five points in time](docs/images/spinner.png)
+
+```sh
+pixy render work --config examples/spinner.lua --now-ms 320   # one frame
+pixy stream work --config examples/spinner.lua --fps 24 --duration 2000
+```
+
+Every render is deterministic in `now_ms`, which is why the five frames above
+are reproducible and why the tests can pin them.
+
+## Surfaces
+
+A surface is raw ANSI clipped to a rectangle you name — sprites, popups, pane
+art. The binary embeds 1,017 regular and 1,017 shiny Pokémon, so this needs no
+asset pack:
+
+```sh
+pixy render overlay --config examples/hexe-oslo.lua --mode surface \
+  --width 34 --height 16 --context-json '{"values":{"sprite_name":"pikachu"}}'
+```
+
+<img src="docs/images/sprite.png" alt="a truecolor sprite" width="360">
+
+## Install
+
+Release builds for Linux are fully static musl binaries with no runtime
+dependencies:
+
+```sh
+tar -xzf pixy-linux-amd64.tar.gz
+install -m 755 pixy ~/.local/bin/pixy
+```
+
+From source:
+
+```sh
+make build          # debug
+make release-build  # optimized
+make release-musl   # static, this arch
+```
+
+Then wire it into a shell:
+
+```sh
+pixy init bash >> ~/.bashrc
+pixy init zsh  >> ~/.zshrc
+pixy init fish >> ~/.config/fish/config.fish
+pixy init oslo             # prints the assignments, edits nothing
+```
+
+The integrations pass `status`, `duration_ms`, `jobs`, `language` and `vimode`
+through `--set`. Those names are the integration's vocabulary, not Pixy's; a
+config is free to expect entirely different ones.
+
+For something complete rather than minimal, `pixy init hexe-oslo` prints the
+bundled profile: prompt, status bar, spinner, sprite overlay, float titles and
+popups. That is the config every screenshot on this page was rendered from.
+
+## Speed
 
 The engine is not where prompts spend their time:
 
 | | |
 |---|---|
-| one segment, warm, in process | **25 µs** |
-| a whole prompt, warm, in process | **0.17 ms** |
-| a whole prompt as a process, providers cached | **5 ms** |
-| the same prompt with every cache entry expired | **~26 ms** |
+| one segment, warm, in process | 25 µs |
+| a whole prompt, warm, in process | 0.17 ms |
+| a whole prompt as a process, providers cached | 5 ms |
+| the same prompt with every cache entry expired | ~26 ms |
 
-What costs milliseconds is whatever your segments *call*. The bundled
-compatibility profile shells out for the distro logo, the sudo ticket, the
-container kind and the scratch count; those subprocesses dwarf everything above,
-so `pixy.host.exec` caches each result by `ttl_ms` on disk, and a prompt whose
-providers are all still fresh never leaves the process.
+What costs milliseconds is whatever your segments *call*. The bundled profile
+shells out for the distro logo, the sudo ticket, the container kind and the
+scratch count; those subprocesses dwarf everything above, so `pixy.host.exec`
+caches each result by `ttl_ms` on disk, and a prompt whose providers are all
+still fresh never leaves the process.
 
 Give static things a long life (`ttl_ms = 86400000` for a distro logo that will
-not change today), hand Pixy the values your shell already knows through `--set`,
-and let the cache absorb the rest. `make bench` prints the numbers for your
-machine.
+not change today), hand Pixy the values your shell already knows, and let the
+cache absorb the rest. `make bench` prints the numbers for your machine.
 
-## 🧵 Painting a multiplexer
+## Painting a multiplexer
 
 `pixy serve` speaks [hexe](https://github.com/termworks/hexe)'s painter protocol
 over a Unix socket, so the zones that draw your prompt can draw the mux chrome —
@@ -188,7 +217,7 @@ hexe asks for a view at a width; Pixy answers with styled runs plus the clickabl
 regions inside them, and hexe never restyles what comes back. Save the config and
 the bar repaints — `serve` reloads on write.
 
-## 🗂 Commands
+## Commands
 
 | | |
 |---|---|
@@ -199,11 +228,22 @@ the bar repaints — `serve` reloads on write.
 | `pixy init <shell>` | shell integration text |
 | `pixy pack build\|check\|list` | sprite packs |
 
+Output shapes are `--target plain\|ansi\|bash\|zsh` for a line, `--mode run` for
+styled runs as JSON, and `--mode surface` for a bounded rectangle.
+
 XDG throughout: config in `$XDG_CONFIG_HOME/pixy`, provider cache in
 `$XDG_CACHE_HOME/pixy`, packs in `$XDG_DATA_HOME/pixy/packs` — each overridable
 with `PIXY_CONFIG`, `PIXY_CACHE_DIR`, `PIXY_DATA_DIR`.
 
-## 📖 Documentation
+## Limits
+
+Every render is a fresh query inside hard bounds: 32 MiB of Lua, a 100 ms render
+deadline, a 250 ms config load deadline, 2 s of host I/O per render, argv-only
+execution capped at 64 KiB of output, and reads confined to trusted roots. A
+config that loops forever or shells out to something wedged gets stopped rather
+than hanging your shell.
+
+## Documentation
 
 | | |
 |---|---|
@@ -220,10 +260,10 @@ generated config before testing the new binary:
 pixy init hexe-oslo > ~/.config/pixy/init.lua && pixy check
 ```
 
-## 📄 License
+## License
 
 MIT — see [`LICENSE`](LICENSE). Sprite provenance and third-party notices live in
 [`THIRD_PARTY.md`](THIRD_PARTY.md) and [`LICENSES/`](LICENSES).
 
 <sub>Every frame in this README is generated from live output by
-<code>make docs-images</code> — no mockups.</sub>
+<code>make docs-images</code>.</sub>

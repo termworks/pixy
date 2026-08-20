@@ -58,6 +58,24 @@ frame responsive "one zone, four widths" "$tmp/responsive.ansi"
   --context-json '{"values":{"sprite_name":"pikachu","sprite_position":"center"}}' --now-ms 0 >"$tmp/sprite.ansi"
 frame sprite "surface" "$tmp/sprite.ansi"
 
-bash scripts/docs_anim.sh docs/images/responsive.svg
+
+
+# Each of these renders one of the small configs in examples/, so the README's
+# code and its picture cannot drift apart.
+one() {
+  local name=$1 zone=$2 example=$3
+  shift 3
+  { "$pixy" render "$zone" --config "examples/$example" --target ansi --width 60 "$@"; echo; } >"$tmp/$name.ansi"
+  frame "$name" "$example" "$tmp/$name.ansi"
+}
+
+one minimal prompt.left minimal.lua --set cwd=/home/you/dev/pixy --set status=7
+one git prompt.right git.lua --set git_branch=main --set git_status=dirty
+
+: >"$tmp/spinner.ansi"
+for now in 0 160 320 480 640; do
+  { "$pixy" render work --config examples/spinner.lua --target ansi --width 40 --now-ms "$now"; echo; } >>"$tmp/spinner.ansi"
+done
+frame spinner "spinner.lua, five frames" "$tmp/spinner.ansi"
 
 printf 'docs images written\n'
