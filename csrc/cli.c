@@ -341,6 +341,19 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
         const char *next = index + 1 < argc ? argv[index + 1] : NULL;
         bool needs_value = false;
 
+        /* `--target=ansi` and `--target ansi` are the same option; the oslo
+         * integration writes the first form. */
+        char name[64];
+        bool joined = false;
+        const char *equals = strchr(arg, '=');
+        if (arg[0] == '-' && equals && (size_t)(equals - arg) < sizeof(name)) {
+            memcpy(name, arg, (size_t)(equals - arg));
+            name[equals - arg] = '\0';
+            arg = name;
+            next = equals + 1;
+            joined = true;
+        }
+
         if (strcmp(arg, "--config") == 0) {
             needs_value = true;
             if (next) snprintf(options->config, sizeof(options->config), "%s", next);
@@ -450,7 +463,8 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
                 pixy_fail(PIXY_EXIT_USAGE, "%s requires a value", arg);
                 return false;
             }
-            index++;
+            /* A joined value came from this argument, so nothing extra to skip. */
+            if (!joined) index++;
         }
     }
 

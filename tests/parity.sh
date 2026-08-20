@@ -37,6 +37,13 @@ for zone in $zones; do
   done
 done
 
+# The joined spelling an integration writes, which the space-separated sweep
+# above would never have caught.
+compare "prompt.left joined flags" render prompt.left --config="$config" --target=plain \
+  --width=100 --context-file="$context" --now-ms=0
+compare "prompt.right joined flags" render prompt.right --config="$config" --target=ansi \
+  --width=100 --context-file="$context" --now-ms=0
+
 # Targets escape a line differently; a prompt integration depends on each.
 for target in plain ansi bash zsh; do
   compare "prompt.left/$target" render prompt.left --config "$config" --target "$target" \

@@ -124,6 +124,21 @@ equals "--context-json replaces --set" "2:json:nil:nil" \
      --context-json '{"values":{"status":2,"key":"json"}}')"
 rm -f "$values"
 
+# The oslo integration writes `--target=ansi`; both spellings are one option.
+equals "--flag=value is accepted" \
+  "$("$pixy" render prompt.left --config "$config" --target plain --width 60 --context-file "$context" --now-ms 0)" \
+  "$("$pixy" render prompt.left --config="$config" --target=plain --width=60 --context-file="$context" --now-ms=0)"
+for spelling in --target=plain --mode=line --width=40; do
+  "$pixy" render prompt.left --config "$config" "$spelling" --context-file "$context" >/dev/null 2>&1
+  equals "$spelling parses" 0 "$?"
+done
+# Every command the shell integrations print must actually run.
+for shell in bash zsh fish oslo; do
+  while read -r line; do
+    equals "init $shell command runs" 0 "$(eval "${line/command pixy/$pixy}" >/dev/null 2>&1; echo $?)"
+  done < <("$pixy" init "$shell" | grep -oE '(command )?pixy render [^"$)]*' | head -2)
+done
+
 # ---- names, packs, inventory ---------------------------------------------------
 
 equals "names lists one id per creature" 1017 "$("$pixy" names | wc -l)"
