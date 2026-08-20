@@ -109,4 +109,14 @@ for preset in examples/presets/*.lua; do
   frame "presets/$name" "$tmp/preset-$name.ansi"
 done
 
+# The README shows each frame at half its pixel width, which is its natural size
+# at the 2x the rasterizer runs. Rewriting the attribute from the file itself
+# keeps the two from drifting whenever the cell metrics change.
+png_width() { od -An -tu4 -j16 -N4 --endian=big "$1" | tr -d ' '; }
+
+grep -o 'src="docs/images/[^"]*"' README.md | cut -d'"' -f2 | sort -u | while read -r png; do
+  [ -f "$png" ] || continue
+  sed -i -E "s|(src=\"$png\"[^>]*width=\")[0-9]+(\")|\1$(( $(png_width "$png") / 2 ))\2|" README.md
+done
+
 printf 'docs images written\n'

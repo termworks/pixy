@@ -81,7 +81,7 @@ function flush(   x, w, style) {
     if (italic) style = style " font-style=\"italic\""
     if (under) style = style " text-decoration=\"underline\""
     body = body sprintf("  <text x=\"%.2f\" y=\"%.2f\" fill=\"%s\" fill-opacity=\"%s\"%s xml:space=\"preserve\">%s</text>\n",
-        x, pad + line * lh + lh * 0.74, (fg == "" ? fgdefault : fg), (dim ? "0.55" : "1"), style, escape(run))
+        x, pad + line * lh + bl, (fg == "" ? fgdefault : fg), (dim ? "0.55" : "1"), style, escape(run))
     col += length(run)
     if (col > maxcol) maxcol = col
     run = ""
@@ -94,9 +94,15 @@ BEGIN {
     split("0 95 135 175 215 255", cube, " ")
     for (i = 0; i < 6; i++) cube[i] = cube[i + 1]
 
-    if (cw == "") cw = 8.43
-    if (lh == "") lh = 22
-    if (fs == "") fs = 14
+    # A cell is the font's own box, or separators do not connect: JetBrains Mono
+    # advances 0.6em and spans 1.32em from descender to ascender, which is
+    # exactly what a powerline glyph fills. Deriving the cell from the font size
+    # keeps a background band the same height as the glyph drawn on it. At 50/3
+    # the cell is 10 x 22 and the baseline 17, so every edge is a whole pixel.
+    if (fs == "") fs = 50 / 3
+    if (cw == "") cw = fs * 0.6
+    if (lh == "") lh = fs * 1.32
+    if (bl == "") bl = fs * 1.02
     if (pad == "") pad = 10
     maxcol = 0
     fgdefault = "#cdd6f4"
@@ -148,7 +154,7 @@ END {
     w = cols * cw + pad * 2
     h = rows * lh + pad * 2
     print "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-    printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%.0f\" height=\"%.0f\" viewBox=\"0 0 %.0f %.0f\" font-family=\"JetBrainsMono Nerd Font, DejaVu Sans Mono, monospace\" font-size=\"%d\">\n", w, h, w, h, fs
+    printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%.0f\" height=\"%.0f\" viewBox=\"0 0 %.0f %.0f\" font-family=\"JetBrainsMono Nerd Font, DejaVu Sans Mono, monospace\" font-size=\"%.4f\">\n", w, h, w, h, fs
     if (fill != "") printf "  <rect width=\"%.0f\" height=\"%.0f\" rx=\"4\" fill=\"#181825\"/>\n", w, h
     else printf "%s", ground
     printf "%s", body
