@@ -630,8 +630,8 @@ static PixyEngine *open_engine(const char *config_path) {
 static bool palette_write(const Options *options, bool claiming) {
     if (!options->palette) return false;
     PixyBuf sequence = {0}, wrapped = {0};
-    bool ok = claiming ? pixy_palette_use(&sequence, options->palette_slot)
-                       : pixy_palette_end(&sequence);
+    bool ok = claiming ? pixy_palette_use(&sequence, options->palette_slot, options->request.target)
+                       : pixy_palette_end(&sequence, options->request.target);
     if (ok) {
         pixy_palette_wrap(&wrapped, sequence.data, options->request.target);
         fwrite(wrapped.data, 1, wrapped.len, stdout);
@@ -1101,19 +1101,19 @@ static int palette_command(int argc, char **argv) {
                 return pixy_error_code();
             }
             if (!slot_given && !star) snprintf(slot, sizeof(slot), "%ld", config_slot);
-            pixy_palette_set(&out, slot, entries, count);
+            pixy_palette_set(&out, slot, entries, count, PIXY_TARGET_ANSI);
             free(entries);
         } else {
-            pixy_palette_set(&out, slot, given, given_count);
+            pixy_palette_set(&out, slot, given, given_count, PIXY_TARGET_ANSI);
         }
     } else if (strcmp(verb, "use") == 0) {
-        pixy_palette_use(&out, strtol(slot, NULL, 10));
+        pixy_palette_use(&out, strtol(slot, NULL, 10), PIXY_TARGET_ANSI);
     } else if (strcmp(verb, "end") == 0) {
-        pixy_palette_end(&out);
+        pixy_palette_end(&out, PIXY_TARGET_ANSI);
     } else if (strcmp(verb, "reset") == 0) {
-        pixy_palette_reset(&out, slot);
+        pixy_palette_reset(&out, slot, PIXY_TARGET_ANSI);
     } else if (strcmp(verb, "ask") == 0) {
-        pixy_palette_ask(&out);
+        pixy_palette_ask(&out, PIXY_TARGET_ANSI);
     } else {
         pixy_fail(PIXY_EXIT_USAGE, "unknown palette command '%s'", verb);
         code = PIXY_EXIT_USAGE;

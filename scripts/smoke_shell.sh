@@ -62,9 +62,20 @@ grep -q 'rust' "$tmp/prompt.fish"
 "$pixy" render prompt.left --target zsh --palette --set cwd=/work/project >"$tmp/palette.zsh"
 osc=$'\033]1330'
 st=$'\033\\'
-grep -Fq "\\[${osc};use;2${st}\\]" "$tmp/palette.bash"
-grep -Fq "\\[${osc};end${st}\\]" "$tmp/palette.bash"
+# Bash reads the backslash of ST as an escape inside `\[ … \]`, so its sequences
+# end in BEL instead. Zsh passes ST through untouched.
+grep -Fq "\\[${osc};use;2"$'\a'"\\]" "$tmp/palette.bash"
+grep -Fq "\\[${osc};end"$'\a'"\\]" "$tmp/palette.bash"
 grep -Fq "%{${osc};use;2${st}%}" "$tmp/palette.zsh"
 grep -Fq "%{${osc};end${st}%}" "$tmp/palette.zsh"
+
+# The invariant behind the markers: bash's own expansion must give back exactly
+# the sequences, with no marker eaten and no stray byte left printing.
+real_bash=$(for c in /bin/bash /usr/bin/bash; do [ -x "$c" ] && echo "$c" && break; done)
+expanded=$("${real_bash:-bash}" -c 'prompt=$1; printf "%s" "${prompt@P}"' _ "$(cat "$tmp/palette.bash")")
+case $expanded in
+  "${osc};use;2"$'\a'*"${osc};end"$'\a') ;;
+  *) printf 'bash mangles the prompt: %s\n' "$(printf '%s' "$expanded" | cat -v)" >&2; exit 1 ;;
+esac
 
 printf 'shell smoke ok\n'

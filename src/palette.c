@@ -85,29 +85,33 @@ static bool begin(PixyBuf *out, const char *verb) {
     return pixy_buf_fmt(out, "\033]%u;%s", pixy_palette_osc(), verb);
 }
 
-static bool finish(PixyBuf *out) {
-    return pixy_buf_str(out, "\033\\");
+/* Both terminators are the protocol's. Bash is the reason there is a choice:
+ * inside `\[ … \]` it reads the backslash of ST as an escape, swallowing the
+ * closing marker and printing a stray `]` into the prompt. BEL has no
+ * backslash, so it survives the shell that has to count the line. */
+static bool finish(PixyBuf *out, PixyTarget target) {
+    return pixy_buf_str(out, target == PIXY_TARGET_BASH ? "\a" : "\033\\");
 }
 
-bool pixy_palette_use(PixyBuf *out, long slot) {
+bool pixy_palette_use(PixyBuf *out, long slot, PixyTarget target) {
     if (!pixy_palette_valid_slot(slot, true)) return false;
-    return begin(out, "use") && pixy_buf_fmt(out, ";%ld", slot) && finish(out);
+    return begin(out, "use") && pixy_buf_fmt(out, ";%ld", slot) && finish(out, target);
 }
 
-bool pixy_palette_end(PixyBuf *out) {
-    return begin(out, "end") && finish(out);
+bool pixy_palette_end(PixyBuf *out, PixyTarget target) {
+    return begin(out, "end") && finish(out, target);
 }
 
-bool pixy_palette_reset(PixyBuf *out, const char *slot) {
-    return begin(out, "reset") && pixy_buf_fmt(out, ";%s", slot) && finish(out);
+bool pixy_palette_reset(PixyBuf *out, const char *slot, PixyTarget target) {
+    return begin(out, "reset") && pixy_buf_fmt(out, ";%s", slot) && finish(out, target);
 }
 
-bool pixy_palette_ask(PixyBuf *out) {
-    return begin(out, "ask") && finish(out);
+bool pixy_palette_ask(PixyBuf *out, PixyTarget target) {
+    return begin(out, "ask") && finish(out, target);
 }
 
 bool pixy_palette_set(PixyBuf *out, const char *slot, const PixyPaletteEntry *entries,
-                      size_t count) {
+                      size_t count, PixyTarget target) {
     if (count == 0) return true;
     /* `set` is a patch: indexes left unnamed keep passing through to the
      * terminal's own theme, so one entry does not blacken the other 255. */
@@ -118,7 +122,7 @@ bool pixy_palette_set(PixyBuf *out, const char *slot, const PixyPaletteEntry *en
             if (!pixy_buf_fmt(out, ";%s=%s", entries[at + i].key, entries[at + i].colour))
                 return false;
         }
-        if (!finish(out)) return false;
+        if (!finish(out, target)) return false;
     }
     return true;
 }

@@ -19,12 +19,14 @@ bool pixy_palette_valid_slot(long slot, bool for_use);
 bool pixy_palette_valid_key(const char *key);
 bool pixy_palette_valid_colour(const char *colour);
 
+/* The target picks the terminator as well as the escaping: bash eats the
+ * backslash of ST, so a sequence bound for a bash prompt ends in BEL. */
 bool pixy_palette_set(PixyBuf *out, const char *slot, const PixyPaletteEntry *entries,
-                      size_t count);
-bool pixy_palette_use(PixyBuf *out, long slot);
-bool pixy_palette_end(PixyBuf *out);
-bool pixy_palette_reset(PixyBuf *out, const char *slot);
-bool pixy_palette_ask(PixyBuf *out);
+                      size_t count, PixyTarget target);
+bool pixy_palette_use(PixyBuf *out, long slot, PixyTarget target);
+bool pixy_palette_end(PixyBuf *out, PixyTarget target);
+bool pixy_palette_reset(PixyBuf *out, const char *slot, PixyTarget target);
+bool pixy_palette_ask(PixyBuf *out, PixyTarget target);
 /* Marks a sequence zero-width for the shell that will count the prompt. */
 bool pixy_palette_wrap(PixyBuf *out, const char *sequence, PixyTarget target);
 

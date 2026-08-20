@@ -250,6 +250,43 @@ equals "an explicit slot wins over the config" \
   "$("$pixy" render prompt.left --config "$declared" --target plain --palette 9)"
 equals "a config that declares nothing emits nothing" "" \
   "$("$pixy" palette set --config examples/minimal.lua)"
+
+# Bash reads the backslash of ST as an escape inside `\[ … \]`: it eats the
+# closing marker and prints a stray `]` into the prompt. So a bash prompt gets
+# BEL, which the protocol allows and the shell leaves alone. Zsh keeps ST.
+bell=$'\a'
+bash_prompt=$("$pixy" render prompt.left --config "$declared" --target bash --palette)
+zsh_prompt=$("$pixy" render prompt.left --config "$declared" --target zsh --palette)
+equals "a bash prompt is terminated with BEL" "yes" \
+  "$(case $bash_prompt in
+       "\\[${esc}]1330;use;3${bell}\\]"*"\\[${esc}]1330;end${bell}\\]") echo yes ;;
+       *) printf '%s' "$bash_prompt" ;;
+     esac)"
+equals "a zsh prompt keeps ST" "yes" \
+  "$(case $zsh_prompt in
+       "%{${esc}]1330;use;3${st}%}"*"%{${esc}]1330;end${st}%}") echo yes ;;
+       *) printf '%s' "$zsh_prompt" ;;
+     esac)"
+
+# What bash itself makes of it, which is the only check that catches the above.
+# `bash` on PATH may be another shell wearing the name, so find a real one.
+real_bash=""
+for candidate in /bin/bash /usr/bin/bash "$(command -v bash 2>/dev/null)"; do
+  [ -x "$candidate" ] || continue
+  if [ "$("$candidate" -c 'p=ok; printf "%s" "${p@P}"' 2>/dev/null)" = "ok" ]; then
+    real_bash=$candidate
+    break
+  fi
+done
+if [ -n "$real_bash" ]; then
+  # Through an argument, not PS1: a non-interactive bash does not inherit it.
+  expanded=$("$real_bash" -c 'prompt=$1; printf "%s" "${prompt@P}"' _ "$bash_prompt")
+  equals "bash expands the prompt back to the sequences" "yes" \
+    "$(case $expanded in
+         "${esc}]1330;use;3${bell}"*"${esc}]1330;end${bell}") echo yes ;;
+         *) printf '%s' "$expanded" | cat -v ;;
+       esac)"
+fi
 equals "palette help answers" 1 "$("$pixy" palette --help | grep -c '^pixy palette')"
 
 # A slot that cannot be claimed has to fail before anything is written. Emitting
