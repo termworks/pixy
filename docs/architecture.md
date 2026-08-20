@@ -45,25 +45,32 @@ which measures three orders of magnitude below it.
 
 ## Source layout
 
-- `csrc/engine.c` holds the Lua state: the bounding allocator, the deadline
+- `src/engine.c` holds the Lua state: the bounding allocator, the deadline
   hook, the bundled modules, config validation, and the one call into
   `pixy._render`.
-- `csrc/host.c` is `__pixy_host` — `env`, `read`, `exec`, `cell_width` and
+- `src/host.c` is `__pixy_host` — `env`, `read`, `exec`, `cell_width` and
   `asset` — with the trusted roots, the I/O budget, and the two-tier exec cache.
-- `csrc/assets.c` reads and writes packs, including the embedded archive.
-- `csrc/cli.c`, `csrc/serve.c` are the two front doors; `csrc/json.c`,
-  `csrc/encode.c`, `csrc/width.c` and `csrc/util.c` are the plumbing.
+- `src/assets.c` reads and writes packs, including the embedded archive.
+- `src/cli.c`, `src/serve.c` are the two front doors; `src/json.c`,
+  `src/encode.c`, `src/width.c` and `src/util.c` are the plumbing.
 - `vendor/lua` is Lua 5.4.7 unmodified; `vendor/miniz` provides deflate.
 - `lua/` is the part a configuration actually talks to, and is language-neutral.
 
 The Lua modules and the shell integrations are turned into C string literals by
-`tools/embed_text.sh` at build time, and the sprite archive by
-`tools/pack_sprites.c`, so the binary carries everything it needs.
+`scripts/embed_text.sh` at build time, and the sprite archive by
+`scripts/pack_sprites.c`, so the binary carries everything it needs.
 
 ## Limits, and where they are enforced
 
 The memory ceiling is the allocator handed to `lua_newstate`: past 32 MiB it
 refuses, and Lua reports an ordinary allocation failure. The deadline is a count
 hook that checks the clock every 4096 instructions, which is what stops a
-configuration that loops forever. Both live in `csrc/engine.c` and are the same
+configuration that loops forever. Both live in `src/engine.c` and are the same
 numbers the Rust host used.
+
+## Versioning
+
+One line holds the version: `local PROJECT_VERSION` in `xmake.lua`. `veri` reads
+and bumps it, the Makefile compiles it in as `PIXY_VERSION_STRING`, and the
+flake reads it for its package, so `make release TYPE=patch` moves a single
+number and nothing drifts.

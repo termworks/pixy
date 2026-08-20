@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 PROJECT_NAME := pixy
-PROJECT_VERSION := $(shell cat VERSION 2>/dev/null || echo 0.0.0)
+PROJECT_VERSION := $(shell sed -nE 's/^local PROJECT_VERSION = "([0-9.]+)".*/\1/p' xmake.lua)
 
 TOP_DIR := $(CURDIR)
 CC ?= cc
@@ -18,7 +18,7 @@ $(info Project: $(PROJECT_NAME) v$(PROJECT_VERSION))
 $(info ------------------------------------------)
 
 WARNINGS := -Wall -Wextra -Wpedantic -Wshadow -Wstrict-prototypes -Wno-unused-parameter
-INCLUDES := -Icsrc -Ivendor/lua/src -Ivendor/miniz
+INCLUDES := -Isrc -Ivendor/lua/src -Ivendor/miniz
 DEFINES  := -DLUA_USE_POSIX -D_GNU_SOURCE -DPIXY_VERSION_STRING=\"$(PROJECT_VERSION)\"
 CFLAGS_COMMON := $(WARNINGS) $(INCLUDES) $(DEFINES) -std=c11
 CFLAGS_DEBUG := $(CFLAGS_COMMON) -g -O0
@@ -34,7 +34,7 @@ else
     CC_TARGET :=
 endif
 
-PIXY_SRC := $(wildcard csrc/*.c)
+PIXY_SRC := $(wildcard src/*.c)
 LUA_SRC := $(wildcard vendor/lua/src/*.c)
 MINIZ_SRC := vendor/miniz/miniz.c vendor/miniz/miniz_tdef.c vendor/miniz/miniz_tinfl.c
 GENERATED := $(BUILD)/lua_modules.c $(BUILD)/texts.c
@@ -51,25 +51,25 @@ b: build
 compile: build
 c: compile
 
-$(BUILD)/pokemon.pack: tools/pack_sprites.c $(wildcard assets/pokemon/regular/*) $(wildcard assets/pokemon/shiny/*)
+$(BUILD)/pokemon.pack: scripts/pack_sprites.c $(wildcard assets/pokemon/regular/*) $(wildcard assets/pokemon/shiny/*)
 	@mkdir -p $(BUILD)
-	@$(CC) -O2 -Ivendor/miniz -o $(BUILD)/pack_sprites tools/pack_sprites.c $(MINIZ_SRC) -lm
+	@$(CC) -O2 -Ivendor/miniz -o $(BUILD)/pack_sprites scripts/pack_sprites.c $(MINIZ_SRC) -lm
 	@$(BUILD)/pack_sprites assets/pokemon $(BUILD)/pokemon.pack
 
-$(BUILD)/lua_modules.c: $(LUA_MODULES) tools/embed_text.sh
+$(BUILD)/lua_modules.c: $(LUA_MODULES) scripts/embed_text.sh
 	@mkdir -p $(BUILD)
-	@bash tools/embed_text.sh modules $@ $(LUA_MODULES)
+	@bash scripts/embed_text.sh modules $@ $(LUA_MODULES)
 
-$(BUILD)/texts.c: lua/pixy/default.lua examples/hexe-oslo.lua shell/init.bash shell/init.zsh \
-                  shell/init.fish shell/init.oslo tools/embed_text.sh
+$(BUILD)/texts.c: lua/pixy/default.lua examples/hexe-oslo.lua examples/shell/init.bash examples/shell/init.zsh \
+                  examples/shell/init.fish examples/shell/init.oslo scripts/embed_text.sh
 	@mkdir -p $(BUILD)
-	@bash tools/embed_text.sh text $@ \
+	@bash scripts/embed_text.sh text $@ \
 		PIXY_DEFAULT_CONFIG=lua/pixy/default.lua \
 		PIXY_HEXE_OSLO_CONFIG=examples/hexe-oslo.lua \
-		PIXY_BASH_INIT=shell/init.bash \
-		PIXY_ZSH_INIT=shell/init.zsh \
-		PIXY_FISH_INIT=shell/init.fish \
-		PIXY_OSLO_INIT=shell/init.oslo
+		PIXY_BASH_INIT=examples/shell/init.bash \
+		PIXY_ZSH_INIT=examples/shell/init.zsh \
+		PIXY_FISH_INIT=examples/shell/init.fish \
+		PIXY_OSLO_INIT=examples/shell/init.oslo
 
 $(BUILD)/pixy: $(PIXY_SRC) $(LUA_SRC) $(MINIZ_SRC) $(GENERATED) $(BUILD)/pokemon.pack
 	@mkdir -p $(BUILD)
@@ -95,10 +95,10 @@ check: build
 	@$(BUILD)/pixy check
 
 fmt:
-	@command -v clang-format >/dev/null && clang-format -i csrc/*.c csrc/*.h tools/*.c || true
+	@command -v clang-format >/dev/null && clang-format -i src/*.c src/*.h scripts/*.c || true
 
 fmt-check:
-	@command -v clang-format >/dev/null && clang-format --dry-run --Werror csrc/*.c csrc/*.h tools/*.c || true
+	@command -v clang-format >/dev/null && clang-format --dry-run --Werror src/*.c src/*.h scripts/*.c || true
 
 verify: fmt-check build test
 

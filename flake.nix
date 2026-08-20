@@ -37,7 +37,7 @@
         packages.default = pkgs.stdenv.mkDerivation {
           pname = "pixy";
           version = builtins.head (
-            builtins.match ".*\n([0-9.]+)\n?" (builtins.readFile ./PROJECT)
+            builtins.match ".*local PROJECT_VERSION = \"([0-9.]+)\".*" (builtins.readFile ./xmake.lua)
           );
           src = ./.;
           nativeBuildInputs = [ pkgs.zig ];
