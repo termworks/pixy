@@ -4,7 +4,7 @@ set -euo pipefail
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 archive="$tmp/pixy.tar.gz"
-release_dir="${RELEASE_DIR:-target/release}"
+release_dir="${RELEASE_DIR:-build}"
 tar -czf "$archive" "$release_dir/pixy" README.md LICENSE THIRD_PARTY.md assets lua examples docs
 tar -tzf "$archive" >"$tmp/contents"
 for path in "$release_dir/pixy" README.md LICENSE THIRD_PARTY.md assets/README.md assets/pokemon/regular/pikachu assets/pokemon/shiny/pikachu lua/pixy/init.lua lua/pixy/default.lua examples/init.lua examples/oslo.lua examples/hexe-oslo.lua docs/architecture.md docs/hexe-oslo.md; do

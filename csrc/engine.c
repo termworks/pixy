@@ -1,0 +1,689 @@
+/* The Lua host: a bounded state, the bundled modules, and one call into
+ * `pixy._render`. Layout, styling and encoding all live in Lua and are
+ * untouched by this file — that is what keeps a configuration portable. */
+#include "engine.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "lauxlib.h"
+#include "lua.h"
+#include "lualib.h"
+
+/* Generated from lua/pixy/**.lua at build time. */
+extern const PixyModule PIXY_MODULES[];
+extern const size_t PIXY_MODULE_COUNT;
+
+/* Kept byte-identical to the Rust build: a config that required a module by a
+ * relative path must keep resolving the same way. */
+static const char MODULE_LOADER[] =
+    "local preload = package.searchers[1]\n"
+    "local compile = load\n"
+    "local function pixy_searcher(name)\n"
+    "  if type(name) ~= \"string\" or not name:match(\"^[%w_][%w_.-]*$\") then\n"
+    "    return \"\\n\\tinvalid Pixy Lua module name \" .. tostring(name)\n"
+    "  end\n"
+    "  local relative = name:gsub(\"%.\", \"/\")\n"
+    "  local candidates = {\n"
+    "    relative .. \".lua\",\n"
+    "    relative .. \"/init.lua\",\n"
+    "    \"lua/\" .. relative .. \".lua\",\n"
+    "    \"lua/\" .. relative .. \"/init.lua\",\n"
+    "  }\n"
+    "  for _, candidate in ipairs(candidates) do\n"
+    "    local ok, source = pcall(__pixy_host.read, candidate)\n"
+    "    if ok and source ~= nil then\n"
+    "      local loader, message = compile(source, \"@\" .. candidate, \"t\")\n"
+    "      if not loader then error(message, 0) end\n"
+    "      return loader, candidate\n"
+    "    end\n"
+    "  end\n"
+    "  return \"\\n\\tno Pixy Lua module '\" .. name .. \"'\"\n"
+    "end\n"
+    "package.searchers = {preload, pixy_searcher}\n"
+    "package.path = \"\"\n";
+
+struct PixyEngine {
+    lua_State *L;
+    PixyHost host;
+    PixyBudget budget;
+    char source_name[4096];
+    int config_ref;
+    int render_ref;
+};
+
+/* --------------------------------------------------------------- limits */
+
+void *pixy_bounded_alloc(void *ud, void *ptr, size_t osize, size_t nsize) {
+    PixyBudget *budget = (PixyBudget *)ud;
+    if (nsize == 0) {
+        if (ptr) budget->used -= osize;
+        free(ptr);
+        return NULL;
+    }
+    size_t had = ptr ? osize : 0;
+    if (budget->used - had + nsize > budget->limit) return NULL;
+    void *out = realloc(ptr, nsize);
+    if (!out) return NULL;
+    budget->used = budget->used - had + nsize;
+    return out;
+}
+
+static void deadline_hook(lua_State *L, lua_Debug *ar) {
+    (void)ar;
+    PixyBudget *budget;
+    lua_getallocf(L, (void **)&budget);
+    if (budget->deadline_ms && pixy_now_ms() >= budget->deadline_ms) {
+        budget->deadline_ms = 0; /* report once; the error unwinds from here */
+        luaL_error(L, "exceeded its deadline");
+    }
+}
+
+static void arm(PixyEngine *engine, long long ms) {
+    engine->budget.deadline_ms = pixy_now_ms() + ms;
+    lua_sethook(engine->L, deadline_hook, LUA_MASKCOUNT, PIXY_FUEL_PER_SLICE);
+}
+
+static void disarm(PixyEngine *engine) {
+    engine->budget.deadline_ms = 0;
+    lua_sethook(engine->L, NULL, 0, 0);
+}
+
+/* ------------------------------------------------------------ validation */
+
+static bool valid_selector(const char *name) {
+    if (!name || !*name) return false;
+    unsigned char first = (unsigned char)name[0];
+    if (!((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') ||
+          (first >= '0' && first <= '9')))
+        return false;
+    for (const char *at = name + 1; *at; at++) {
+        unsigned char ch = (unsigned char)*at;
+        bool alnum = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
+        if (!alnum && ch != '_' && ch != '.' && ch != '-') return false;
+    }
+    return true;
+}
+
+static bool valid_segment_name(const char *name) {
+    if (!name || !*name) return false;
+    unsigned char first = (unsigned char)name[0];
+    if (!((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') ||
+          (first >= '0' && first <= '9')))
+        return false;
+    for (const char *at = name + 1; *at; at++) {
+        unsigned char ch = (unsigned char)*at;
+        bool alnum = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
+        if (!alnum && ch != '_' && ch != '-') return false;
+    }
+    return true;
+}
+
+static bool field_is(lua_State *L, int index, const char *field, const char *want) {
+    lua_getfield(L, index, field);
+    bool ok = lua_isstring(L, -1) && strcmp(lua_tostring(L, -1), want) == 0;
+    lua_pop(L, 1);
+    return ok;
+}
+
+/* Validates one zone and builds its `segment_index`, which `pixy._render` uses
+ * to answer a `zone.segment` selector without walking the list. */
+static bool validate_zone(lua_State *L, int zone_index, const char *zone_name,
+                          const char *source_name) {
+    lua_getfield(L, zone_index, "segments");
+    if (!lua_istable(L, -1)) {
+        pixy_fail(PIXY_EXIT_CONFIG, "%s: zone %s segments must be a list", source_name, zone_name);
+        lua_pop(L, 1);
+        return false;
+    }
+    int segments = lua_gettop(L);
+    lua_newtable(L);
+    int index_table = lua_gettop(L);
+
+    size_t count = 0;
+    lua_Integer highest = 0;
+    lua_pushnil(L);
+    while (lua_next(L, segments) != 0) {
+        if (!lua_isinteger(L, -2)) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: zone %s segments must be an array", source_name,
+                      zone_name);
+            lua_pop(L, 4);
+            return false;
+        }
+        lua_Integer key = lua_tointeger(L, -2);
+        if (key <= 0) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: zone %s has an invalid segment index", source_name,
+                      zone_name);
+            lua_pop(L, 4);
+            return false;
+        }
+        if (key > highest) highest = key;
+        count++;
+
+        if (!lua_istable(L, -1) || !field_is(L, lua_gettop(L), "kind", "pixy_segment")) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: zone %s contains a non-pixy.segment value",
+                      source_name, zone_name);
+            lua_pop(L, 4);
+            return false;
+        }
+        lua_getfield(L, -1, "name");
+        const char *segment_name = lua_isstring(L, -1) ? lua_tostring(L, -1) : NULL;
+        if (!valid_segment_name(segment_name)) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: invalid segment name %s.%s", source_name, zone_name,
+                      segment_name ? segment_name : "?");
+            lua_pop(L, 5);
+            return false;
+        }
+        char owned[256];
+        snprintf(owned, sizeof(owned), "%s", segment_name);
+        lua_pop(L, 1);
+
+        lua_getfield(L, index_table, owned);
+        bool duplicate = !lua_isnil(L, -1);
+        lua_pop(L, 1);
+        if (duplicate) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: duplicate segment %s.%s", source_name, zone_name,
+                      owned);
+            lua_pop(L, 4);
+            return false;
+        }
+
+        lua_getfield(L, -1, "render");
+        bool render_ok = lua_isfunction(L, -1);
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "options");
+        bool options_ok = lua_istable(L, -1);
+        lua_pop(L, 1);
+        if (!render_ok) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: segment %s.%s render value is not a function",
+                      source_name, zone_name, owned);
+            lua_pop(L, 4);
+            return false;
+        }
+        if (!options_ok) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: segment %s.%s options must be a table", source_name,
+                      zone_name, owned);
+            lua_pop(L, 4);
+            return false;
+        }
+
+        lua_pushvalue(L, -1);
+        lua_setfield(L, index_table, owned);
+        lua_pop(L, 1);
+    }
+
+    if (count == 0 || (lua_Integer)count != highest) {
+        pixy_fail(PIXY_EXIT_CONFIG, "%s: zone %s requires a dense, non-empty segment list",
+                  source_name, zone_name);
+        lua_pop(L, 2);
+        return false;
+    }
+    lua_setfield(L, zone_index, "segment_index");
+    lua_pop(L, 1);
+    return true;
+}
+
+static bool validate_config(lua_State *L, int config_index, const char *source_name) {
+    lua_getfield(L, config_index, "zones");
+    if (!lua_istable(L, -1)) {
+        pixy_fail(PIXY_EXIT_CONFIG, "%s: config zones must be a table", source_name);
+        lua_pop(L, 1);
+        return false;
+    }
+    int zones = lua_gettop(L);
+    lua_pushnil(L);
+    while (lua_next(L, zones) != 0) {
+        if (lua_type(L, -2) != LUA_TSTRING) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: zone names must be strings", source_name);
+            lua_pop(L, 3);
+            return false;
+        }
+        const char *zone_name = lua_tostring(L, -2);
+        if (!valid_selector(zone_name)) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: invalid zone name \"%s\"", source_name, zone_name);
+            lua_pop(L, 3);
+            return false;
+        }
+        if (!lua_istable(L, -1) || !field_is(L, lua_gettop(L), "kind", "pixy_zone")) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: zone %s is not a pixy.zone", source_name, zone_name);
+            lua_pop(L, 3);
+            return false;
+        }
+        char owned[512];
+        snprintf(owned, sizeof(owned), "%s", zone_name);
+        if (!validate_zone(L, lua_gettop(L), owned, source_name)) {
+            lua_pop(L, 3);
+            return false;
+        }
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+    return true;
+}
+
+/* ---------------------------------------------------------------- loading */
+
+static bool run_chunk(PixyEngine *engine, const char *chunk_name, const char *source, size_t len,
+                      int results, int code, const char *what) {
+    lua_State *L = engine->L;
+    if (luaL_loadbuffer(L, source, len, chunk_name) != LUA_OK) {
+        pixy_fail(code, "%s: lua error: @%s", what, lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return false;
+    }
+    if (lua_pcall(L, 0, results, 0) != LUA_OK) {
+        pixy_fail(code, "%s: lua error: @%s", what, lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return false;
+    }
+    return true;
+}
+
+PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *paths) {
+    if (source->source_len > PIXY_MAX_CONFIG_SIZE) {
+        pixy_fail(PIXY_EXIT_CONFIG, "%s exceeds 1 MiB", source->name);
+        return NULL;
+    }
+    PixyEngine *engine = calloc(1, sizeof(PixyEngine));
+    if (!engine) {
+        pixy_fail(PIXY_EXIT_CONFIG, "out of memory");
+        return NULL;
+    }
+    engine->budget.limit = PIXY_MEMORY_LIMIT;
+    engine->L = lua_newstate(pixy_bounded_alloc, &engine->budget);
+    if (!engine->L) {
+        free(engine);
+        pixy_fail(PIXY_EXIT_CONFIG, "could not create a Lua state");
+        return NULL;
+    }
+    lua_State *L = engine->L;
+    luaL_openlibs(L);
+
+    /* A config reads through the host or not at all. */
+    lua_pushnil(L);
+    lua_setglobal(L, "dofile");
+    lua_pushnil(L);
+    lua_setglobal(L, "loadfile");
+
+    snprintf(engine->host.roots[0], sizeof(engine->host.roots[0]), "%s", source->directory);
+    snprintf(engine->host.roots[1], sizeof(engine->host.roots[1]), "%s", paths->data_dir);
+    snprintf(engine->host.roots[2], sizeof(engine->host.roots[2]), "/proc");
+    snprintf(engine->host.roots[3], sizeof(engine->host.roots[3]), "/sys");
+    engine->host.root_count = 4;
+    snprintf(engine->host.data_dir, sizeof(engine->host.data_dir), "%s", paths->data_dir);
+    snprintf(engine->host.cache_dir, sizeof(engine->host.cache_dir), "%s", paths->cache_dir);
+    pixy_host_install(L, &engine->host);
+    pixy_host_begin_render(&engine->host);
+
+    arm(engine, PIXY_LOAD_DEADLINE_MS);
+
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "preload");
+    for (size_t i = 0; i < PIXY_MODULE_COUNT; i++) {
+        char chunk[256];
+        snprintf(chunk, sizeof(chunk), "@bundled/%s.lua", PIXY_MODULES[i].name);
+        if (luaL_loadbuffer(L, PIXY_MODULES[i].source, PIXY_MODULES[i].len, chunk) != LUA_OK) {
+            pixy_fail(PIXY_EXIT_CONFIG, "bundled module %s: %s", PIXY_MODULES[i].name,
+                      lua_tostring(L, -1));
+            pixy_engine_free(engine);
+            return NULL;
+        }
+        lua_setfield(L, -2, PIXY_MODULES[i].name);
+    }
+    lua_pop(L, 2);
+
+    if (!run_chunk(engine, "@pixy/module-loader.lua", MODULE_LOADER, sizeof(MODULE_LOADER) - 1, 0,
+                   PIXY_EXIT_CONFIG, "module loader")) {
+        pixy_engine_free(engine);
+        return NULL;
+    }
+
+    lua_getglobal(L, "require");
+    lua_pushstring(L, "pixy");
+    if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
+        pixy_fail(PIXY_EXIT_CONFIG, "loading pixy: %s", lua_tostring(L, -1));
+        pixy_engine_free(engine);
+        return NULL;
+    }
+    lua_getfield(L, -1, "_render");
+    if (!lua_isfunction(L, -1)) {
+        pixy_fail(PIXY_EXIT_CONFIG, "the pixy module has no _render");
+        pixy_engine_free(engine);
+        return NULL;
+    }
+    engine->render_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    lua_pop(L, 1);
+
+    if (!run_chunk(engine, source->name, source->source, source->source_len, 1, PIXY_EXIT_CONFIG,
+                   source->name)) {
+        pixy_engine_free(engine);
+        return NULL;
+    }
+    if (!lua_istable(L, -1)) {
+        pixy_fail(PIXY_EXIT_CONFIG, "%s: a config must return a pixy.config table", source->name);
+        pixy_engine_free(engine);
+        return NULL;
+    }
+    if (!validate_config(L, lua_gettop(L), source->name)) {
+        pixy_engine_free(engine);
+        return NULL;
+    }
+    engine->config_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+    snprintf(engine->source_name, sizeof(engine->source_name), "%s", source->name);
+    disarm(engine);
+    lua_gc(L, LUA_GCCOLLECT, 0);
+    /* Generational suits this shape: a render allocates a burst of short-lived
+     * nodes and drops them, which an incremental sweep pays for again and again. */
+    lua_gc(L, LUA_GCGEN, 0, 0);
+    return engine;
+}
+
+void pixy_engine_free(PixyEngine *engine) {
+    if (!engine) return;
+    if (engine->L) lua_close(engine->L);
+    pixy_host_free(&engine->host);
+    free(engine);
+}
+
+const char *pixy_engine_source_name(const PixyEngine *engine) { return engine->source_name; }
+
+/* --------------------------------------------------------------- request */
+
+static const char *mode_name(PixyMode mode) {
+    switch (mode) {
+        case PIXY_MODE_RUN: return "run";
+        case PIXY_MODE_SURFACE: return "surface";
+        default: return "line";
+    }
+}
+
+static const char *target_name(PixyTarget target) {
+    switch (target) {
+        case PIXY_TARGET_ANSI: return "ansi";
+        case PIXY_TARGET_BASH: return "bash";
+        case PIXY_TARGET_ZSH: return "zsh";
+        default: return "plain";
+    }
+}
+
+/* JSON -> Lua, so a context reaches a config exactly as its caller wrote it. */
+static void push_json(lua_State *L, const PixyJson *value) {
+    switch (pixy_json_kind(value)) {
+        case PIXY_JSON_NULL: lua_pushnil(L); break;
+        case PIXY_JSON_BOOL: lua_pushboolean(L, pixy_json_bool(value)); break;
+        case PIXY_JSON_NUMBER: {
+            double number = pixy_json_number(value);
+            if (number == (double)(long long)number) {
+                lua_pushinteger(L, (lua_Integer)number);
+            } else {
+                lua_pushnumber(L, number);
+            }
+            break;
+        }
+        case PIXY_JSON_STRING: {
+            size_t len = 0;
+            const char *text = pixy_json_string(value, &len);
+            lua_pushlstring(L, text, len);
+            break;
+        }
+        case PIXY_JSON_ARRAY: {
+            lua_newtable(L);
+            for (size_t i = 0; i < pixy_json_count(value); i++) {
+                push_json(L, pixy_json_at(value, i));
+                lua_rawseti(L, -2, (lua_Integer)i + 1);
+            }
+            break;
+        }
+        case PIXY_JSON_OBJECT: {
+            lua_newtable(L);
+            for (size_t i = 0; i < pixy_json_count(value); i++) {
+                size_t key_len = 0;
+                const char *key = pixy_json_key(value, i, &key_len);
+                const PixyJson *child = pixy_json_at(value, i);
+                if (pixy_json_kind(child) == PIXY_JSON_NULL) continue;
+                lua_pushlstring(L, key, key_len);
+                push_json(L, child);
+                lua_settable(L, -3);
+            }
+            break;
+        }
+    }
+}
+
+static void collect_env(PixyHost *host, const PixyJson *context) {
+    const PixyJson *env = context ? pixy_json_get(context, "env") : NULL;
+    size_t count = pixy_json_count(env);
+    if (!env || pixy_json_kind(env) != PIXY_JSON_OBJECT || count == 0) {
+        pixy_host_set_env(host, NULL, NULL, 0);
+        return;
+    }
+    char **names = calloc(count, sizeof(char *));
+    char **values = calloc(count, sizeof(char *));
+    if (!names || !values) {
+        free(names);
+        free(values);
+        return;
+    }
+    for (size_t i = 0; i < count; i++) {
+        size_t key_len = 0;
+        const char *key = pixy_json_key(env, i, &key_len);
+        const PixyJson *child = pixy_json_at(env, i);
+        names[i] = strndup(key, key_len);
+        size_t value_len = 0;
+        const char *text = pixy_json_string(child, &value_len);
+        values[i] = text ? strndup(text, value_len) : NULL;
+    }
+    pixy_host_set_env(host, names, values, count);
+}
+
+bool pixy_engine_render(PixyEngine *engine, const PixyRequest *request, PixyOutput *out) {
+    lua_State *L = engine->L;
+    memset(out, 0, sizeof(*out));
+
+    PixyJson *context = NULL;
+    if (request->context_json && request->context_json_len) {
+        context = pixy_json_parse(request->context_json, request->context_json_len);
+        if (!context) {
+            pixy_fail(PIXY_EXIT_USAGE, "invalid context JSON");
+            return false;
+        }
+    }
+    collect_env(&engine->host, context);
+
+    lua_rawgeti(L, LUA_REGISTRYINDEX, engine->render_ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, engine->config_ref);
+
+    lua_newtable(L);
+    lua_pushinteger(L, 1);
+    lua_setfield(L, -2, "version");
+    lua_newtable(L);
+    for (size_t i = 0; i < request->select_count; i++) {
+        lua_pushstring(L, request->select[i]);
+        lua_rawseti(L, -2, (lua_Integer)i + 1);
+    }
+    lua_setfield(L, -2, "select");
+    lua_pushstring(L, mode_name(request->mode));
+    lua_setfield(L, -2, "mode");
+    if (request->has_target) {
+        lua_pushstring(L, target_name(request->target));
+        lua_setfield(L, -2, "target");
+    }
+    lua_pushinteger(L, request->width);
+    lua_setfield(L, -2, "width");
+    lua_pushinteger(L, request->height);
+    lua_setfield(L, -2, "height");
+    lua_pushinteger(L,
+                    (lua_Integer)(request->has_now_ms ? (long long)request->now_ms : pixy_unix_ms()));
+    lua_setfield(L, -2, "now_ms");
+    lua_pushboolean(L, request->ignore_missing);
+    lua_setfield(L, -2, "ignore_missing");
+
+    lua_newtable(L);
+    const PixyJson *values = context ? pixy_json_get(context, "values") : NULL;
+    if (values && pixy_json_kind(values) == PIXY_JSON_OBJECT) {
+        push_json(L, values);
+    } else {
+        lua_newtable(L);
+    }
+    lua_setfield(L, -2, "values");
+    const PixyJson *env = context ? pixy_json_get(context, "env") : NULL;
+    if (env && pixy_json_kind(env) == PIXY_JSON_OBJECT) {
+        push_json(L, env);
+    } else {
+        lua_newtable(L);
+    }
+    lua_setfield(L, -2, "env");
+    lua_setfield(L, -2, "context");
+
+    pixy_host_begin_render(&engine->host);
+    arm(engine, PIXY_RENDER_DEADLINE_MS);
+    int status = lua_pcall(L, 2, 1, 0);
+    disarm(engine);
+    pixy_json_free(context);
+
+    if (status != LUA_OK) {
+        pixy_fail(PIXY_EXIT_RENDER, "%s: lua error: @%s", engine->source_name, lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return false;
+    }
+    if (!lua_istable(L, -1)) {
+        pixy_fail(PIXY_EXIT_RENDER, "render returned no output table");
+        lua_pop(L, 1);
+        return false;
+    }
+
+    int output = lua_gettop(L);
+    lua_getfield(L, output, "mode");
+    const char *mode = lua_isstring(L, -1) ? lua_tostring(L, -1) : "line";
+    out->mode = strcmp(mode, "run") == 0    ? PIXY_MODE_RUN
+                : strcmp(mode, "surface") == 0 ? PIXY_MODE_SURFACE
+                                               : PIXY_MODE_LINE;
+    lua_pop(L, 1);
+
+    if (out->mode == PIXY_MODE_LINE) {
+        lua_getfield(L, output, "text");
+        size_t len = 0;
+        const char *text = lua_tolstring(L, -1, &len);
+        if (text) pixy_buf_add(&out->payload, text, len);
+        lua_pop(L, 1);
+    } else if (out->mode == PIXY_MODE_SURFACE) {
+        lua_getfield(L, output, "ansi");
+        size_t len = 0;
+        const char *text = lua_tolstring(L, -1, &len);
+        if (text) pixy_buf_add(&out->payload, text, len);
+        lua_pop(L, 1);
+        lua_getfield(L, output, "height");
+        out->height = (size_t)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+    } else {
+        lua_getfield(L, output, "runs");
+        pixy_encode_runs(L, lua_gettop(L), &out->runs_json);
+        lua_pop(L, 1);
+    }
+
+    lua_getfield(L, output, "width");
+    out->width = (size_t)lua_tointeger(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, output, "next_frame_ms");
+    if (lua_isnumber(L, -1)) {
+        out->has_next_frame = true;
+        out->next_frame_ms = (uint64_t)lua_tointeger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, output, "regions");
+    if (lua_istable(L, -1)) pixy_encode_regions(L, lua_gettop(L), &out->regions_json);
+    lua_pop(L, 1);
+
+    lua_getfield(L, output, "_stream_rewind");
+    if (lua_isstring(L, -1)) {
+        size_t len = 0;
+        const char *text = lua_tolstring(L, -1, &len);
+        pixy_buf_add(&out->stream_rewind, text, len);
+    }
+    lua_pop(L, 1);
+
+    lua_pop(L, 1);
+    if (out->payload.len > PIXY_OUTPUT_LIMIT) {
+        pixy_fail(PIXY_EXIT_RENDER, "output exceeds 1 MiB");
+        return false;
+    }
+    return true;
+}
+
+void pixy_output_free(PixyOutput *output) {
+    pixy_buf_free(&output->payload);
+    pixy_buf_free(&output->runs_json);
+    pixy_buf_free(&output->regions_json);
+    pixy_buf_free(&output->stream_rewind);
+}
+
+/* ------------------------------------------------------------- inventory */
+
+static int compare_names(const void *left, const void *right) {
+    return strcmp(*(const char **)left, *(const char **)right);
+}
+
+bool pixy_engine_inventory(PixyEngine *engine, char ***names_out, size_t *count_out, size_t *zones_out,
+                           size_t *segments_out) {
+    lua_State *L = engine->L;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, engine->config_ref);
+    lua_getfield(L, -1, "zones");
+    if (!lua_istable(L, -1)) {
+        pixy_fail(PIXY_EXIT_CONFIG, "config zones must be a table");
+        lua_pop(L, 2);
+        return false;
+    }
+    size_t capacity = 64, count = 0, zones = 0, segments = 0;
+    char **names = calloc(capacity, sizeof(char *));
+    if (!names) {
+        lua_pop(L, 2);
+        return false;
+    }
+    int zones_index = lua_gettop(L);
+    lua_pushnil(L);
+    while (lua_next(L, zones_index) != 0) {
+        const char *zone_name = lua_tostring(L, -2);
+        zones++;
+        if (count + 2 >= capacity) {
+            capacity *= 2;
+            char **grown = realloc(names, capacity * sizeof(char *));
+            if (!grown) break;
+            names = grown;
+        }
+        names[count++] = strdup(zone_name);
+        lua_getfield(L, -1, "segments");
+        if (lua_istable(L, -1)) {
+            lua_Integer len = (lua_Integer)lua_rawlen(L, -1);
+            for (lua_Integer i = 1; i <= len; i++) {
+                lua_rawgeti(L, -1, i);
+                lua_getfield(L, -1, "name");
+                const char *segment_name = lua_tostring(L, -1);
+                if (segment_name) {
+                    if (count + 2 >= capacity) {
+                        capacity *= 2;
+                        char **grown = realloc(names, capacity * sizeof(char *));
+                        if (!grown) break;
+                        names = grown;
+                    }
+                    char joined[600];
+                    snprintf(joined, sizeof(joined), "%s.%s", zone_name, segment_name);
+                    names[count++] = strdup(joined);
+                    segments++;
+                }
+                lua_pop(L, 2);
+            }
+        }
+        lua_pop(L, 2);
+    }
+    lua_pop(L, 2);
+    qsort(names, count, sizeof(char *), compare_names);
+    *names_out = names;
+    *count_out = count;
+    if (zones_out) *zones_out = zones;
+    if (segments_out) *segments_out = segments;
+    return true;
+}

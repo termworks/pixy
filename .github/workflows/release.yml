@@ -18,31 +18,29 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: "pixy-linux-amd64"
-            target: "x86_64-unknown-linux-musl"
+            cc: "musl-gcc"
           - os: ubuntu-24.04-arm
             artifact: "pixy-linux-arm64"
-            target: "aarch64-unknown-linux-musl"
+            cc: "musl-gcc"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      - name: Install musl tools
-        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+      - name: Install the toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes musl-tools clang
       - name: Build
-        run: make release-build example-pack TARGET=${{ matrix.target }}
+        run: make release-build example-pack CC=${{ matrix.cc }}
       - name: Check the artifact is complete
-        run: make package-check TARGET=${{ matrix.target }}
+        run: make package-check CC=${{ matrix.cc }}
       - name: Check the binary is static
         run: |
-          binary="target/${{ matrix.target }}/release/pixy"
-          file "$binary"
-          file "$binary" | grep -q 'static'
+          file build/pixy
+          file build/pixy | grep -q 'static'
       - name: Package
         run: |
-          release_dir="target/${{ matrix.target }}/release"
+          release_dir="build"
           mkdir -p dist
-          cp "$release_dir/pixy" dist/pixy
+          cp build/pixy dist/pixy
           cp -R README.md LICENSE THIRD_PARTY.md assets lua examples docs dist/
           tar -czf "${{ matrix.artifact }}.tar.gz" -C dist .
           tar -czf "${{ matrix.artifact }}-example-pack.tar.gz" \

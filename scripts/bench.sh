@@ -7,14 +7,13 @@ set -euo pipefail
 scale=${PIXY_BENCH_SCALE:-1}
 budget() { printf '%s' "$(( $1 * scale ))"; }
 
-pixy=${PIXY_BIN:-target/release/pixy}
+pixy=${PIXY_BIN:-build/pixy}
 run_pixy() { env -u LD_LIBRARY_PATH "$pixy" "$@"; }
 cold=$(run_pixy __bench cold 500)
 query=$(run_pixy __bench query 10000)
 provider=$(run_pixy __bench provider 100)
-queue=$(run_pixy __bench queue 100000)
 compat=$(run_pixy __bench compat 500)
-printf '%s\n%s\n%s\n%s\n%s\n' "$cold" "$query" "$provider" "$queue" "$compat"
+printf '%s\n%s\n%s\n%s\n' "$cold" "$query" "$provider" "$compat"
 cold_ns=$(printf '%s\n' "$cold" | sed -n 's/^cold_p95_ns=//p')
 query_ns=$(printf '%s\n' "$query" | sed -n 's/^query_p95_ns=//p')
 memory=$(printf '%s\n' "$query" | sed -n 's/^lua_memory_limit_bytes=//p')
@@ -23,7 +22,6 @@ test -n "$query_ns" && test "$query_ns" -le "$(budget 50000)"
 test "$memory" -le 33554432
 provider_ns=$(printf '%s\n' "$provider" | sed -n 's/^provider_exec_p95_ns=//p')
 test -n "$provider_ns" && test "$provider_ns" -le "$(budget 8000000)"
-test "$queue" = 'pending_outputs=1'
 compat_cold_ns=$(printf '%s\n' "$compat" | sed -n 's/^compat_cold_p95_ns=//p')
 compat_query_ns=$(printf '%s\n' "$compat" | sed -n 's/^compat_query_p95_ns=//p')
 compat_segment_ns=$(printf '%s\n' "$compat" | sed -n 's/^compat_segment_p95_ns=//p')

@@ -29,7 +29,7 @@ not dots. Segment names must be unique inside a zone.
 a name and render function. The function receives `ctx` and returns a string,
 node, or `nil`.
 
-`ctx` carries `width`, `height`, `now_ms`, the `env` map, and `values`. Rust
+`ctx` carries `width`, `height`, `now_ms`, the `env` map, and `values`. The host
 names no other field: everything a caller supplies arrives through `--set
 key=value`, `--context-json`, or `--context-file` and appears under
 `ctx.values`, so what a prompt or statusbar is made of is decided by the zones
@@ -61,7 +61,7 @@ width left over between the rendered content and the requested width. Several
 spacers split that slack in proportion to their weight, `pixy.spacer(3)` taking
 three times what `pixy.spacer()` takes. Where the spacers sit is what makes a
 zone left, centered, right, or anything between, so a status bar needs no
-alignment vocabulary in Rust. A spacer is never pruned, and collapses to zero
+alignment vocabulary in the host. A spacer is never pruned, and collapses to zero
 when the content already fills the width.
 
 `segments` is a lower-level responsive layout node; prefer config-level zones

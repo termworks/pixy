@@ -1,9 +1,14 @@
 # Architecture
 
-Pixy is a caller-neutral terminal painter. Rust owns the CLI, bounded Lua VM,
-host primitives, scheduling, and asset storage. Lua owns named zones, their
-ordered named segments, nodes, layout, styling, animation frames, providers,
-sprites, and all output encoding.
+Pixy is a caller-neutral terminal painter. C owns the CLI, the bounded Lua
+state, host primitives, and asset storage. Lua owns named zones, their ordered
+named segments, nodes, layout, styling, animation frames, providers, sprites,
+and all output encoding.
+
+That split is why the host was rewritten from Rust to C without a configuration
+changing: everything a config can see lives in `lua/`, which the rewrite did not
+touch. `tests/parity.sh` holds the two builds against each other output by
+output.
 
 A render request selects whole zones or individual `zone.segment` values and
 asks for one of three shapes:
@@ -15,7 +20,7 @@ asks for one of three shapes:
 Sprite assets never bypass this model. Lua parses permitted SGR into styled
 runs, rejects other controls, and the surface encoder emits fresh bounded ANSI.
 The built-in Pokemon collection is packed into per-sprite gzip streams during
-the Cargo build and embedded as a roughly 1.6-MiB archive. Generic version-2
+the build and embedded as a roughly 1.6-MiB archive. Generic version-2
 packs use a compact hashed index and individually deflated payloads. Both paths
 inflate only the selected item.
 
@@ -38,14 +43,27 @@ budget rather than a render's latency budget. The render ceiling is sized for
 the heaviest supported render on a loaded machine, not for the typical prompt,
 which measures three orders of magnitude below it.
 
-## Rust source layout
+## Source layout
 
-Rust modules are grouped by dependency direction:
+- `csrc/engine.c` holds the Lua state: the bounding allocator, the deadline
+  hook, the bundled modules, config validation, and the one call into
+  `pixy._render`.
+- `csrc/host.c` is `__pixy_host` — `env`, `read`, `exec`, `cell_width` and
+  `asset` — with the trusted roots, the I/O budget, and the two-tier exec cache.
+- `csrc/assets.c` reads and writes packs, including the embedded archive.
+- `csrc/cli.c`, `csrc/serve.c` are the two front doors; `csrc/json.c`,
+  `csrc/encode.c`, `csrc/width.c` and `csrc/util.c` are the plumbing.
+- `vendor/lua` is Lua 5.4.7 unmodified; `vendor/miniz` provides deflate.
+- `lua/` is the part a configuration actually talks to, and is language-neutral.
 
-- `src/model/` defines render context, output types, and errors;
-- `src/runtime/` provides assets, configuration, host operations, and
-  scheduling;
-- `src/application/` composes those layers into the engine and CLI.
+The Lua modules and the shell integrations are turned into C string literals by
+`tools/embed_text.sh` at build time, and the sprite archive by
+`tools/pack_sprites.c`, so the binary carries everything it needs.
 
-`src/lib.rs` exposes the grouped modules and their direct root re-exports such
-as `pixy::config`.
+## Limits, and where they are enforced
+
+The memory ceiling is the allocator handed to `lua_newstate`: past 32 MiB it
+refuses, and Lua reports an ordinary allocation failure. The deadline is a count
+hook that checks the clock every 4096 instructions, which is what stops a
+configuration that loops forever. Both live in `csrc/engine.c` and are the same
+numbers the Rust host used.

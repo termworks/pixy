@@ -10,7 +10,7 @@ set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 
-pixy=${PIXY:-target/release/pixy}
+pixy=${PIXY:-build/pixy}
 config=${PIXY_DOCS_CONFIG:-examples/hexe-oslo.lua}
 context=tests/fixtures/contexts/hexe-oslo.json
 fonts=${PIXY_DOCS_FONTS:-}
@@ -81,7 +81,7 @@ frame responsive "$tmp/responsive.ansi" 0
 # ---- the small examples -----------------------------------------------------
 
 typed "$(render prompt.left examples/minimal.lua --set "cwd=$HOME/dev/pixy" --set status=7)" \
-  "cargo test" >"$tmp/minimal.ansi"
+  "make test" >"$tmp/minimal.ansi"
 frame minimal "$tmp/minimal.ansi"
 
 typed "$(render prompt.right examples/git.lua --set git_branch=main --set git_status=dirty)" \
@@ -104,7 +104,7 @@ frame sprite "$tmp/sprite.ansi"
 
 for preset in examples/presets/*.lua; do
   name=$(basename "$preset" .lua)
-  typed "$(render prompt.left "$preset" "${demo[@]}")" "cargo build --release" \
+  typed "$(render prompt.left "$preset" "${demo[@]}")" "make release-build" \
     >"$tmp/preset-$name.ansi"
   frame "presets/$name" "$tmp/preset-$name.ansi"
 done

@@ -1,6 +1,6 @@
 # Pixy
 
-Lua decides what your terminal says. Rust hosts it, bounds it, and gets out of the way.
+Lua decides what your terminal says. C hosts it, bounds it, and gets out of the way.
 
 [![tests](https://github.com/termworks/pixy/actions/workflows/tests.yml/badge.svg)](https://github.com/termworks/pixy/actions/workflows/tests.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -12,10 +12,13 @@ Pixy paints prompts, status bars, titles and sprites. A Lua config defines named
 single `zone.segment`, and gets plain text, an ANSI prompt, styled runs, or a
 bounded terminal surface.
 
-What a prompt *is* lives entirely in your Lua. Rust never learns the word
+What a prompt *is* lives entirely in your Lua. The host never learns the word
 "branch", "battery" or "hostname" — it loads your config, enforces the limits,
 prints the answer, and exits. No daemon, no rewriting of your shell config, no
 second repository.
+
+The host is C with Lua 5.4 compiled in: one static binary, no runtime, and
+nothing to install beside it.
 
 ## Presets
 
@@ -152,7 +155,7 @@ status = pixy.zone({
 A spacer measures zero and is never pruned. Two of them centre the tabs;
 `pixy.spacer(3)` takes three times the share of a plain one. Where the spacers
 sit is what makes a zone left, centred or right — there is no alignment
-vocabulary in the Rust.
+vocabulary in the host.
 
 At full width, that same zone is the bar:
 
@@ -211,9 +214,10 @@ install -m 755 pixy ~/.local/bin/pixy
 From source:
 
 ```sh
-make build          # debug
-make release-build  # optimized
-make release-musl   # static, this arch
+nix develop            # zig, clang and the rest of the toolchain
+make build             # debug
+make release-build     # optimized
+make release-musl      # static, this arch
 ```
 
 Then wire it into a shell:
@@ -241,7 +245,7 @@ The engine is not where prompts spend their time:
 |---|---|
 | one segment, warm, in process | 25 µs |
 | a whole prompt, warm, in process | 0.17 ms |
-| a whole prompt as a process, providers cached | 5 ms |
+| a whole prompt as a process, providers cached | 3 ms |
 | the same prompt with every cache entry expired | ~26 ms |
 
 What costs milliseconds is whatever your segments *call*. The bundled profile
@@ -289,11 +293,12 @@ with `PIXY_CONFIG`, `PIXY_CACHE_DIR`, `PIXY_DATA_DIR`.
 
 ## Limits
 
-Every render is a fresh query inside hard bounds: 32 MiB of Lua, a 100 ms render
-deadline, a 250 ms config load deadline, 2 s of host I/O per render, argv-only
-execution capped at 64 KiB of output, and reads confined to trusted roots. A
-config that loops forever or shells out to something wedged gets stopped rather
-than hanging your shell.
+Every render is a fresh query inside hard bounds: 32 MiB of Lua enforced by the
+allocator, a 100 ms render deadline checked every 4096 instructions, a 250 ms
+config load deadline, 2 s of host I/O per render, argv-only execution capped at
+64 KiB of output, and reads confined to trusted roots. A config that loops
+forever or shells out to something wedged gets stopped rather than hanging your
+shell.
 
 ## Documentation
 

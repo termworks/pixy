@@ -13,20 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-
-      - name: Verify
-        run: make verify
+      - name: Install a musl-capable compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes musl-tools clang
+      - name: Build
+        run: make release-build
+      - name: Test
+        run: make test
       - name: Pixy gates
         env:
           PIXY_BENCH_SCALE: "3"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-pixy=${PIXY_BIN:-target/debug/pixy}
+pixy=${PIXY_BIN:-build/pixy}
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 export PIXY_CONFIG="$PWD/lua/pixy/default.lua"
