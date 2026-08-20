@@ -1,6 +1,6 @@
 # Pokemon sprite source
 
-`assets/pokemon/` contains the regular and shiny ANSI sprites copied from the
+`docs/assets/pokemon/` contains the regular and shiny ANSI sprites copied from the
 read-only sibling Hexe checkout at commit `3ddc19b`. The imported collection
 contains 1,017 regular and 1,017 shiny entries.
 

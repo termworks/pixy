@@ -84,7 +84,7 @@ static size_t collect(const char *root, const char *variant, unsigned char kind,
 
 int main(int argc, char **argv) {
     if (argc != 3) {
-        fprintf(stderr, "usage: pack_sprites <assets/pokemon> <output.pack>\n");
+        fprintf(stderr, "usage: pack_sprites <docs/assets/pokemon> <output.pack>\n");
         return 1;
     }
     Sprite *sprites = calloc(MAX_SPRITES, sizeof(Sprite));

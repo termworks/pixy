@@ -51,10 +51,10 @@ b: build
 compile: build
 c: compile
 
-$(BUILD)/pokemon.pack: scripts/pack_sprites.c $(wildcard assets/pokemon/regular/*) $(wildcard assets/pokemon/shiny/*)
+$(BUILD)/pokemon.pack: scripts/pack_sprites.c $(wildcard docs/assets/pokemon/regular/*) $(wildcard docs/assets/pokemon/shiny/*)
 	@mkdir -p $(BUILD)
 	@$(CC) -O2 -Ivendor/miniz -o $(BUILD)/pack_sprites scripts/pack_sprites.c $(MINIZ_SRC) -lm
-	@$(BUILD)/pack_sprites assets/pokemon $(BUILD)/pokemon.pack
+	@$(BUILD)/pack_sprites docs/assets/pokemon $(BUILD)/pokemon.pack
 
 $(BUILD)/lua_modules.c: $(LUA_MODULES) scripts/embed_text.sh
 	@mkdir -p $(BUILD)

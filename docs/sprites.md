@@ -18,13 +18,13 @@ Unicode half-block sprites without allowing raw asset bytes into the output.
 `fallback_name` selects another packed item when `name` is absent.
 
 Pixy embeds a built-in `pokemon` pack containing 1,017 regular and 1,017 shiny
-sprites. Cargo deterministically converts `assets/pokemon/{regular,shiny}` into
+sprites. The build deterministically converts `docs/assets/pokemon/{regular,shiny}` into
 an HXSP archive of individually gzipped entries and embeds the roughly 1.6-MiB
 result in the executable. Lookup scans the bounded index and inflates only the
 selected sprite. No asset files are read or downloaded at runtime.
 
 The imported artwork, source chain, copyright notice, and applicable license
-are recorded in `assets/README.md`, `THIRD_PARTY.md`, and
+are recorded in `docs/assets/README.md`, `THIRD_PARTY.md`, and
 `LICENSES/GPL-3.0-only.txt`.
 
 The bundled config exposes regular and shiny Pikachu directly:

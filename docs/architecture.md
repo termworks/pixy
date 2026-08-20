@@ -54,6 +54,7 @@ which measures three orders of magnitude below it.
 - `src/cli.c`, `src/serve.c` are the two front doors; `src/json.c`,
   `src/encode.c`, `src/width.c` and `src/util.c` are the plumbing.
 - `vendor/lua` is Lua 5.4.7 unmodified; `vendor/miniz` provides deflate.
+- `docs/assets/pokemon` is the sprite art the build packs and embeds.
 - `lua/` is the part a configuration actually talks to, and is language-neutral.
 
 The Lua modules and the shell integrations are turned into C string literals by
