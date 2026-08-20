@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.3] - 2026-08-20
+
+### <!-- 3 -->📚 Documentation
+
+- Add a preset gallery with uniform frames
+
+### <!-- 7 -->⚙️ Miscellaneous Tasks
+
+- Widen bench budgets for shared runners
+- Drop macos and pin HOME in compat fixtures
+
 ## [0.1.2] - 2026-08-20
 
 ### <!-- 0 -->⛰️  Features
