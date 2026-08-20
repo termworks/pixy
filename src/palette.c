@@ -110,8 +110,8 @@ bool pixy_palette_ask(PixyBuf *out, PixyTarget target) {
     return begin(out, "ask") && finish(out, target);
 }
 
-bool pixy_palette_set(PixyBuf *out, const char *slot, const PixyPaletteEntry *entries,
-                      size_t count, PixyTarget target) {
+bool pixy_palette_set(PixyBuf *out, const char *slot, const PixyPaletteEntry *entries, size_t count,
+                      PixyTarget target) {
     if (count == 0) return true;
     /* `set` is a patch: indexes left unnamed keep passing through to the
      * terminal's own theme, so one entry does not blacken the other 255. */
@@ -131,11 +131,11 @@ bool pixy_palette_set(PixyBuf *out, const char *slot, const PixyPaletteEntry *en
  * invisible in exactly the way each shell expects. */
 bool pixy_palette_wrap(PixyBuf *out, const char *sequence, PixyTarget target) {
     switch (target) {
-        case PIXY_TARGET_BASH:
-            return pixy_buf_fmt(out, "\\[%s\\]", sequence);
-        case PIXY_TARGET_ZSH:
-            return pixy_buf_fmt(out, "%%{%s%%}", sequence);
-        default:
-            return pixy_buf_str(out, sequence);
+    case PIXY_TARGET_BASH:
+        return pixy_buf_fmt(out, "\\[%s\\]", sequence);
+    case PIXY_TARGET_ZSH:
+        return pixy_buf_fmt(out, "%%{%s%%}", sequence);
+    default:
+        return pixy_buf_str(out, sequence);
     }
 }

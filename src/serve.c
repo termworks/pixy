@@ -196,9 +196,9 @@ static void answer(PixyEngine *engine, int fd) {
     }
     free(body);
 
-    unsigned char out_header[4] = {
-        (unsigned char)(response.len >> 24), (unsigned char)(response.len >> 16),
-        (unsigned char)(response.len >> 8), (unsigned char)response.len};
+    unsigned char out_header[4] = {(unsigned char)(response.len >> 24),
+                                   (unsigned char)(response.len >> 16),
+                                   (unsigned char)(response.len >> 8), (unsigned char)response.len};
     if (write_all(fd, out_header, 4)) write_all(fd, response.data, response.len);
     pixy_buf_free(&response);
 }
@@ -226,8 +226,8 @@ int pixy_serve(const char *socket_path, const char *config_path, bool force) {
      * takes the first one's place and the host keeps talking to whichever bound
      * last. A socket that answers belongs to someone; only a dead one is ours. */
     if (!force && socket_answers(path)) {
-        pixy_fail(PIXY_EXIT_TRANSPORT, "a painter is already listening on %s; --force takes it over",
-                  path);
+        pixy_fail(PIXY_EXIT_TRANSPORT,
+                  "a painter is already listening on %s; --force takes it over", path);
         pixy_engine_free(engine);
         return PIXY_EXIT_TRANSPORT;
     }
@@ -243,7 +243,8 @@ int pixy_serve(const char *socket_path, const char *config_path, bool force) {
     memset(&address, 0, sizeof(address));
     address.sun_family = AF_UNIX;
     if (strlen(path) >= sizeof(address.sun_path)) {
-        pixy_fail(PIXY_EXIT_TRANSPORT, "failed to bind %s: path must be shorter than SUN_LEN", path);
+        pixy_fail(PIXY_EXIT_TRANSPORT, "failed to bind %s: path must be shorter than SUN_LEN",
+                  path);
         close(listener);
         pixy_engine_free(engine);
         return PIXY_EXIT_TRANSPORT;

@@ -69,8 +69,8 @@ typedef struct {
 bool pixy_paths_discover(PixyPaths *paths);
 
 typedef struct {
-    char name[4096];  /* "@/path/to/init.lua" or "@pixy/default.lua" */
-    char path[4096];  /* empty when the source is not a file */
+    char name[4096]; /* "@/path/to/init.lua" or "@pixy/default.lua" */
+    char path[4096]; /* empty when the source is not a file */
     char directory[4096];
     char *source;
     size_t source_len;

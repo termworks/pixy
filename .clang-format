@@ -1,0 +1,17 @@
+# The style the code is already written in. Without this file clang-format falls
+# back to LLVM defaults, and `make fmt` rewrites every line in the repository.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+PointerAlignment: Right
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLoopsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Empty
+SpaceBeforeParens: ControlStatements
+AlignAfterOpenBracket: Align
+BinPackArguments: true
+BinPackParameters: true
+Cpp11BracedListStyle: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+SortIncludes: Never

@@ -480,7 +480,8 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
                  * namespace the surrounding application was holding. */
                 if (!stop || *stop != '\0' || !pixy_palette_valid_slot(slot, true)) {
                     pixy_fail(PIXY_EXIT_USAGE,
-                              "--palette takes a slot 2-%d; 0 is the ordinary palette and 1 the terminal's",
+                              "--palette takes a slot 2-%d; 0 is the ordinary palette and 1 the "
+                              "terminal's",
                               PIXY_PALETTE_MAX_SLOT);
                     goto fail;
                 }
@@ -530,25 +531,27 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
             for (size_t i = 0; i < count; i++) {
                 size_t len = 0;
                 const char *text = pixy_json_string(pixy_json_at(select, i), &len);
-                if (text) options->request.select[options->request.select_count++] = strndup(text, len);
+                if (text)
+                    options->request.select[options->request.select_count++] = strndup(text, len);
             }
         }
         const PixyJson *mode = pixy_json_get(request, "mode");
         size_t len = 0;
         const char *text = mode ? pixy_json_string(mode, &len) : NULL;
         if (text) {
-            options->request.mode = len == 3 && memcmp(text, "run", 3) == 0      ? PIXY_MODE_RUN
-                                    : len == 7 && memcmp(text, "surface", 7) == 0 ? PIXY_MODE_SURFACE
-                                                                                  : PIXY_MODE_LINE;
+            options->request.mode = len == 3 && memcmp(text, "run", 3) == 0 ? PIXY_MODE_RUN
+                                    : len == 7 && memcmp(text, "surface", 7) == 0
+                                        ? PIXY_MODE_SURFACE
+                                        : PIXY_MODE_LINE;
         }
         const PixyJson *target = pixy_json_get(request, "target");
         text = target ? pixy_json_string(target, &len) : NULL;
         if (text) {
             options->request.has_target = true;
-            options->request.target = len == 4 && memcmp(text, "ansi", 4) == 0 ? PIXY_TARGET_ANSI
+            options->request.target = len == 4 && memcmp(text, "ansi", 4) == 0   ? PIXY_TARGET_ANSI
                                       : len == 4 && memcmp(text, "bash", 4) == 0 ? PIXY_TARGET_BASH
                                       : len == 3 && memcmp(text, "zsh", 3) == 0  ? PIXY_TARGET_ZSH
-                                                                                 : PIXY_TARGET_PLAIN;
+                                                                                : PIXY_TARGET_PLAIN;
         }
         const PixyJson *width = pixy_json_get(request, "width");
         if (width) options->request.width = (uint16_t)pixy_json_number(width);
@@ -593,7 +596,8 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
      * nowhere in it for a sequence to go, so asking is a mistake worth naming
      * rather than a flag that quietly does nothing. */
     if (options->palette && options->request.mode == PIXY_MODE_RUN) {
-        pixy_fail(PIXY_EXIT_USAGE, "--palette writes terminal sequences, which run mode cannot carry");
+        pixy_fail(PIXY_EXIT_USAGE,
+                  "--palette writes terminal sequences, which run mode cannot carry");
         goto fail;
     }
     return true;
@@ -749,7 +753,8 @@ static int stream_command(int argc, char **argv) {
          * reports is when its picture next changes, so writing faster than that
          * only makes the terminal redraw the same bytes. */
         bool changed = previous.len != output.payload.len ||
-                       memcmp(previous.data ? previous.data : "", output.payload.data, output.payload.len) != 0;
+                       memcmp(previous.data ? previous.data : "", output.payload.data,
+                              output.payload.len) != 0;
         if (changed) {
             if (!first && rewind.len) fwrite(rewind.data, 1, rewind.len, stdout);
             /* Per frame rather than once around the whole stream: `use` is
@@ -869,8 +874,8 @@ static int names_command(int argc, char **argv) {
     PixyPack loaded;
     if (!pixy_pack_load(path, &loaded)) {
         pixy_clear_error();
-        pixy_fail(PIXY_EXIT_USAGE,
-                  "unknown pack '%s'; `pixy pack list` shows what is installed", pack);
+        pixy_fail(PIXY_EXIT_USAGE, "unknown pack '%s'; `pixy pack list` shows what is installed",
+                  pack);
         return PIXY_EXIT_USAGE;
     }
     for (size_t i = 0; i < loaded.count; i++) {
@@ -1038,7 +1043,8 @@ static int palette_command(int argc, char **argv) {
         }
         const char *equals = strchr(arg, '=');
         if (!equals) {
-            pixy_fail(PIXY_EXIT_USAGE, "unknown palette argument '%s'; expected <key>=<colour>", arg);
+            pixy_fail(PIXY_EXIT_USAGE, "unknown palette argument '%s'; expected <key>=<colour>",
+                      arg);
             code = PIXY_EXIT_USAGE;
             break;
         }
@@ -1063,7 +1069,8 @@ static int palette_command(int argc, char **argv) {
             break;
         }
         if (!pixy_palette_valid_colour(entry->colour)) {
-            pixy_fail(PIXY_EXIT_USAGE, "'%s' is not #rrggbb, rrggbb or rgb:rr/gg/bb", entry->colour);
+            pixy_fail(PIXY_EXIT_USAGE, "'%s' is not #rrggbb, rrggbb or rgb:rr/gg/bb",
+                      entry->colour);
             code = PIXY_EXIT_USAGE;
             break;
         }
@@ -1078,8 +1085,9 @@ static int palette_command(int argc, char **argv) {
     bool slotless = strcmp(verb, "end") == 0 || strcmp(verb, "ask") == 0;
     if (slot_given && slotless) {
         pixy_fail(PIXY_EXIT_USAGE, "%s takes no slot: %s", verb,
-                  slot_given && strcmp(verb, "end") == 0 ? "end pops whatever use pushed"
-                                                         : "ask asks about the terminal, not a slot");
+                  slot_given && strcmp(verb, "end") == 0
+                      ? "end pops whatever use pushed"
+                      : "ask asks about the terminal, not a slot");
         free(given);
         return PIXY_EXIT_USAGE;
     }
@@ -1096,7 +1104,8 @@ static int palette_command(int argc, char **argv) {
         long value = strtol(slot, &stop, 10);
         if (!stop || *stop != '\0' || !pixy_palette_valid_slot(value, selecting)) {
             pixy_fail(PIXY_EXIT_USAGE, "slot must be %s-%d%s", selecting ? "2" : "0",
-                      PIXY_PALETTE_MAX_SLOT, selecting ? " (0 is the palette, 1 the terminal's)" : "");
+                      PIXY_PALETTE_MAX_SLOT,
+                      selecting ? " (0 is the palette, 1 the terminal's)" : "");
             free(given);
             return PIXY_EXIT_USAGE;
         }

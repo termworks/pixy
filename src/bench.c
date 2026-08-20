@@ -160,8 +160,8 @@ int pixy_bench(int argc, char **argv) {
         return bench_query(count ? count : 100, PROVIDER_CONFIG, "provider_exec", "x", NULL);
     }
     if (strcmp(argv[0], "compat") == 0) {
-        int code = bench_cold(count ? count : 500, PIXY_HEXE_OSLO_CONFIG, "compat_cold",
-                              "prompt.left");
+        int code =
+            bench_cold(count ? count : 500, PIXY_HEXE_OSLO_CONFIG, "compat_cold", "prompt.left");
         if (code) return code;
         return bench_query(count ? count : 500, PIXY_HEXE_OSLO_CONFIG, "compat_query",
                            "prompt.left", "prompt.left.hostname");

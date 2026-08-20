@@ -41,7 +41,9 @@ long long pixy_unix_ms(void) {
     return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
-void pixy_host_begin_render(PixyHost *host) { host->io_spent_ms = 0; }
+void pixy_host_begin_render(PixyHost *host) {
+    host->io_spent_ms = 0;
+}
 
 static long long io_remaining(const PixyHost *host) {
     long long left = PIXY_MAX_RENDER_IO_MS - host->io_spent_ms;
@@ -352,8 +354,8 @@ static void drain(int fd, PixyBuf *buf, bool *truncated) {
 }
 
 /* argv-only: no shell, so nothing a config writes can be re-parsed as one. */
-static bool spawn(char **argv, size_t argc, const char *cwd, char **env_names,
-                  char **env_values, size_t env_count, long long timeout_ms, ExecResult *result) {
+static bool spawn(char **argv, size_t argc, const char *cwd, char **env_names, char **env_values,
+                  size_t env_count, long long timeout_ms, ExecResult *result) {
     (void)argc;
     int out_pipe[2], err_pipe[2];
     if (pipe(out_pipe) != 0) return false;
@@ -643,11 +645,8 @@ void pixy_host_install(lua_State *L, PixyHost *host) {
         const char *name;
         lua_CFunction fn;
     } entries[] = {
-        {"env", host_env},
-        {"cell_width", host_cell_width},
-        {"read", host_read},
-        {"exec", host_exec},
-        {"asset", host_asset},
+        {"env", host_env},   {"cell_width", host_cell_width}, {"read", host_read},
+        {"exec", host_exec}, {"asset", host_asset},
     };
     for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); i++) {
         lua_pushlightuserdata(L, host);

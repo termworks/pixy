@@ -76,8 +76,8 @@ static bool push(PixyJson *parent, char *key, size_t key_len, PixyJson *child) {
 }
 
 static void skip_space(Reader *reader) {
-    while (reader->at < reader->end &&
-           (*reader->at == ' ' || *reader->at == '\t' || *reader->at == '\n' || *reader->at == '\r'))
+    while (reader->at < reader->end && (*reader->at == ' ' || *reader->at == '\t' ||
+                                        *reader->at == '\n' || *reader->at == '\r'))
         reader->at++;
 }
 
@@ -148,34 +148,51 @@ static char *parse_string(Reader *reader, size_t *len) {
             char esc = *reader->at++;
             bool ok = true;
             switch (esc) {
-                case '"': ok = pixy_buf_add(&buf, "\"", 1); break;
-                case '\\': ok = pixy_buf_add(&buf, "\\", 1); break;
-                case '/': ok = pixy_buf_add(&buf, "/", 1); break;
-                case 'b': ok = pixy_buf_add(&buf, "\b", 1); break;
-                case 'f': ok = pixy_buf_add(&buf, "\f", 1); break;
-                case 'n': ok = pixy_buf_add(&buf, "\n", 1); break;
-                case 'r': ok = pixy_buf_add(&buf, "\r", 1); break;
-                case 't': ok = pixy_buf_add(&buf, "\t", 1); break;
-                case 'u': {
-                    unsigned int code;
-                    if (!hex4(reader, &code)) {
-                        ok = false;
-                        break;
-                    }
-                    /* A surrogate pair is two escapes; join them or the UTF-8
-                     * comes out as replacement soup. */
-                    if (code >= 0xD800 && code <= 0xDBFF && reader->end - reader->at >= 6 &&
-                        reader->at[0] == '\\' && reader->at[1] == 'u') {
-                        reader->at += 2;
-                        unsigned int low;
-                        if (hex4(reader, &low) && low >= 0xDC00 && low <= 0xDFFF) {
-                            code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
-                        }
-                    }
-                    ok = encode_utf8(code, &buf);
+            case '"':
+                ok = pixy_buf_add(&buf, "\"", 1);
+                break;
+            case '\\':
+                ok = pixy_buf_add(&buf, "\\", 1);
+                break;
+            case '/':
+                ok = pixy_buf_add(&buf, "/", 1);
+                break;
+            case 'b':
+                ok = pixy_buf_add(&buf, "\b", 1);
+                break;
+            case 'f':
+                ok = pixy_buf_add(&buf, "\f", 1);
+                break;
+            case 'n':
+                ok = pixy_buf_add(&buf, "\n", 1);
+                break;
+            case 'r':
+                ok = pixy_buf_add(&buf, "\r", 1);
+                break;
+            case 't':
+                ok = pixy_buf_add(&buf, "\t", 1);
+                break;
+            case 'u': {
+                unsigned int code;
+                if (!hex4(reader, &code)) {
+                    ok = false;
                     break;
                 }
-                default: ok = false;
+                /* A surrogate pair is two escapes; join them or the UTF-8
+                 * comes out as replacement soup. */
+                if (code >= 0xD800 && code <= 0xDBFF && reader->end - reader->at >= 6 &&
+                    reader->at[0] == '\\' && reader->at[1] == 'u') {
+                    reader->at += 2;
+                    unsigned int low;
+                    if (hex4(reader, &low) && low >= 0xDC00 && low <= 0xDFFF) {
+                        code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
+                    }
+                }
+                ok = encode_utf8(code, &buf);
+                break;
+            }
+            default:
+                ok = false;
             }
             if (!ok) break;
             continue;
@@ -289,14 +306,20 @@ PixyJson *pixy_json_parse(const char *text, size_t len) {
 PixyJsonKind pixy_json_kind(const PixyJson *value) {
     return value ? value->kind : PIXY_JSON_NULL;
 }
-bool pixy_json_bool(const PixyJson *value) { return value && value->boolean; }
-double pixy_json_number(const PixyJson *value) { return value ? value->number : 0; }
+bool pixy_json_bool(const PixyJson *value) {
+    return value && value->boolean;
+}
+double pixy_json_number(const PixyJson *value) {
+    return value ? value->number : 0;
+}
 const char *pixy_json_string(const PixyJson *value, size_t *len) {
     if (!value || value->kind != PIXY_JSON_STRING) return NULL;
     if (len) *len = value->text_len;
     return value->text;
 }
-size_t pixy_json_count(const PixyJson *value) { return value ? value->count : 0; }
+size_t pixy_json_count(const PixyJson *value) {
+    return value ? value->count : 0;
+}
 const PixyJson *pixy_json_at(const PixyJson *value, size_t index) {
     if (!value || index >= value->count) return NULL;
     return value->items[index];
@@ -320,29 +343,32 @@ const PixyJson *pixy_json_get(const PixyJson *value, const char *key) {
 bool pixy_json_write(const PixyJson *value, PixyBuf *out) {
     if (!value) return pixy_buf_str(out, "null");
     switch (value->kind) {
-        case PIXY_JSON_NULL: return pixy_buf_str(out, "null");
-        case PIXY_JSON_BOOL: return pixy_buf_str(out, value->boolean ? "true" : "false");
-        case PIXY_JSON_NUMBER: {
-            if (value->number == (double)(long long)value->number) {
-                return pixy_buf_fmt(out, "%lld", (long long)value->number);
-            }
-            return pixy_buf_fmt(out, "%.17g", value->number);
+    case PIXY_JSON_NULL:
+        return pixy_buf_str(out, "null");
+    case PIXY_JSON_BOOL:
+        return pixy_buf_str(out, value->boolean ? "true" : "false");
+    case PIXY_JSON_NUMBER: {
+        if (value->number == (double)(long long)value->number) {
+            return pixy_buf_fmt(out, "%lld", (long long)value->number);
         }
-        case PIXY_JSON_STRING: return pixy_buf_json_string(out, value->text, value->text_len);
-        case PIXY_JSON_ARRAY:
-        case PIXY_JSON_OBJECT: {
-            bool object = value->kind == PIXY_JSON_OBJECT;
-            if (!pixy_buf_str(out, object ? "{" : "[")) return false;
-            for (size_t i = 0; i < value->count; i++) {
-                if (i && !pixy_buf_str(out, ",")) return false;
-                if (object) {
-                    if (!pixy_buf_json_string(out, value->keys[i], value->key_lens[i])) return false;
-                    if (!pixy_buf_str(out, ":")) return false;
-                }
-                if (!pixy_json_write(value->items[i], out)) return false;
+        return pixy_buf_fmt(out, "%.17g", value->number);
+    }
+    case PIXY_JSON_STRING:
+        return pixy_buf_json_string(out, value->text, value->text_len);
+    case PIXY_JSON_ARRAY:
+    case PIXY_JSON_OBJECT: {
+        bool object = value->kind == PIXY_JSON_OBJECT;
+        if (!pixy_buf_str(out, object ? "{" : "[")) return false;
+        for (size_t i = 0; i < value->count; i++) {
+            if (i && !pixy_buf_str(out, ",")) return false;
+            if (object) {
+                if (!pixy_buf_json_string(out, value->keys[i], value->key_lens[i])) return false;
+                if (!pixy_buf_str(out, ":")) return false;
             }
-            return pixy_buf_str(out, object ? "}" : "]");
+            if (!pixy_json_write(value->items[i], out)) return false;
         }
+        return pixy_buf_str(out, object ? "}" : "]");
+    }
     }
     return false;
 }

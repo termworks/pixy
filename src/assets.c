@@ -117,17 +117,21 @@ bool pixy_pack_load(const char *path, PixyPack *out) {
     uint64_t index_hash = read_be64(bytes + 44);
 
     size_t at = PACK_HEADER;
-    if (count > MAX_ITEMS || at + source_len + license_len + attribution_len + index_len + data_len > len) {
+    if (count > MAX_ITEMS ||
+        at + source_len + license_len + attribution_len + index_len + data_len > len) {
         free(bytes);
         pixy_fail(PIXY_EXIT_TRANSPORT, "%s is truncated", path);
         return false;
     }
-    memcpy(out->source, bytes + at, source_len < sizeof(out->source) - 1 ? source_len : sizeof(out->source) - 1);
+    memcpy(out->source, bytes + at,
+           source_len < sizeof(out->source) - 1 ? source_len : sizeof(out->source) - 1);
     at += source_len;
-    memcpy(out->license, bytes + at, license_len < sizeof(out->license) - 1 ? license_len : sizeof(out->license) - 1);
+    memcpy(out->license, bytes + at,
+           license_len < sizeof(out->license) - 1 ? license_len : sizeof(out->license) - 1);
     at += license_len;
     memcpy(out->attribution, bytes + at,
-           attribution_len < sizeof(out->attribution) - 1 ? attribution_len : sizeof(out->attribution) - 1);
+           attribution_len < sizeof(out->attribution) - 1 ? attribution_len
+                                                          : sizeof(out->attribution) - 1);
     at += attribution_len;
 
     const unsigned char *index = bytes + at;
@@ -245,8 +249,8 @@ static bool collect(const char *root, const char *prefix, BuildItem **items, siz
         mz_ulong bound = mz_compressBound((mz_ulong)got);
         item->stored = malloc(bound ? bound : 1);
         mz_ulong stored_len = bound;
-        if (!item->stored ||
-            mz_compress2(item->stored, &stored_len, raw, (mz_ulong)got, MZ_BEST_COMPRESSION) != MZ_OK) {
+        if (!item->stored || mz_compress2(item->stored, &stored_len, raw, (mz_ulong)got,
+                                          MZ_BEST_COMPRESSION) != MZ_OK) {
             free(item->stored);
             item->stored = NULL;
             continue;
@@ -426,7 +430,9 @@ size_t pixy_embedded_count(void) {
     return count;
 }
 
-const char *pixy_embedded_source(void) { return "krabby / PokéSprite via Hexe 3ddc19b"; }
+const char *pixy_embedded_source(void) {
+    return "krabby / PokéSprite via Hexe 3ddc19b";
+}
 const char *pixy_embedded_license(void) {
     return "GPL-3.0-only; sprite images © Nintendo/Creatures Inc./GAME FREAK Inc.";
 }

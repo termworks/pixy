@@ -71,19 +71,33 @@ bool pixy_buf_json_string(PixyBuf *buf, const char *text, size_t len) {
         unsigned char ch = (unsigned char)text[i];
         bool ok = true;
         switch (ch) {
-            case '"': ok = pixy_buf_str(buf, "\\\""); break;
-            case '\\': ok = pixy_buf_str(buf, "\\\\"); break;
-            case '\n': ok = pixy_buf_str(buf, "\\n"); break;
-            case '\r': ok = pixy_buf_str(buf, "\\r"); break;
-            case '\t': ok = pixy_buf_str(buf, "\\t"); break;
-            case '\b': ok = pixy_buf_str(buf, "\\b"); break;
-            case '\f': ok = pixy_buf_str(buf, "\\f"); break;
-            default:
-                if (ch < 0x20) {
-                    ok = pixy_buf_fmt(buf, "\\u%04x", ch);
-                } else {
-                    ok = pixy_buf_add(buf, (const char *)&ch, 1);
-                }
+        case '"':
+            ok = pixy_buf_str(buf, "\\\"");
+            break;
+        case '\\':
+            ok = pixy_buf_str(buf, "\\\\");
+            break;
+        case '\n':
+            ok = pixy_buf_str(buf, "\\n");
+            break;
+        case '\r':
+            ok = pixy_buf_str(buf, "\\r");
+            break;
+        case '\t':
+            ok = pixy_buf_str(buf, "\\t");
+            break;
+        case '\b':
+            ok = pixy_buf_str(buf, "\\b");
+            break;
+        case '\f':
+            ok = pixy_buf_str(buf, "\\f");
+            break;
+        default:
+            if (ch < 0x20) {
+                ok = pixy_buf_fmt(buf, "\\u%04x", ch);
+            } else {
+                ok = pixy_buf_add(buf, (const char *)&ch, 1);
+            }
         }
         if (!ok) return false;
     }
@@ -105,9 +119,15 @@ void pixy_fail(int code, const char *fmt, ...) {
     error_set = true;
 }
 
-const char *pixy_error_message(void) { return error_set ? error_message : ""; }
-int pixy_error_code(void) { return error_code; }
-bool pixy_failed(void) { return error_set; }
+const char *pixy_error_message(void) {
+    return error_set ? error_message : "";
+}
+int pixy_error_code(void) {
+    return error_code;
+}
+bool pixy_failed(void) {
+    return error_set;
+}
 void pixy_clear_error(void) {
     error_set = false;
     error_code = 0;

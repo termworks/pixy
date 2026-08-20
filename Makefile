@@ -104,7 +104,11 @@ run: build
 	@$(BUILD)/pixy $(ARGS)
 r: run
 
-test: build
+# Against the optimized binary, because the suite asserts production guarantees:
+# the largest sprite renders in 10ms at -O2 and 110ms at -O0, either side of the
+# 100ms render deadline, so a debug build fails a bound it was never held to.
+# `make build` still produces the debug binary for a debugger.
+test: release-build
 	@bash tests/run.sh
 t: test
 
@@ -117,12 +121,12 @@ fmt:
 fmt-check:
 	@command -v clang-format >/dev/null && clang-format --dry-run --Werror src/*.c src/*.h scripts/*.c || true
 
-verify: fmt-check build test
+verify: fmt-check test
 
-smoke: build
+smoke: release-build
 	@bash scripts/smoke.sh
 
-smoke-shell: build
+smoke-shell: release-build
 	@bash scripts/smoke_shell.sh
 
 bench: release-build

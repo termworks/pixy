@@ -101,7 +101,8 @@ static bool valid_selector(const char *name) {
         return false;
     for (const char *at = name + 1; *at; at++) {
         unsigned char ch = (unsigned char)*at;
-        bool alnum = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
+        bool alnum =
+            (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
         if (!alnum && ch != '_' && ch != '.' && ch != '-') return false;
     }
     return true;
@@ -115,7 +116,8 @@ static bool valid_segment_name(const char *name) {
         return false;
     for (const char *at = name + 1; *at; at++) {
         unsigned char ch = (unsigned char)*at;
-        bool alnum = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
+        bool alnum =
+            (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
         if (!alnum && ch != '_' && ch != '-') return false;
     }
     return true;
@@ -388,68 +390,81 @@ void pixy_engine_free(PixyEngine *engine) {
     free(engine);
 }
 
-const char *pixy_engine_source_name(const PixyEngine *engine) { return engine->source_name; }
+const char *pixy_engine_source_name(const PixyEngine *engine) {
+    return engine->source_name;
+}
 
 /* --------------------------------------------------------------- request */
 
 static const char *mode_name(PixyMode mode) {
     switch (mode) {
-        case PIXY_MODE_RUN: return "run";
-        case PIXY_MODE_SURFACE: return "surface";
-        default: return "line";
+    case PIXY_MODE_RUN:
+        return "run";
+    case PIXY_MODE_SURFACE:
+        return "surface";
+    default:
+        return "line";
     }
 }
 
 static const char *target_name(PixyTarget target) {
     switch (target) {
-        case PIXY_TARGET_ANSI: return "ansi";
-        case PIXY_TARGET_BASH: return "bash";
-        case PIXY_TARGET_ZSH: return "zsh";
-        default: return "plain";
+    case PIXY_TARGET_ANSI:
+        return "ansi";
+    case PIXY_TARGET_BASH:
+        return "bash";
+    case PIXY_TARGET_ZSH:
+        return "zsh";
+    default:
+        return "plain";
     }
 }
 
 /* JSON -> Lua, so a context reaches a config exactly as its caller wrote it. */
 static void push_json(lua_State *L, const PixyJson *value) {
     switch (pixy_json_kind(value)) {
-        case PIXY_JSON_NULL: lua_pushnil(L); break;
-        case PIXY_JSON_BOOL: lua_pushboolean(L, pixy_json_bool(value)); break;
-        case PIXY_JSON_NUMBER: {
-            double number = pixy_json_number(value);
-            if (number == (double)(long long)number) {
-                lua_pushinteger(L, (lua_Integer)number);
-            } else {
-                lua_pushnumber(L, number);
-            }
-            break;
+    case PIXY_JSON_NULL:
+        lua_pushnil(L);
+        break;
+    case PIXY_JSON_BOOL:
+        lua_pushboolean(L, pixy_json_bool(value));
+        break;
+    case PIXY_JSON_NUMBER: {
+        double number = pixy_json_number(value);
+        if (number == (double)(long long)number) {
+            lua_pushinteger(L, (lua_Integer)number);
+        } else {
+            lua_pushnumber(L, number);
         }
-        case PIXY_JSON_STRING: {
-            size_t len = 0;
-            const char *text = pixy_json_string(value, &len);
-            lua_pushlstring(L, text, len);
-            break;
+        break;
+    }
+    case PIXY_JSON_STRING: {
+        size_t len = 0;
+        const char *text = pixy_json_string(value, &len);
+        lua_pushlstring(L, text, len);
+        break;
+    }
+    case PIXY_JSON_ARRAY: {
+        lua_newtable(L);
+        for (size_t i = 0; i < pixy_json_count(value); i++) {
+            push_json(L, pixy_json_at(value, i));
+            lua_rawseti(L, -2, (lua_Integer)i + 1);
         }
-        case PIXY_JSON_ARRAY: {
-            lua_newtable(L);
-            for (size_t i = 0; i < pixy_json_count(value); i++) {
-                push_json(L, pixy_json_at(value, i));
-                lua_rawseti(L, -2, (lua_Integer)i + 1);
-            }
-            break;
+        break;
+    }
+    case PIXY_JSON_OBJECT: {
+        lua_newtable(L);
+        for (size_t i = 0; i < pixy_json_count(value); i++) {
+            size_t key_len = 0;
+            const char *key = pixy_json_key(value, i, &key_len);
+            const PixyJson *child = pixy_json_at(value, i);
+            if (pixy_json_kind(child) == PIXY_JSON_NULL) continue;
+            lua_pushlstring(L, key, key_len);
+            push_json(L, child);
+            lua_settable(L, -3);
         }
-        case PIXY_JSON_OBJECT: {
-            lua_newtable(L);
-            for (size_t i = 0; i < pixy_json_count(value); i++) {
-                size_t key_len = 0;
-                const char *key = pixy_json_key(value, i, &key_len);
-                const PixyJson *child = pixy_json_at(value, i);
-                if (pixy_json_kind(child) == PIXY_JSON_NULL) continue;
-                lua_pushlstring(L, key, key_len);
-                push_json(L, child);
-                lua_settable(L, -3);
-            }
-            break;
-        }
+        break;
+    }
     }
 }
 
@@ -515,8 +530,8 @@ bool pixy_engine_render(PixyEngine *engine, const PixyRequest *request, PixyOutp
     lua_setfield(L, -2, "width");
     lua_pushinteger(L, request->height);
     lua_setfield(L, -2, "height");
-    lua_pushinteger(L,
-                    (lua_Integer)(request->has_now_ms ? (long long)request->now_ms : pixy_unix_ms()));
+    lua_pushinteger(
+        L, (lua_Integer)(request->has_now_ms ? (long long)request->now_ms : pixy_unix_ms()));
     lua_setfield(L, -2, "now_ms");
     lua_pushboolean(L, request->ignore_missing);
     lua_setfield(L, -2, "ignore_missing");
@@ -558,7 +573,7 @@ bool pixy_engine_render(PixyEngine *engine, const PixyRequest *request, PixyOutp
     int output = lua_gettop(L);
     lua_getfield(L, output, "mode");
     const char *mode = lua_isstring(L, -1) ? lua_tostring(L, -1) : "line";
-    out->mode = strcmp(mode, "run") == 0    ? PIXY_MODE_RUN
+    out->mode = strcmp(mode, "run") == 0       ? PIXY_MODE_RUN
                 : strcmp(mode, "surface") == 0 ? PIXY_MODE_SURFACE
                                                : PIXY_MODE_LINE;
     lua_pop(L, 1);
@@ -628,8 +643,8 @@ static int compare_names(const void *left, const void *right) {
     return strcmp(*(const char **)left, *(const char **)right);
 }
 
-bool pixy_engine_inventory(PixyEngine *engine, char ***names_out, size_t *count_out, size_t *zones_out,
-                           size_t *segments_out) {
+bool pixy_engine_inventory(PixyEngine *engine, char ***names_out, size_t *count_out,
+                           size_t *zones_out, size_t *segments_out) {
     lua_State *L = engine->L;
     lua_rawgeti(L, LUA_REGISTRYINDEX, engine->config_ref);
     lua_getfield(L, -1, "zones");
@@ -798,7 +813,8 @@ bool pixy_engine_palette(PixyEngine *engine, PixyPaletteEntry **entries_out, siz
         }
         const char *colour = lua_tostring(L, -1);
         if (!pixy_palette_valid_key(key)) {
-            pixy_fail(PIXY_EXIT_CONFIG, "%s: palette key \"%s\" is not an index 0-255, fg, bg or cursor",
+            pixy_fail(PIXY_EXIT_CONFIG,
+                      "%s: palette key \"%s\" is not an index 0-255, fg, bg or cursor",
                       engine->source_name, key);
             free(entries);
             lua_pop(L, 4);
