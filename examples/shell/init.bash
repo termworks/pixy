@@ -1,4 +1,3 @@
-command pixy palette set
 __pixy_prompt_command() {
   local pixy_status=${__pixy_last_status:-0}
   local pixy_duration=0

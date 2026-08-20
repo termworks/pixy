@@ -117,9 +117,14 @@ shell does not count them as printable width. A bash prompt also ends its
 sequences with `BEL` rather than `ST`: inside `\[ … \]` bash reads the backslash
 of `ST` as an escape, which eats the closing marker and leaves a stray `]`
 printing in the prompt. Both terminators are the protocol's, and zsh, ansi, and
-plain keep `ST`. This is what the shell
-integrations do, on by default: one `palette set` at startup, then two sequences
-a prompt. Run mode is a description for a host that paints for itself and has
+plain keep `ST`.
+
+The colours the configuration declared go out with the claim rather than from a
+startup hook, so the output carries everything it needs. `set` is idempotent, a
+configuration that declares none costs nothing, and a prompt written this way
+survives a `clear`, a terminal reset, a reattach or a new pane — and works in a
+shell whose configuration cannot run a command at all, which is why the
+integrations need no startup line. Run mode is a description for a host that paints for itself and has
 nowhere to carry a sequence, so `--mode run --palette` is a usage error rather
 than a flag that quietly does nothing.
 

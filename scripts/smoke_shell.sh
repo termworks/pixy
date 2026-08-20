@@ -37,10 +37,12 @@ grep -q '\$vimode' "$tmp/oslo"
 grep -q 'timeout_ms = 10' "$tmp/oslo"
 grep -q 'async = true' "$tmp/oslo"
 
-# Every integration defines its colours once and selects the slot per prompt.
+# Every integration claims a namespace, and needs no startup hook to do it: the
+# colours ride along with the claim, which is the only thing that works in a
+# shell whose configuration cannot run a command.
 for integration in bash zsh fish oslo; do
-  grep -q 'palette set' "$tmp/$integration"
   grep -q -- '--palette' "$tmp/$integration"
+  if grep -q 'palette set' "$tmp/$integration"; then exit 1; fi
 done
 "$pixy" render prompt.left --config "$tmp/hexe-oslo.lua" --target plain --width 20 \
   --context-file tests/fixtures/contexts/hexe-oslo.json --now-ms 0 >"$tmp/hexe-oslo.prompt"

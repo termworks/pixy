@@ -1,4 +1,3 @@
-command pixy palette set
 set -g __pixy_last_command ''
 function __pixy_preexec --on-event fish_preexec
   set -g __pixy_last_command $argv

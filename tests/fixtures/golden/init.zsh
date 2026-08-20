@@ -1,4 +1,3 @@
-command pixy palette set
 zmodload zsh/datetime
 autoload -Uz add-zsh-hook
 typeset -gF __pixy_started_at=0

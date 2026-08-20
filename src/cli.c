@@ -325,6 +325,8 @@ typedef struct {
     bool palette;
     long palette_slot;
     bool palette_slot_given;
+    PixyPaletteEntry *palette_colours;
+    size_t palette_count;
     PixyBuf context;
     unsigned fps;
     unsigned long duration_ms;
@@ -606,6 +608,9 @@ fail:
 }
 
 static void free_options(Options *options) {
+    free(options->palette_colours);
+    options->palette_colours = NULL;
+    options->palette_count = 0;
     for (size_t i = 0; i < options->request.select_count; i++) free(options->request.select[i]);
     free(options->request.select);
     pixy_buf_free(&options->context);
@@ -626,13 +631,28 @@ static PixyEngine *open_engine(const char *config_path) {
 
 /* One implementation of claim-and-release for every path that writes cells, so
  * a stream cannot drift from a render. Writes nothing and answers false when the
- * slot is unclaimable, and the caller must not release what it never claimed. */
+ * slot is unclaimable, and the caller must not release what it never claimed.
+ *
+ * The colours go out with the claim rather than from a startup hook. `set` is
+ * idempotent, most configs declare nothing and pay nothing, and carrying it here
+ * is what makes the prompt survive a `clear`, a reattach or a new pane — and
+ * what lets a shell whose configuration cannot run a command still work. */
 static bool palette_write(const Options *options, bool claiming) {
     if (!options->palette) return false;
     PixyBuf sequence = {0}, wrapped = {0};
-    bool ok = claiming ? pixy_palette_use(&sequence, options->palette_slot, options->request.target)
-                       : pixy_palette_end(&sequence, options->request.target);
-    if (ok) {
+    bool ok = true;
+    if (claiming) {
+        if (options->palette_count) {
+            char slot[16];
+            snprintf(slot, sizeof(slot), "%ld", options->palette_slot);
+            pixy_palette_set(&sequence, slot, options->palette_colours, options->palette_count,
+                             options->request.target);
+        }
+        ok = pixy_palette_use(&sequence, options->palette_slot, options->request.target);
+    } else {
+        ok = pixy_palette_end(&sequence, options->request.target);
+    }
+    if (ok && sequence.len) {
         pixy_palette_wrap(&wrapped, sequence.data, options->request.target);
         fwrite(wrapped.data, 1, wrapped.len, stdout);
     }
@@ -641,13 +661,17 @@ static bool palette_write(const Options *options, bool claiming) {
     return ok;
 }
 
-/* Resolve the slot the config declared, unless the caller named one. */
+/* Read what the config declared: the colours, and the slot unless one was named. */
 static void palette_resolve(Options *options, PixyEngine *engine) {
-    if (!options->palette || options->palette_slot_given) return;
-    PixyPaletteEntry *entries = NULL;
-    size_t count = 0;
-    if (pixy_engine_palette(engine, &entries, &count, &options->palette_slot)) free(entries);
-    else pixy_clear_error();
+    if (!options->palette) return;
+    long slot = options->palette_slot;
+    if (!pixy_engine_palette(engine, &options->palette_colours, &options->palette_count, &slot)) {
+        pixy_clear_error();
+        options->palette_colours = NULL;
+        options->palette_count = 0;
+        return;
+    }
+    if (!options->palette_slot_given) options->palette_slot = slot;
 }
 
 static int render_command(int argc, char **argv, bool selector_first) {

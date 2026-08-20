@@ -243,10 +243,10 @@ declared=tests/fixtures/palette.lua
 equals "set emits what the config declared" "${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${st}" \
   "$("$pixy" palette set --config "$declared")"
 equals "a render claims the declared slot" \
-  "${esc}]1330;use;3${st} hi ${esc}]1330;end${st}" \
+  "${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${st}${esc}]1330;use;3${st} hi ${esc}]1330;end${st}" \
   "$("$pixy" render prompt.left --config "$declared" --target plain --palette)"
 equals "an explicit slot wins over the config" \
-  "${esc}]1330;use;9${st} hi ${esc}]1330;end${st}" \
+  "${esc}]1330;set;9;15=#cdd6f4;bg=#11111b${st}${esc}]1330;use;9${st} hi ${esc}]1330;end${st}" \
   "$("$pixy" render prompt.left --config "$declared" --target plain --palette 9)"
 equals "a config that declares nothing emits nothing" "" \
   "$("$pixy" palette set --config examples/minimal.lua)"
@@ -259,12 +259,12 @@ bash_prompt=$("$pixy" render prompt.left --config "$declared" --target bash --pa
 zsh_prompt=$("$pixy" render prompt.left --config "$declared" --target zsh --palette)
 equals "a bash prompt is terminated with BEL" "yes" \
   "$(case $bash_prompt in
-       "\\[${esc}]1330;use;3${bell}\\]"*"\\[${esc}]1330;end${bell}\\]") echo yes ;;
+       "\\[${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${bell}${esc}]1330;use;3${bell}\\]"*"\\[${esc}]1330;end${bell}\\]") echo yes ;;
        *) printf '%s' "$bash_prompt" ;;
      esac)"
 equals "a zsh prompt keeps ST" "yes" \
   "$(case $zsh_prompt in
-       "%{${esc}]1330;use;3${st}%}"*"%{${esc}]1330;end${st}%}") echo yes ;;
+       "%{${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${st}${esc}]1330;use;3${st}%}"*"%{${esc}]1330;end${st}%}") echo yes ;;
        *) printf '%s' "$zsh_prompt" ;;
      esac)"
 
@@ -283,7 +283,7 @@ if [ -n "$real_bash" ]; then
   expanded=$("$real_bash" -c 'prompt=$1; printf "%s" "${prompt@P}"' _ "$bash_prompt")
   equals "bash expands the prompt back to the sequences" "yes" \
     "$(case $expanded in
-         "${esc}]1330;use;3${bell}"*"${esc}]1330;end${bell}") echo yes ;;
+         "${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${bell}${esc}]1330;use;3${bell}"*"${esc}]1330;end${bell}") echo yes ;;
          *) printf '%s' "$expanded" | cat -v ;;
        esac)"
 fi
@@ -305,7 +305,7 @@ exits "--palette is refused where it cannot be carried" 2 \
 # surface is always ANSI, so only the wrapper is pinned here.
 surface=$("$pixy" render prompt.left --config "$declared" --mode surface --palette)
 equals "a surface claims the slot too" "yes" \
-  "$(case $surface in "${esc}]1330;use;3${st}"*"${esc}]1330;end${st}") echo yes ;; *) echo "$surface" ;; esac)"
+  "$(case $surface in "${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${st}${esc}]1330;use;3${st}"*"${esc}]1330;end${st}") echo yes ;; *) echo "$surface" ;; esac)"
 # How many frames a stream writes is a matter of timing; that every one of them
 # is released is not.
 stream=$("$pixy" stream work --config examples/spinner.lua --palette 4 --fps 20 --duration 200 2>/dev/null)
