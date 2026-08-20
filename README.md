@@ -5,7 +5,7 @@ Lua decides what your terminal says. Rust hosts it, bounds it, and gets out of t
 [![tests](https://github.com/termworks/pixy/actions/workflows/tests.yml/badge.svg)](https://github.com/termworks/pixy/actions/workflows/tests.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-![the bundled profile](docs/images/prompt.png)
+<img src="docs/images/prompt.png" alt="the bundled profile" width="762">
 
 Pixy paints prompts, status bars, titles and sprites. A Lua config defines named
 **zones** made of ordered named **segments**; a caller asks for a whole zone or a
@@ -32,14 +32,14 @@ pixy render prompt.left --config examples/presets/tokyo-night.lua --set cwd=$PWD
 Solid blocks separated by arrow glyphs, the classic. Needs a Nerd Font.
 → [`examples/presets/powerline.lua`](examples/presets/powerline.lua)
 
-![powerline preset](docs/images/presets/powerline.png)
+<img src="docs/images/presets/powerline.png" alt="powerline preset" width="391">
 
 ### Tokyo Night
 
 Rounded capsules in truecolour, one hue per kind of fact.
 → [`examples/presets/tokyo-night.lua`](examples/presets/tokyo-night.lua)
 
-![tokyo night preset](docs/images/presets/tokyo-night.png)
+<img src="docs/images/presets/tokyo-night.png" alt="tokyo night preset" width="509">
 
 ### Gruvbox Rainbow
 
@@ -47,7 +47,7 @@ Every block a different hue with arrows between them, and one palette table at
 the top so recolouring the whole prompt is a single edit.
 → [`examples/presets/gruvbox-rainbow.lua`](examples/presets/gruvbox-rainbow.lua)
 
-![gruvbox rainbow preset](docs/images/presets/gruvbox-rainbow.png)
+<img src="docs/images/presets/gruvbox-rainbow.png" alt="gruvbox rainbow preset" width="593">
 
 ### Pure
 
@@ -55,7 +55,7 @@ No backgrounds, one accent colour, and a prompt mark that turns red when the
 last command failed. Nothing here needs a patched font.
 → [`examples/presets/pure.lua`](examples/presets/pure.lua)
 
-![pure preset](docs/images/presets/pure.png)
+<img src="docs/images/presets/pure.png" alt="pure preset" width="366">
 
 ### Git Status
 
@@ -64,7 +64,7 @@ untracked, stashed, conflicted. Counts come from the caller when it knows them,
 and fall back to the bundled provider when it does not.
 → [`examples/presets/git-status.lua`](examples/presets/git-status.lua)
 
-![git status preset](docs/images/presets/git-status.png)
+<img src="docs/images/presets/git-status.png" alt="git status preset" width="391">
 
 ### Bracketed
 
@@ -72,7 +72,7 @@ Plain text, eight colours, no glyphs at all — the one to use over ssh into
 something ancient.
 → [`examples/presets/bracketed.lua`](examples/presets/bracketed.lua)
 
-![bracketed preset](docs/images/presets/bracketed.png)
+<img src="docs/images/presets/bracketed.png" alt="bracketed preset" width="416">
 
 ## Writing one yourself
 
@@ -96,7 +96,7 @@ return pixy.config({
 })
 ```
 
-![the minimal example rendered](docs/images/minimal.png)
+<img src="docs/images/minimal.png" alt="the minimal example rendered" width="349">
 
 The status badge returns `nil` when the last command succeeded, and a segment
 that returns `nil` takes no space. Priorities decide who survives when the
@@ -121,7 +121,7 @@ local function dirty(ctx)
 end
 ```
 
-![the git example rendered](docs/images/git.png)
+<img src="docs/images/git.png" alt="the git example rendered" width="189">
 
 `git.branch` runs one `git` process and caches the answer for `ttl_ms`, so a
 prompt rendered twice in a second pays for one. A caller that already knows the
@@ -147,7 +147,7 @@ status = pixy.zone({
 })
 ```
 
-![one zone at four widths](docs/images/responsive.png)
+<img src="docs/images/responsive.png" alt="one zone at four widths" width="762">
 
 A spacer measures zero and is never pruned. Two of them centre the tabs;
 `pixy.spacer(3)` takes three times the share of a plain one. Where the spacers
@@ -156,7 +156,7 @@ vocabulary in the Rust.
 
 At full width, that same zone is the bar:
 
-![a status bar](docs/images/status.png)
+<img src="docs/images/status.png" alt="a status bar" width="762">
 
 ## Animation without a timer
 
@@ -175,7 +175,7 @@ pixy.segment("spinner", function()
 end)
 ```
 
-![the spinner at five points in time](docs/images/spinner.png)
+<img src="docs/images/spinner.png" alt="the spinner at five points in time" width="222">
 
 ```sh
 pixy render work --config examples/spinner.lua --now-ms 320   # one frame
@@ -196,7 +196,7 @@ pixy render overlay --config examples/hexe-oslo.lua --mode surface \
   --width 34 --height 16 --context-json '{"values":{"sprite_name":"pikachu"}}'
 ```
 
-<img src="docs/images/sprite.png" alt="a truecolor sprite" width="240">
+<img src="docs/images/sprite.png" alt="a truecolor sprite" width="248">
 
 ## Install
 
@@ -318,4 +318,4 @@ MIT — see [`LICENSE`](LICENSE). Sprite provenance and third-party notices live
 [`THIRD_PARTY.md`](THIRD_PARTY.md).
 
 <sub>Every frame in this README is generated from live output by
-<code>make docs-images</code>, at one canvas width so the presets are comparable.</sub>
+<code>make docs-images</code>. Each is shown at its own size and one shared scale.</sub>

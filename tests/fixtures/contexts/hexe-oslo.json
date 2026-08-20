@@ -1,5 +1,6 @@
 {
   "env": {
+    "HOME": "/home/bresilla",
     "SSH_CONNECTION": "fixture",
     "DIRENV_DIR": "/fixture",
     "IN_NIX_SHELL": "impure",

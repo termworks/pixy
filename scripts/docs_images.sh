@@ -19,9 +19,10 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$out" "$out/presets"
 
-# One canvas width for every frame, so a short prompt and a full bar are shown
-# at the same scale instead of each being sized to its own content.
+# Renders happen at one width so the presets show the same shell state, but each
+# frame is cropped to its own content; the README fixes the display scale.
 COLS=88
+FRAME_COLS=""   # each frame is sized to its own content
 
 raster() {
   if [ -n "$fonts" ]; then
@@ -32,7 +33,7 @@ raster() {
 }
 
 frame() {
-  local name=$1 source=$2 fill=${3:-1} cols=${4:-$COLS}
+  local name=$1 source=$2 fill=${3:-0} cols=${4:-$FRAME_COLS}
   awk -f scripts/ansi_svg.awk -v cols="$cols" -v fill="$fill" "$source" >"$tmp/$(basename "$name").svg"
   raster "$tmp/$(basename "$name").svg" "$out/$name.png"
   printf '  %s\n' "$out/$name.png"
@@ -97,7 +98,7 @@ frame spinner "$tmp/spinner.ansi"
 "$pixy" render overlay --config "$config" --mode surface --width 34 --height 16 \
   --context-json '{"values":{"sprite_name":"pikachu","sprite_position":"center"}}' \
   --now-ms 0 >"$tmp/sprite.ansi"
-frame sprite "$tmp/sprite.ansi" 1 34
+frame sprite "$tmp/sprite.ansi"
 
 # ---- the preset gallery -----------------------------------------------------
 
