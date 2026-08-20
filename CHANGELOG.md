@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4] - 2026-08-20
+
+### <!-- 0 -->⛰️  Features
+
+- Draw host progress in the status bar
+- Names, progress segments and a real cli
+
 ## [0.1.3] - 2026-08-20
 
 ### <!-- 3 -->📚 Documentation
