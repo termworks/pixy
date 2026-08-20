@@ -84,3 +84,14 @@ pixy render status.center --config examples/hexe-oslo.lua --mode run \
 pixy render status.right.recording --config examples/hexe-oslo.lua --mode run \
   --width 100 --context-file tests/fixtures/contexts/hexe-oslo.json
 ```
+
+## Progress
+
+`status.right` opens with the progress the host reported through OSC `9;4`.
+hexe parses the sequence from the focused pane and forwards `progress_state`
+and `progress_pct`; the profile draws a ten-cell bar with a percentage when the
+state carries a number, a sweeping block when it is `indeterminate`, and nothing
+at all when it is `inactive`. The bar is coloured by state — blue while running,
+red on error, grey when paused — and the sweeping form reports its own
+`next_frame_ms`, so a host polls when the picture changes rather than on a
+timer.

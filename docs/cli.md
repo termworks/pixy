@@ -33,6 +33,11 @@ of, so a new value needs a zone that reads it and nothing in Rust. A `--set`
 value is read as the number, boolean, or null it spells and as text otherwise;
 an empty value is absent, so an unset shell variable reads as nil.
 
+`--context-json` and `--context-file` carry a whole context and replace what
+`--set` built, rather than merging into it: one argument describes the caller's
+state completely. To override a single value from a fixture, edit the fixture or
+drop the file argument — mixing the two means the file wins.
+
 When `--width` is absent, Pixy uses a positive inherited `COLUMNS`, then the
 controlling terminal geometry, then 80 columns.
 
