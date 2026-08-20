@@ -5,7 +5,7 @@ Lua decides what your terminal says. Rust hosts it, bounds it, and gets out of t
 [![tests](https://github.com/termworks/pixy/actions/workflows/tests.yml/badge.svg)](https://github.com/termworks/pixy/actions/workflows/tests.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-![a pixy prompt](docs/images/prompt.png)
+![the bundled profile](docs/images/prompt.png)
 
 Pixy paints prompts, status bars, titles and sprites. A Lua config defines named
 **zones** made of ordered named **segments**; a caller asks for a whole zone or a
@@ -17,7 +17,64 @@ What a prompt *is* lives entirely in your Lua. Rust never learns the word
 prints the answer, and exits. No daemon, no rewriting of your shell config, no
 second repository.
 
-## A first prompt
+## Presets
+
+Complete prompts, each one file you can copy to `~/.config/pixy/init.lua` and
+edit. Every screenshot below is the same shell state — same directory, same
+branch, same dirty tree — so what differs is the design, not the data.
+
+```sh
+pixy render prompt.left --config examples/presets/tokyo-night.lua --set cwd=$PWD
+```
+
+### Powerline
+
+Solid blocks separated by arrow glyphs, the classic. Needs a Nerd Font.
+→ [`examples/presets/powerline.lua`](examples/presets/powerline.lua)
+
+![powerline preset](docs/images/presets/powerline.png)
+
+### Tokyo Night
+
+Rounded capsules in truecolour, one hue per kind of fact.
+→ [`examples/presets/tokyo-night.lua`](examples/presets/tokyo-night.lua)
+
+![tokyo night preset](docs/images/presets/tokyo-night.png)
+
+### Gruvbox Rainbow
+
+Every block a different hue with arrows between them, and one palette table at
+the top so recolouring the whole prompt is a single edit.
+→ [`examples/presets/gruvbox-rainbow.lua`](examples/presets/gruvbox-rainbow.lua)
+
+![gruvbox rainbow preset](docs/images/presets/gruvbox-rainbow.png)
+
+### Pure
+
+No backgrounds, one accent colour, and a prompt mark that turns red when the
+last command failed. Nothing here needs a patched font.
+→ [`examples/presets/pure.lua`](examples/presets/pure.lua)
+
+![pure preset](docs/images/presets/pure.png)
+
+### Git Status
+
+Everything about the working tree: branch, divergence, staged, unstaged,
+untracked, stashed, conflicted. Counts come from the caller when it knows them,
+and fall back to the bundled provider when it does not.
+→ [`examples/presets/git-status.lua`](examples/presets/git-status.lua)
+
+![git status preset](docs/images/presets/git-status.png)
+
+### Bracketed
+
+Plain text, eight colours, no glyphs at all — the one to use over ssh into
+something ancient.
+→ [`examples/presets/bracketed.lua`](examples/presets/bracketed.lua)
+
+![bracketed preset](docs/images/presets/bracketed.png)
+
+## Writing one yourself
 
 [`examples/minimal.lua`](examples/minimal.lua) — two segments and a priority:
 
@@ -37,11 +94,6 @@ return pixy.config({
     }),
   },
 })
-```
-
-```sh
-pixy render prompt.left --config examples/minimal.lua \
-  --set cwd=/home/you/dev/pixy --set status=7
 ```
 
 ![the minimal example rendered](docs/images/minimal.png)
@@ -81,7 +133,7 @@ pixy render prompt.right --config examples/git.lua --set git_branch=main --set g
 
 ## Width is an input
 
-The same zone is a prompt at 28 columns and a status bar at 104. Segments drop by
+The same zone is a prompt at 26 columns and a status bar at 88. Segments drop by
 priority as the room runs out, and `pixy.spacer()` absorbs whatever is left:
 
 ```lua
@@ -130,8 +182,8 @@ pixy render work --config examples/spinner.lua --now-ms 320   # one frame
 pixy stream work --config examples/spinner.lua --fps 24 --duration 2000
 ```
 
-Every render is deterministic in `now_ms`, which is why the five frames above
-are reproducible and why the tests can pin them.
+Every render is deterministic in `now_ms`, which is why those five frames are
+reproducible and why the tests can pin them.
 
 ## Surfaces
 
@@ -179,7 +231,7 @@ config is free to expect entirely different ones.
 
 For something complete rather than minimal, `pixy init hexe-oslo` prints the
 bundled profile: prompt, status bar, spinner, sprite overlay, float titles and
-popups. That is the config every screenshot on this page was rendered from.
+popups. That profile is what the screenshot at the top of this page shows.
 
 ## Speed
 
@@ -263,7 +315,7 @@ pixy init hexe-oslo > ~/.config/pixy/init.lua && pixy check
 ## License
 
 MIT — see [`LICENSE`](LICENSE). Sprite provenance and third-party notices live in
-[`THIRD_PARTY.md`](THIRD_PARTY.md) and [`LICENSES/`](LICENSES).
+[`THIRD_PARTY.md`](THIRD_PARTY.md).
 
 <sub>Every frame in this README is generated from live output by
-<code>make docs-images</code>.</sub>
+<code>make docs-images</code>, at one canvas width so the presets are comparable.</sub>

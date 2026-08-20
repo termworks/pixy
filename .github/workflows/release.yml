@@ -59,7 +59,7 @@ jobs:
           fi
           mkdir -p dist
           cp "$release_dir/pixy" dist/pixy
-          cp -R README.md LICENSE THIRD_PARTY.md LICENSES assets lua examples docs dist/
+          cp -R README.md LICENSE THIRD_PARTY.md assets lua examples docs dist/
           tar -czf "${{ matrix.artifact }}.tar.gz" -C dist .
           tar -czf "${{ matrix.artifact }}-example-pack.tar.gz" \
             -C "$release_dir" pixy-example.pixypack

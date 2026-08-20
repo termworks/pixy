@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Regenerates the frames in docs/images from live pixy output.
+# Regenerates every frame in docs/images from live pixy output.
 #
 #   make docs-images
 #
-# Needs a rasterizer on PATH; `nix shell nixpkgs#resvg` provides one.
+# Needs a rasterizer on PATH; `nix shell nixpkgs#resvg` provides one. Set
+# PIXY_DOCS_FONTS to a directory of Nerd Font files for the powerline glyphs.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -12,70 +13,99 @@ cd "$root"
 pixy=${PIXY:-target/release/pixy}
 config=${PIXY_DOCS_CONFIG:-examples/hexe-oslo.lua}
 context=tests/fixtures/contexts/hexe-oslo.json
+fonts=${PIXY_DOCS_FONTS:-}
 out=docs/images
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$out"
+mkdir -p "$out" "$out/presets"
 
-render() {
-  "$pixy" render "$1" --config "$config" --target ansi --width "$2" \
-    --context-file "$context" --now-ms 0
+# One canvas width for every frame, so a short prompt and a full bar are shown
+# at the same scale instead of each being sized to its own content.
+COLS=88
+
+raster() {
+  if [ -n "$fonts" ]; then
+    resvg --zoom 2 --use-fonts-dir "$fonts" "$1" "$2"
+  else
+    resvg --zoom 2 "$1" "$2"
+  fi
 }
 
 frame() {
-  local name=$1 title=$2 source=$3
-  awk -f scripts/ansi_svg.awk "$source" >"$tmp/$name.svg"
-  resvg --zoom 2 "$tmp/$name.svg" "$out/$name.png"
+  local name=$1 source=$2 fill=${3:-1} cols=${4:-$COLS}
+  awk -f scripts/ansi_svg.awk -v cols="$cols" -v fill="$fill" "$source" >"$tmp/$(basename "$name").svg"
+  raster "$tmp/$(basename "$name").svg" "$out/$name.png"
   printf '  %s\n' "$out/$name.png"
 }
 
-# A prompt line: the left zone, a gap, the right zone flushed to the margin.
-width=104
-left=$(render prompt.left "$width")
-right=$(render prompt.right "$width")
-left_cells=$("$pixy" render prompt.left --config "$config" --target plain --width "$width" \
-  --context-file "$context" --now-ms 0 | wc -L)
-right_cells=$("$pixy" render prompt.right --config "$config" --target plain --width "$width" \
-  --context-file "$context" --now-ms 0 | wc -L)
-gap=$((width - left_cells - right_cells))
-[ "$gap" -lt 1 ] && gap=1
-printf '%s%*s%s\n' "$left" "$gap" "" "$right" >"$tmp/prompt.ansi"
-frame prompt "prompt" "$tmp/prompt.ansi"
-
-# The status bar, whose spacers stretch it to the requested width.
-{ render status 104; echo; } >"$tmp/status.ansi"
-frame status "status bar" "$tmp/status.ansi"
-
-# The same zone at four widths: segments drop by priority as room runs out.
-: >"$tmp/responsive.ansi"
-for w in 104 72 48 28; do
-  { render status "$w"; echo; } >>"$tmp/responsive.ansi"
-done
-frame responsive "one zone, four widths" "$tmp/responsive.ansi"
-
-# A truecolor sprite, drawn into a bounded surface.
-"$pixy" render overlay --config "$config" --mode surface --width 34 --height 16 \
-  --context-json '{"values":{"sprite_name":"pikachu","sprite_position":"center"}}' --now-ms 0 >"$tmp/sprite.ansi"
-frame sprite "surface" "$tmp/sprite.ansi"
-
-
-
-# Each of these renders one of the small configs in examples/, so the README's
-# code and its picture cannot drift apart.
-one() {
-  local name=$1 zone=$2 example=$3
-  shift 3
-  { "$pixy" render "$zone" --config "examples/$example" --target ansi --width 60 "$@"; echo; } >"$tmp/$name.ansi"
-  frame "$name" "$example" "$tmp/$name.ansi"
+render() {
+  "$pixy" render "$1" --config "$2" --target ansi --width "$COLS" "${@:3}"
 }
 
-one minimal prompt.left minimal.lua --set cwd=/home/you/dev/pixy --set status=7
-one git prompt.right git.lua --set git_branch=main --set git_status=dirty
+# The demo values every preset shares, so they differ by design only.
+demo=(--set "cwd=$HOME/dev/pixy" --set git_branch=main --set git_status=dirty
+      --set language=rust --set hostname=tron --set time=09:24 --set jobs=2
+      --set git_ahead=2 --set git_staged=1 --set git_unstaged=3)
+
+# A prompt followed by a command someone typed, which is how a prompt is seen.
+typed() {
+  printf '%s\033[38;5;250m %s\033[0m\n' "$1" "$2"
+}
+
+# ---- the bundled profile ----------------------------------------------------
+
+left=$(render prompt.left "$config" --context-file "$context" --now-ms 0)
+right=$(render prompt.right "$config" --context-file "$context" --now-ms 0)
+left_cells=$("$pixy" render prompt.left --config "$config" --target plain --width "$COLS" \
+  --context-file "$context" --now-ms 0 | wc -L)
+right_cells=$("$pixy" render prompt.right --config "$config" --target plain --width "$COLS" \
+  --context-file "$context" --now-ms 0 | wc -L)
+gap=$((COLS - left_cells - right_cells))
+[ "$gap" -lt 1 ] && gap=1
+printf '%s%*s%s\n' "$left" "$gap" "" "$right" >"$tmp/prompt.ansi"
+frame prompt "$tmp/prompt.ansi"
+
+{ render status "$config" --context-file "$context" --now-ms 0; echo; } >"$tmp/status.ansi"
+frame status "$tmp/status.ansi"
+
+# The same zone at four widths, each line on a ground of its own width so the
+# staircase is the point rather than an accident.
+: >"$tmp/responsive.ansi"
+for w in 88 64 44 26; do
+  { "$pixy" render status --config "$config" --target ansi --width "$w" \
+      --context-file "$context" --now-ms 0; echo; } >>"$tmp/responsive.ansi"
+done
+frame responsive "$tmp/responsive.ansi" 0
+
+# ---- the small examples -----------------------------------------------------
+
+typed "$(render prompt.left examples/minimal.lua --set "cwd=$HOME/dev/pixy" --set status=7)" \
+  "cargo test" >"$tmp/minimal.ansi"
+frame minimal "$tmp/minimal.ansi"
+
+typed "$(render prompt.right examples/git.lua --set git_branch=main --set git_status=dirty)" \
+  "git commit" >"$tmp/git.ansi"
+frame git "$tmp/git.ansi"
 
 : >"$tmp/spinner.ansi"
 for now in 0 160 320 480 640; do
-  { "$pixy" render work --config examples/spinner.lua --target ansi --width 40 --now-ms "$now"; echo; } >>"$tmp/spinner.ansi"
+  { "$pixy" render work --config examples/spinner.lua --target ansi --width "$COLS" \
+      --now-ms "$now"; echo; } >>"$tmp/spinner.ansi"
 done
-frame spinner "spinner.lua, five frames" "$tmp/spinner.ansi"
+frame spinner "$tmp/spinner.ansi"
+
+"$pixy" render overlay --config "$config" --mode surface --width 34 --height 16 \
+  --context-json '{"values":{"sprite_name":"pikachu","sprite_position":"center"}}' \
+  --now-ms 0 >"$tmp/sprite.ansi"
+frame sprite "$tmp/sprite.ansi" 1 34
+
+# ---- the preset gallery -----------------------------------------------------
+
+for preset in examples/presets/*.lua; do
+  name=$(basename "$preset" .lua)
+  typed "$(render prompt.left "$preset" "${demo[@]}")" "cargo build --release" \
+    >"$tmp/preset-$name.ansi"
+  frame "presets/$name" "$tmp/preset-$name.ansi"
+done
 
 printf 'docs images written\n'

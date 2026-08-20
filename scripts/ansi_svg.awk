@@ -148,8 +148,9 @@ END {
     w = cols * cw + pad * 2
     h = rows * lh + pad * 2
     print "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-    printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%.0f\" height=\"%.0f\" viewBox=\"0 0 %.0f %.0f\" font-family=\"DejaVu Sans Mono, monospace\" font-size=\"%d\">\n", w, h, w, h, fs
-    printf "%s", ground
+    printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%.0f\" height=\"%.0f\" viewBox=\"0 0 %.0f %.0f\" font-family=\"JetBrainsMono Nerd Font, DejaVu Sans Mono, monospace\" font-size=\"%d\">\n", w, h, w, h, fs
+    if (fill != "") printf "  <rect width=\"%.0f\" height=\"%.0f\" rx=\"4\" fill=\"#181825\"/>\n", w, h
+    else printf "%s", ground
     printf "%s", body
     print "</svg>"
 }
