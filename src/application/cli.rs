@@ -24,7 +24,20 @@ pub fn run() -> Result<()> {
         print_help();
         return Ok(());
     }
+    if matches!(
+        args.first().map(String::as_str),
+        Some("--version" | "-V" | "version")
+    ) {
+        println!("pixy {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
     let command = args.remove(0);
+    if wants_help(&args)
+        && let Some(text) = command_help(&command)
+    {
+        print!("{text}");
+        return Ok(());
+    }
     match command.as_str() {
         "render" => render_command(args),
         "list" => list_command(args),
@@ -32,11 +45,21 @@ pub fn run() -> Result<()> {
         "init" => init_command(args),
         "stream" => stream_command(args),
         "pack" => pack_command(args),
+        "names" => names_command(args),
         "serve" => serve_command(args),
         "__bench" => bench_command(args),
         value if selector_list(value).is_ok() => {
             args.insert(0, value.to_string());
-            render_command(args)
+            // A bare word is a selector, so a typo reaches Lua and comes back
+            // as "unknown zone" — true, but unhelpful when the user meant a verb.
+            render_command(args).map_err(|error| match &error {
+                PixyError::Render(message) if message.contains("unknown zone or segment") => {
+                    PixyError::Usage(format!(
+                        "no zone or command named '{value}'; `pixy list` shows the zones, `pixy --help` the commands"
+                    ))
+                }
+                _ => error,
+            })
         }
         _ => Err(PixyError::Usage(format!(
             "unknown command or selector '{command}'"
@@ -283,6 +306,8 @@ fn check_command(args: Vec<String>) -> Result<()> {
 
 fn serve_command(mut args: Vec<String>) -> Result<()> {
     let mut socket = None;
+    let force = args.iter().any(|value| value == "--force");
+    args.retain(|value| value != "--force");
     if let Some(index) = args.iter().position(|value| value == "--socket") {
         if index + 1 >= args.len() {
             return Err(PixyError::Usage("--socket requires a path".into()));
@@ -291,7 +316,7 @@ fn serve_command(mut args: Vec<String>) -> Result<()> {
         args.remove(index);
     }
     let config = parse_config_only(args)?;
-    super::serve::serve(socket, config.as_deref())
+    super::serve::serve(socket, config.as_deref(), force)
 }
 
 fn init_command(args: Vec<String>) -> Result<()> {
@@ -435,6 +460,32 @@ fn pack_command(mut args: Vec<String>) -> Result<()> {
         }
         other => Err(PixyError::Usage(format!("unknown pack command '{other}'"))),
     }
+}
+
+/// The vocabulary a pack can draw, one id per line. A caller that names things
+/// after a pack — a multiplexer naming its panes — reads this once and then
+/// knows every name it hands out has a picture behind it.
+fn names_command(args: Vec<String>) -> Result<()> {
+    if args.len() > 1 {
+        return Err(PixyError::Usage("usage: pixy names [<pack>]".into()));
+    }
+    let pack = args.first().map_or("pokemon", String::as_str);
+    if let Some(names) = assets::embedded_item_names(pack)? {
+        for name in names {
+            println!("{name}");
+        }
+        return Ok(());
+    }
+    let path = Paths::discover()?.data_dir.join(format!("{pack}.pixypack"));
+    if !path.exists() {
+        return Err(PixyError::Usage(format!(
+            "unknown pack '{pack}'; `pixy pack list` shows what is installed"
+        )));
+    }
+    for name in assets::load(&path)?.items.keys() {
+        println!("{}", name.rsplit('/').next().unwrap_or(name));
+    }
+    Ok(())
 }
 
 fn pack_list_installed() -> Result<()> {
@@ -723,8 +774,230 @@ fn transport(error: std::io::Error) -> PixyError {
     PixyError::Transport(error.to_string())
 }
 
+/// Colour is for a person reading a terminal: off when the output is piped,
+/// off when `NO_COLOR` is set, off when `TERM=dumb`.
+fn colour() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        if std::env::var_os("NO_COLOR").is_some() {
+            return false;
+        }
+        if std::env::var("TERM").is_ok_and(|term| term == "dumb") {
+            return false;
+        }
+        unsafe { libc::isatty(libc::STDOUT_FILENO) == 1 }
+    })
+}
+
+fn paint(code: &str, text: &str) -> String {
+    if colour() {
+        format!("\u{1b}[{code}m{text}\u{1b}[0m")
+    } else {
+        text.to_string()
+    }
+}
+
+/// `pixy:` on a terminal, coloured; bare when piped into a log.
+pub fn error_prefix() -> String {
+    if std::env::var_os("NO_COLOR").is_none() && unsafe { libc::isatty(libc::STDERR_FILENO) == 1 } {
+        return "\u{1b}[1;31mpixy\u{1b}[0m".into();
+    }
+    "pixy".into()
+}
+
+fn heading(text: &str) -> String {
+    paint("1;38;5;213", text)
+}
+
+fn command(text: &str) -> String {
+    paint("1;38;5;117", text)
+}
+
+fn dim(text: &str) -> String {
+    paint("2", text)
+}
+
 fn print_help() {
-    print!("{HELP}");
+    let mut out = String::new();
+    out.push_str(&format!(
+        "{} {}\n{}\n\n",
+        heading("pixy"),
+        dim(env!("CARGO_PKG_VERSION")),
+        dim("Lua paints your terminal; Rust hosts it and gets out of the way.")
+    ));
+    out.push_str(&format!("{}\n", heading("USAGE")));
+    out.push_str(&format!(
+        "  {} <zone[.segment][,...]> [options]{}\n\n",
+        command("pixy"),
+        dim("      render is the default verb")
+    ));
+    out.push_str(&format!("{}\n", heading("COMMANDS")));
+    for (name, args, about) in [
+        ("render", "<zone[.segment][,...]>", "render once and exit"),
+        (
+            "stream",
+            "<zone[.segment][,...]>",
+            "animate for a bounded time",
+        ),
+        (
+            "serve",
+            "[--socket PATH]",
+            "answer painter requests on a socket",
+        ),
+        ("list", "", "every zone and segment the config defines"),
+        ("check", "", "load the config and report what it holds"),
+        (
+            "names",
+            "[<pack>]",
+            "the vocabulary a pack can draw, one id per line",
+        ),
+        (
+            "init",
+            "<shell>",
+            "shell integration text for bash|zsh|fish|oslo|hexe-oslo",
+        ),
+        (
+            "pack",
+            "<build|check|list>",
+            "build and inspect sprite packs",
+        ),
+    ] {
+        let cell = format!("{name} {args}");
+        out.push_str(&format!(
+            "  {}{} {}\n",
+            command(&cell),
+            " ".repeat(30usize.saturating_sub(cell.chars().count())),
+            dim(about)
+        ));
+    }
+    out.push_str(&format!("\n{}\n", heading("OPTIONS")));
+    for (flag, about) in [
+        (
+            "--config PATH",
+            "config to load instead of the discovered one",
+        ),
+        (
+            "--mode line|run|surface",
+            "a line, styled runs as JSON, or a bounded surface",
+        ),
+        ("--target plain|ansi|bash|zsh", "how a line is escaped"),
+        ("--width N / --height N", "the space the caller is offering"),
+        ("--set key=value", "a context value, repeatable"),
+        (
+            "--context-json / --context-file",
+            "the whole context at once",
+        ),
+        ("--now-ms MS", "pin the clock, so animation is reproducible"),
+        ("-h, --help / -V, --version", "this text, or the version"),
+    ] {
+        out.push_str(&format!(
+            "  {}{} {}\n",
+            command(flag),
+            " ".repeat(32usize.saturating_sub(flag.chars().count())),
+            dim(about)
+        ));
+    }
+    out.push_str(&format!(
+        "\n{}\n  {}\n  {}\n  {}\n",
+        heading("EXAMPLES"),
+        dim("pixy prompt.left --target ansi --set status=7"),
+        dim("pixy render status --mode run --width 120"),
+        dim("pixy names pokemon | head")
+    ));
+    print!("{out}");
+}
+
+/// Per-command help, so `pixy names --help` answers instead of erroring.
+fn command_help(name: &str) -> Option<String> {
+    let (usage, lines): (&str, &[(&str, &str)]) = match name {
+        "render" => (
+            "pixy render <zone[.segment][,...]> [options]",
+            &[
+                ("--mode line|run|surface", "line by default"),
+                ("--target plain|ansi|bash|zsh", "escaping for a line"),
+                ("--width N  --height N", "the space on offer"),
+                ("--set key=value", "one context value, repeatable"),
+                ("--context-json J  --context-file P", "the whole context"),
+                ("--now-ms MS", "pin the clock"),
+                (
+                    "--ignore-missing",
+                    "skip selectors the config does not define",
+                ),
+            ],
+        ),
+        "stream" => (
+            "pixy stream <zone[.segment][,...]> [options]",
+            &[
+                ("--fps N", "frames per second, 1-1000"),
+                ("--duration MS", "how long to run, up to 24h"),
+            ],
+        ),
+        "serve" => (
+            "pixy serve [--socket PATH] [--config PATH]",
+            &[
+                (
+                    "--socket PATH",
+                    "bind here instead of the default painter socket",
+                ),
+                (
+                    "",
+                    "else $HEXE_PAINTER_SOCKET, else $XDG_RUNTIME_DIR/hexe/painter.sock",
+                ),
+            ],
+        ),
+        "names" => (
+            "pixy names [<pack>]",
+            &[
+                (
+                    "<pack>",
+                    "an installed or embedded pack; pokemon by default",
+                ),
+                ("", "one id per line, sorted, each one the pack can draw"),
+            ],
+        ),
+        "pack" => (
+            "pixy pack <build|check|list>",
+            &[
+                (
+                    "build <directory> --output <file>",
+                    "pack a directory of art",
+                ),
+                ("check <file>", "verify a pack's checksums"),
+                ("list [<file>]", "installed packs, or one pack's items"),
+            ],
+        ),
+        "init" => (
+            "pixy init <bash|zsh|fish|oslo|hexe-oslo>",
+            &[("", "prints integration text; writes nothing")],
+        ),
+        "list" | "check" => (
+            "pixy list|check [--config PATH]",
+            &[(
+                "--config PATH",
+                "load this config instead of the discovered one",
+            )],
+        ),
+        _ => return None,
+    };
+    let mut out = format!("{}\n", command(usage));
+    for (flag, about) in lines {
+        if flag.is_empty() {
+            out.push_str(&format!("  {}\n", dim(about)));
+        } else {
+            out.push_str(&format!(
+                "  {}{} {}\n",
+                command(flag),
+                " ".repeat(36usize.saturating_sub(flag.chars().count())),
+                dim(about)
+            ));
+        }
+    }
+    Some(out)
+}
+
+/// True when the caller asked for help on a subcommand rather than running it.
+fn wants_help(args: &[String]) -> bool {
+    args.iter().any(|arg| arg == "--help" || arg == "-h")
 }
 
 fn print_render_help() {
@@ -732,8 +1005,6 @@ fn print_render_help() {
         "pixy render <zone[.segment][,...]> [--mode line|run|surface] [--target plain|ansi|bash|zsh]"
     );
 }
-
-const HELP: &str = "pixy - Lua terminal painter\n\nUsage:\n  pixy render <zone[.segment][,...]> [options]\n  pixy <zone[.segment][,...]> [options]\n  pixy list [--config PATH]\n  pixy check [--config PATH]\n  pixy init <bash|zsh|fish|oslo|hexe-oslo>\n  pixy stream <zone[.segment][,...]> [--fps N] [--duration MS]\n  pixy pack build <directory> --output <file>\n  pixy pack check <file>\n  pixy pack list [<file>]\n  pixy serve [--socket PATH] [--config PATH]\n";
 
 const BASH_INIT: &str = r#"__pixy_prompt_command() {
   local pixy_status=${__pixy_last_status:-0}

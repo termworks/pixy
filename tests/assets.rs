@@ -81,3 +81,32 @@ fn pack_build_check_and_item_are_deterministic() {
     assert!(pixy::assets::item(&second, "cat.txt").is_err());
     fs::remove_dir_all(root).expect("cleanup");
 }
+
+#[test]
+fn names_enumerate_the_vocabulary_a_pack_can_draw() {
+    let names = pixy::runtime::assets::embedded_item_names("pokemon")
+        .expect("read the embedded pack")
+        .expect("the embedded pack exists");
+    assert_eq!(names.len(), 1017, "one id per creature, not per variant");
+    assert!(
+        names.windows(2).all(|pair| pair[0] < pair[1]),
+        "sorted, deduped"
+    );
+    // Every id must resolve in the pack it came from: a name without art is
+    // the one thing a caller naming panes after this list cannot survive.
+    for name in [names.first().unwrap(), names.last().unwrap(), &names[500]] {
+        for variant in ["regular", "shiny"] {
+            assert!(
+                pixy::runtime::assets::embedded_item("pokemon", &format!("{variant}/{name}"))
+                    .expect("read item")
+                    .is_some(),
+                "{variant}/{name} is missing"
+            );
+        }
+    }
+    assert!(
+        pixy::runtime::assets::embedded_item_names("nope")
+            .expect("read")
+            .is_none()
+    );
+}

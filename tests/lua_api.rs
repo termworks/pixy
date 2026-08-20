@@ -685,3 +685,109 @@ end)})}})
     assert_eq!(text, "abc");
     assert_eq!((regions[0].x, regions[0].width), (0, 3));
 }
+
+const PROGRESS_CONFIG: &str = r#"
+local pixy = require("pixy")
+local progress = require("pixy.segments.progress")
+return pixy.config({zones = {
+  work = pixy.zone({pixy.segment("value", function(ctx)
+    return progress.segment({width = 10}, ctx)
+  end)}),
+  spin = pixy.zone({pixy.segment("value", function(ctx)
+    return progress.spinner("dots", {}, ctx)
+  end)}),
+}})
+"#;
+
+fn progress_line(state: &str, percent: Option<i64>, now_ms: u64) -> (String, Option<u64>) {
+    let mut request = RenderRequest {
+        select: vec!["work".into()],
+        target: Some(LineTarget::Plain),
+        width: 40,
+        now_ms: Some(now_ms),
+        ..RenderRequest::default()
+    };
+    request
+        .context
+        .values
+        .insert("progress_state".into(), state.into());
+    if let Some(percent) = percent {
+        request
+            .context
+            .values
+            .insert("progress_pct".into(), percent.into());
+    }
+    match render(PROGRESS_CONFIG, request) {
+        RenderOutput::Line {
+            text,
+            next_frame_ms,
+            ..
+        } => (text, next_frame_ms),
+        _ => panic!("line output"),
+    }
+}
+
+#[test]
+fn progress_draws_a_bar_for_a_reported_percentage() {
+    assert_eq!(progress_line("in_progress", Some(0), 0).0, "░░░░░░░░░░ 0%");
+    assert_eq!(
+        progress_line("in_progress", Some(50), 0).0,
+        "█████░░░░░ 50%"
+    );
+    assert_eq!(
+        progress_line("in_progress", Some(100), 0).0,
+        "██████████ 100%"
+    );
+    // A fraction past half a cell shows a partial glyph, so "started" and
+    // "not started yet" never look the same.
+    assert_eq!(
+        progress_line("in_progress", Some(35), 0).0,
+        "███▓░░░░░░ 35%"
+    );
+    // Out of range is clamped rather than drawn past the end.
+    assert_eq!(
+        progress_line("in_progress", Some(400), 0).0,
+        "██████████ 100%"
+    );
+}
+
+#[test]
+fn progress_reports_nothing_when_the_host_reports_nothing() {
+    assert_eq!(progress_line("inactive", Some(40), 0).0, "");
+    assert_eq!(progress_line("nonsense", Some(40), 0).0, "");
+}
+
+#[test]
+fn indeterminate_progress_sweeps_and_asks_to_be_polled() {
+    let (first, deadline) = progress_line("indeterminate", None, 100);
+    assert_eq!(first, "░███░░░░░░");
+    assert_eq!(deadline, Some(180), "the next distinct frame, not a timer");
+    let (later, _) = progress_line("indeterminate", None, 360);
+    assert_ne!(first, later, "the block moves");
+    // A percentage is ignored while the host says it cannot measure progress.
+    assert_eq!(progress_line("indeterminate", Some(50), 100).0, first);
+}
+
+#[test]
+fn named_spinners_advance_and_report_their_next_frame() {
+    let frame = |now_ms: u64| {
+        let request = RenderRequest {
+            select: vec!["spin".into()],
+            target: Some(LineTarget::Plain),
+            width: 10,
+            now_ms: Some(now_ms),
+            ..RenderRequest::default()
+        };
+        match render(PROGRESS_CONFIG, request) {
+            RenderOutput::Line {
+                text,
+                next_frame_ms,
+                ..
+            } => (text, next_frame_ms),
+            _ => panic!("line output"),
+        }
+    };
+    assert_eq!(frame(0).0, "⠋");
+    assert_eq!(frame(80).0, "⠙");
+    assert_eq!(frame(0).1, Some(80));
+}

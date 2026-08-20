@@ -7,6 +7,9 @@ pixy list | check
 pixy init bash|zsh|fish|oslo|hexe-oslo
 pixy stream <names> [--fps N] [--duration MS]
 pixy pack build|check|list ...
+pixy names [<pack>]
+pixy serve [--socket PATH]
+pixy --help | --version
 ```
 
 `<name>` is a zone such as `prompt.left` or a segment selector such as
@@ -43,3 +46,30 @@ item; `pack list` prints the recorded source, license, item paths, sizes, and
 checksums. With no file argument, `pack list` includes the embedded `pokemon`
 pack before user-installed packs. Rendering validates the compact index and
 inflates only the named item.
+
+## Names
+
+`pixy names [<pack>]` prints every distinct id a pack can draw, one per line,
+sorted, with the variant prefixes collapsed — the embedded `pokemon` pack lists
+1,017 ids rather than its 2,034 regular and shiny items. The pack defaults to
+`pokemon`; an unknown one is a usage error.
+
+This is for a host that names things after a pack. A multiplexer naming its
+panes reads the list once at startup, hands out ids from it, and then asks for
+`overlay.sprite` with the id it chose. Because both came from the same pack, a
+name it hands out always has a picture behind it.
+
+```sh
+pixy names                    # 1017 ids
+pixy names | shuf -n 1        # one, at random
+pixy names nope               # exit 2, names what is installed
+```
+
+## Help and colour
+
+`pixy --help` lists the commands, and `pixy <command> --help` describes one.
+`pixy --version` prints the version. Colour is used only when stdout is a
+terminal, and never when `NO_COLOR` is set or `TERM` is `dumb`.
+
+Output closed early — `pixy names | head` — exits quietly rather than reporting
+a broken pipe.

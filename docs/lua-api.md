@@ -92,3 +92,34 @@ Host calls are `pixy.host.env(name)`, `read(path)`, `exec(argv, options)`,
 `require` resolves bundled modules first, then bounded Lua files beside the
 selected config or below its `lua/` directory. Module names cannot contain path
 components, and symlinks cannot escape the trusted config directory.
+
+## Progress and spinners
+
+`require("pixy.segments.progress")` turns what a host reports about progress
+into a node. The host supplies `progress_state` — one of `inactive`,
+`in_progress`, `error`, `indeterminate`, `paused` — and `progress_pct`; hexe
+fills both from a pane's OSC `9;4`.
+
+```lua
+local progress = require("pixy.segments.progress")
+
+pixy.segment("progress", function(ctx)
+  return progress.segment({width = 12}, ctx)      -- nil when nothing is running
+end)
+```
+
+`segment` draws a bar when a percentage is known and a sweeping block when the
+state is `indeterminate`, colours it by state, and returns `nil` for `inactive`
+or an unrecognised state, so a config never has to special-case "no progress".
+The pieces are available on their own: `bar{width, percent}`, `sweep{width,
+block, interval_ms}`, `state(ctx)` and `percent(ctx)`.
+
+A sweep sets `next_frame_ms` to the moment its picture next changes, so a host
+polls then rather than on a timer.
+
+`progress.spinner(name, options, ctx)` returns one frame of a named spinner —
+`dots`, `line`, `bounce`, `arc`, `circle`, `square`, `triangle`, `clock` — with
+the same deadline behaviour. `progress.SPINNERS` holds the frame lists, and
+`pixy.spinner{frames = ...}` still takes any list of your own. For the sweeping
+scanner, `pixy.spinner{kind = "knight_rider"}` remains the richer one, with
+`width`, `step`, `hold`, `trail`, `colors`, `prefix` and `suffix`.

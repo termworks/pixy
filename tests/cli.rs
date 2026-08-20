@@ -228,3 +228,63 @@ fn stream_duration_caps_distant_animation_deadlines() {
     assert!(started.elapsed() < Duration::from_millis(500));
     std::fs::remove_dir_all(root).expect("cleanup");
 }
+
+#[test]
+fn serve_refuses_to_steal_a_socket_another_painter_holds() {
+    let socket = std::env::temp_dir().join(format!("pixy-serve-{}.sock", std::process::id()));
+    let _ = std::fs::remove_file(&socket);
+    let mut holder = std::process::Command::new(env!("CARGO_BIN_EXE_pixy"))
+        .args(["serve", "--socket"])
+        .arg(&socket)
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("start the first painter");
+    // Wait for the bind rather than guessing at a sleep.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::os::unix::net::UnixStream::connect(&socket).is_err() {
+        assert!(std::time::Instant::now() < deadline, "painter never bound");
+    }
+    let second = std::process::Command::new(env!("CARGO_BIN_EXE_pixy"))
+        .args(["serve", "--socket"])
+        .arg(&socket)
+        .output()
+        .expect("run the second painter");
+    assert!(
+        !second.status.success(),
+        "a second painter must not take over"
+    );
+    let message = String::from_utf8_lossy(&second.stderr);
+    assert!(message.contains("already listening"), "{message}");
+    // The holder is untouched: it still owns the socket it bound.
+    assert!(std::os::unix::net::UnixStream::connect(&socket).is_ok());
+    let _ = holder.kill();
+    let _ = holder.wait();
+    let _ = std::fs::remove_file(&socket);
+}
+
+#[test]
+fn names_list_a_pack_and_refuse_an_unknown_one() {
+    let listed = pixy(&["names"]);
+    assert!(listed.status.success());
+    let names = String::from_utf8_lossy(&listed.stdout);
+    let lines: Vec<&str> = names.lines().collect();
+    assert_eq!(lines.len(), 1017, "one id per creature");
+    assert!(lines.contains(&"pikachu"));
+    assert!(
+        lines.iter().all(|name| !name.contains('/')),
+        "ids, not item paths: a host uses these as pane names and socket files"
+    );
+    let unknown = pixy(&["names", "definitely-not-a-pack"]);
+    assert_eq!(unknown.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&unknown.stderr).contains("unknown pack"));
+}
+
+#[test]
+fn version_and_command_help_answer_without_a_config() {
+    let version = pixy(&["--version"]);
+    assert!(version.status.success());
+    assert!(String::from_utf8_lossy(&version.stdout).starts_with("pixy "));
+    let help = pixy(&["names", "--help"]);
+    assert!(help.status.success());
+    assert!(String::from_utf8_lossy(&help.stdout).contains("pixy names"));
+}

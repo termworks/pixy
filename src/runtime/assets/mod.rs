@@ -6,7 +6,9 @@ use std::path::{Component, Path, PathBuf};
 
 mod embedded;
 
-pub use embedded::{EmbeddedPack, item as embedded_item, packs as embedded_packs};
+pub use embedded::{
+    EmbeddedPack, item as embedded_item, item_names as embedded_item_names, packs as embedded_packs,
+};
 
 const MAX_PACK_SIZE: usize = 16 * 1024 * 1024;
 const MAX_ITEMS: usize = 4096;

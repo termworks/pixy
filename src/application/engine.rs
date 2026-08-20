@@ -43,6 +43,10 @@ const MODULES: &[(&str, &str)] = &[
         "pixy.segments.system",
         include_str!("../../lua/pixy/segments/system.lua"),
     ),
+    (
+        "pixy.segments.progress",
+        include_str!("../../lua/pixy/segments/progress.lua"),
+    ),
     ("pixy", include_str!("../../lua/pixy/init.lua")),
 ];
 

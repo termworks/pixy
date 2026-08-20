@@ -37,12 +37,12 @@ struct PainterRequest {
     context: Value,
 }
 
-pub fn serve(socket: Option<PathBuf>, config: Option<&Path>) -> Result<()> {
+pub fn serve(socket: Option<PathBuf>, config: Option<&Path>, force: bool) -> Result<()> {
     let paths = Paths::discover()?;
     let (mut engine, config_path) = load(config, &paths)?;
     let mut stamp = modified(config_path.as_deref());
     let path = socket_path(socket)?;
-    let listener = bind(&path)?;
+    let listener = bind(&path, force)?;
     eprintln!("pixy serve: listening on {}", path.display());
     for stream in listener.incoming() {
         let Ok(mut stream) = stream else { continue };
@@ -175,7 +175,16 @@ fn write_frame(stream: &mut UnixStream, value: &Value) -> std::io::Result<()> {
     stream.flush()
 }
 
-fn bind(path: &Path) -> Result<UnixListener> {
+fn bind(path: &Path, force: bool) -> Result<UnixListener> {
+    // Binding blind unlinks whatever was there, so a second painter silently
+    // takes the first one's place and the host keeps talking to whichever bound
+    // last. A socket that answers belongs to someone; only a dead one is ours.
+    if !force && UnixStream::connect(path).is_ok() {
+        return Err(PixyError::Transport(format!(
+            "a painter is already listening on {}; --force takes it over",
+            path.display()
+        )));
+    }
     let _ = std::fs::remove_file(path);
     let listener = UnixListener::bind(path).map_err(|error| {
         PixyError::Transport(format!("failed to bind {}: {error}", path.display()))

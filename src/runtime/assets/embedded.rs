@@ -28,6 +28,38 @@ pub fn packs() -> Result<Vec<EmbeddedPack>> {
     }])
 }
 
+/// Every distinct item name in an embedded pack, sorted. A name appears once
+/// however many variants carry it, because a caller naming things wants the
+/// vocabulary, not the artwork.
+pub fn item_names(pack: &str) -> Result<Option<Vec<String>>> {
+    if pack != "pokemon" {
+        return Ok(None);
+    }
+    let (data_start, count, _) = header()?;
+    let mut names = Vec::with_capacity(count);
+    let mut cursor = HEADER_SIZE;
+    for _ in 0..count {
+        if cursor.checked_add(10).is_none_or(|end| end > data_start) {
+            return Err(corrupt());
+        }
+        let name_len = usize::from(PACK[cursor + 1]);
+        cursor += 10;
+        let name_end = cursor.checked_add(name_len).ok_or_else(corrupt)?;
+        if name_end > data_start {
+            return Err(corrupt());
+        }
+        names.push(
+            std::str::from_utf8(&PACK[cursor..name_end])
+                .map_err(|_| corrupt())?
+                .to_string(),
+        );
+        cursor = name_end;
+    }
+    names.sort();
+    names.dedup();
+    Ok(Some(names))
+}
+
 pub fn item(pack: &str, name: &str) -> Result<Option<Vec<u8>>> {
     if pack != "pokemon" {
         return Ok(None);
