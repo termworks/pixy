@@ -91,6 +91,32 @@ LUA
 equals "reads stay inside the trusted roots" 4 "$?"
 rm -f "$escape"
 
+# ---- a cached provider still expires -----------------------------------------
+
+# A hit must serve what is stored and let it lapse on time. Renewing the window
+# on every read froze a 250ms clock for as long as a host kept asking for it,
+# which is exactly what a status bar does.
+ticking=$(mktemp)
+cat >"$ticking" <<'LUA'
+local pixy = require("pixy")
+return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
+  local result = pixy.host.exec({"date", "+%s%N"}, {timeout_ms = 200, ttl_ms = 250})
+  return (result.stdout:gsub("%s+$", ""))
+end)})}})
+LUA
+first=$("$pixy" render x --config "$ticking" --target plain)
+sleep 0.05
+within=$("$pixy" render x --config "$ticking" --target plain)
+equals "a fresh cache entry is reused" "$first" "$within"
+# Poll faster than the ttl throughout, the way a bar does, then look past it.
+for _ in $(seq 6); do
+  "$pixy" render x --config "$ticking" --target plain >/dev/null
+  sleep 0.1
+done
+after=$("$pixy" render x --config "$ticking" --target plain)
+if [ "$first" != "$after" ]; then ok; else bad "a cached provider expires" "a new value" "$after"; fi
+rm -f "$ticking"
+
 # ---- configuration errors are named ------------------------------------------
 
 for broken in \

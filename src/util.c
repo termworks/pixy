@@ -116,8 +116,14 @@ void pixy_clear_error(void) {
 
 /* ------------------------------------------------------------------ paths */
 
+/* Callers pass the destination as the base — `join(dir, size, dir, "pixy")` —
+ * so the copy has to go through scratch. Formatting a buffer into itself is
+ * undefined, and here it silently produced a cache directory that never
+ * existed, which turned every cached provider into an uncached one. */
 static void join(char *out, size_t size, const char *base, const char *leaf) {
-    snprintf(out, size, "%s/%s", base, leaf);
+    char scratch[4096];
+    snprintf(scratch, sizeof(scratch), "%s/%s", base, leaf);
+    snprintf(out, size, "%s", scratch);
 }
 
 static bool env_dir(const char *name, char *out, size_t size) {

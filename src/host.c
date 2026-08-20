@@ -197,7 +197,7 @@ static bool memo_get(uint64_t hash, ExecResult *result) {
     return false;
 }
 
-static void memo_put(uint64_t hash, long long ttl_ms, const ExecResult *result) {
+static void memo_put(uint64_t hash, long long expires_ms, const ExecResult *result) {
     MemoEntry *slot = NULL;
     for (size_t i = 0; i < memo_count; i++) {
         if (memo[i].hash == hash) slot = &memo[i];
@@ -216,7 +216,7 @@ static void memo_put(uint64_t hash, long long ttl_ms, const ExecResult *result) 
         free(slot->err);
     }
     slot->hash = hash;
-    slot->expires_ms = pixy_unix_ms() + ttl_ms;
+    slot->expires_ms = expires_ms;
     slot->status = result->status;
     slot->out_len = result->out.len;
     slot->err_len = result->err.len;
@@ -264,7 +264,8 @@ static bool cache_path(const PixyHost *host, uint64_t hash, char *out, size_t si
     return true;
 }
 
-static bool cache_read(const PixyHost *host, uint64_t hash, ExecResult *result) {
+static bool cache_read(const PixyHost *host, uint64_t hash, ExecResult *result,
+                       long long *expires_out) {
     char path[4200];
     if (!cache_path(host, hash, path, sizeof(path))) return false;
     struct stat info;
@@ -295,6 +296,7 @@ static bool cache_read(const PixyHost *host, uint64_t hash, ExecResult *result) 
         const char *out_text = out ? pixy_json_string(out, &out_len) : NULL;
         const char *err_text = err ? pixy_json_string(err, &err_len) : NULL;
         if (status && out_text && err_text) {
+            if (expires_out) *expires_out = (long long)pixy_json_number(expires);
             result->status = (int)pixy_json_number(status);
             pixy_buf_add(&result->out, out_text, out_len);
             pixy_buf_add(&result->err, err_text, err_len);
@@ -545,8 +547,12 @@ static int host_exec(lua_State *L) {
         cache_key(&key, argv, argc, cwd, env_pairs.data, timeout_ms, ttl_ms);
         hash = fnv1a(key.data ? key.data : "", key.len);
         pixy_buf_free(&key);
-        cached = memo_get(hash, &result) || cache_read(host, hash, &result);
-        if (cached) memo_put(hash, ttl_ms, &result);
+        cached = memo_get(hash, &result);
+        if (!cached) {
+            long long stored_expiry = 0;
+            cached = cache_read(host, hash, &result, &stored_expiry);
+            if (cached) memo_put(hash, stored_expiry, &result);
+        }
     }
 
     if (!cached) {
@@ -564,7 +570,7 @@ static int host_exec(lua_State *L) {
         host->io_spent_ms += pixy_now_ms() - started;
         if (ttl_ms > 0) {
             cache_write(host, hash, ttl_ms, &result);
-            memo_put(hash, ttl_ms, &result);
+            memo_put(hash, pixy_unix_ms() + ttl_ms, &result);
         }
     }
 
