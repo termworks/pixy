@@ -28,4 +28,6 @@ jobs:
       - name: Verify
         run: make verify
       - name: Pixy gates
+        env:
+          PIXY_BENCH_SCALE: "3"
         run: make smoke smoke-shell bench package-check
