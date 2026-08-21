@@ -24,12 +24,25 @@ mkdir -p "$out" "$out/presets"
 COLS=88
 FRAME_COLS=""   # each frame is sized to its own content
 
+# A colour-emoji glyph ignores the run's foreground, so one character the Nerd
+# Font happens to lack -- U+2744 is one -- comes back as a picture pasted into
+# what should be a line of terminal output. Offer monochrome fonts only, and a
+# symbols face to cover what the Nerd Font does not.
+symbols=${PIXY_DOCS_SYMBOLS:-$(
+  for family in 'Noto Sans Symbols2' 'DejaVu Sans Mono' 'Noto Sans Math'; do
+    fc-match -f '%{file}\n' "$family" 2>/dev/null
+  done
+)}
+
 raster() {
+  local args=(--zoom 2) face
   if [ -n "$fonts" ]; then
-    resvg --zoom 2 --use-fonts-dir "$fonts" "$1" "$2"
-  else
-    resvg --zoom 2 "$1" "$2"
+    args+=(--skip-system-fonts --use-fonts-dir "$fonts")
+    while read -r face; do
+      [ -n "$face" ] && [ -f "$face" ] && args+=(--use-font-file "$face")
+    done <<<"$symbols"
   fi
+  resvg "${args[@]}" "$1" "$2"
 }
 
 frame() {
