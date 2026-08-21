@@ -17,6 +17,9 @@
 #define PIXY_VERSION PIXY_VERSION_STRING
 
 /* Exit codes, unchanged from the Rust build: scripts depend on them. */
+/* Not an error: the terminal answered nothing, which the palette protocol
+ * defines as "unsupported". A caller branches on it. */
+#define PIXY_EXIT_UNSUPPORTED 1
 #define PIXY_EXIT_USAGE 2
 #define PIXY_EXIT_CONFIG 3
 #define PIXY_EXIT_RENDER 4

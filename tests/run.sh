@@ -228,6 +228,29 @@ equals "a caller's time overrides the clock" "12:34:56" \
   "$("$pixy" render status.left.clock --config "$config" --target plain \
      --context-file "$context" | tr -d ' ')"
 
+# ---- the capability query ------------------------------------------------------
+
+# `ask` alone stays an emitter like every other verb. `--wait` is the protocol's
+# one round trip, and needs a terminal that answers, so it runs on a pty.
+exits "ask without a terminal is unsupported, not an error" 1 palette ask --wait
+exits "a timeout is bounded" 2 palette ask --wait --timeout-ms 0
+exits "a timeout is bounded above too" 2 palette ask --wait --timeout-ms 999999
+
+probe=$(mktemp -u)
+if ${CC:-cc} -O1 -o "$probe" tests/tty_probe.c -lutil >/dev/null 2>&1; then
+  # Silence is the documented answer for "unsupported", and a reply that arrives
+  # after the deadline is silence -- a prompt cannot wait on a terminal.
+  equals "a terminal that answers is believed" "exit=0 answer=1330 31" \
+    "$("$probe" have "$pixy" palette ask --wait)"
+  equals "another reply in the way is stepped over" "exit=0 answer=1330 31" \
+    "$("$probe" junk "$pixy" palette ask --wait)"
+  equals "silence means unsupported" "exit=1 answer=" \
+    "$("$probe" silent "$pixy" palette ask --wait)"
+  equals "a late reply is not waited for" "exit=1 answer=" \
+    "$("$probe" slow "$pixy" palette ask --wait --timeout-ms 100)"
+  rm -f "$probe"
+fi
+
 # ---- palette namespaces --------------------------------------------------------
 
 esc=$'\033'

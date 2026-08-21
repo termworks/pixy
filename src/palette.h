@@ -30,6 +30,10 @@ bool pixy_palette_ask(PixyBuf *out, PixyTarget target);
 /* Marks a sequence zero-width for the shell that will count the prompt. */
 bool pixy_palette_wrap(PixyBuf *out, const char *sequence, PixyTarget target);
 
+/* Asks the terminal on /dev/tty and waits for `have`, up to timeout_ms. False
+ * means no answer, which the protocol defines as unsupported. */
+bool pixy_palette_query(long timeout_ms, unsigned *osc, long *max);
+
 /* The `palette` table a configuration may declare, read once at load. */
 bool pixy_engine_palette(PixyEngine *engine, PixyPaletteEntry **entries, size_t *count, long *slot);
 

@@ -8,7 +8,7 @@ pixy init bash|zsh|fish|oslo|hexe-oslo
 pixy stream <names> [--fps N] [--duration MS]
 pixy pack build|check|list ...
 pixy names [<pack>]
-pixy palette set|use|end|reset|ask [--slot N] [key=colour ...]
+pixy palette set|use|end|reset|ask [--slot N] [--wait] [key=colour ...]
 pixy serve [--socket PATH]
 pixy --help | --version
 ```
@@ -21,8 +21,8 @@ every callable `zone.segment` selector.
 
 Render defaults to `--mode line --target ansi`. It writes only the payload and
 does not append a newline unless `--newline` is passed. Diagnostics use stderr.
-Exit codes are 2 for usage, 3 for configuration, 4 for rendering, and 5 for
-transport or assets.
+Exit codes are 1 for unsupported (the terminal answered nothing), 2 for usage,
+3 for configuration, 4 for rendering, and 5 for transport or assets.
 
 `--request -` reads a complete version-1 JSON render description directly from
 stdin. JSON fields replace render flags.
@@ -87,7 +87,8 @@ pixy palette set 1=#ff5555 bg=#0a0a0a   # define colours; does not select
 pixy palette use --slot 4               # claim, until `end`
 pixy palette end                        # release
 pixy palette reset --slot 4             # forget its colours
-pixy palette ask                        # capability query
+pixy palette ask                        # capability query, as bytes
+pixy palette ask --wait                 # ...and read the answer
 ```
 
 A slot is `0`–`31`. Slot 0 is the ordinary palette and slot 1 the terminal's own
@@ -137,6 +138,38 @@ Every failure is benign. A terminal without support discards the sequences and
 the indexed colours render exactly as they did before, so pixy emits
 optimistically and never waits for an answer. `PIXY_PALETTE_OSC`, then
 `HEXE_PALETTE_OSC`, moves the sequences off OSC 1330 when the terminal says so.
+
+### Asking first
+
+Only worth it to *change behaviour* on the answer — choosing namespaced colours
+over an `OSC 4` fallback, say. Everything else should just emit.
+
+`pixy palette ask` writes the query and nothing else, like every other verb.
+`pixy palette ask --wait` does the round trip: it writes to `/dev/tty` rather
+than stdout, which for a prompt is usually a pipe, reads the reply with the
+terminal briefly in raw mode, and prints the OSC number and the highest
+addressable slot:
+
+```sh
+$ pixy palette ask --wait
+1330 31
+```
+
+There is no negative reply in the protocol, so **silence is the answer** for
+unsupported. `--wait` therefore always times out rather than blocking —
+`--timeout-ms` sets how long, 100 by default — and exits **1** when nothing
+came back. That is a result to branch on, not a failure:
+
+```sh
+if pixy palette ask --wait >/dev/null; then
+  eval "$(pixy init bash)"      # namespaces work here
+fi
+```
+
+A reply arriving after the deadline counts as silence: a prompt cannot wait on a
+terminal. Interrupts are held off across the round trip, so the terminal cannot
+be left in raw mode, and an unrelated reply already in the buffer is stepped
+over rather than mistaken for an answer.
 
 ## Help and colour
 

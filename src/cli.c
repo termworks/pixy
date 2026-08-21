@@ -174,9 +174,11 @@ static bool command_help(const char *name) {
         "use|claim the slot, until end",
         "end|release it",
         "reset|forget a slot's colours",
-        "ask|capability query; silence means unsupported",
+        "ask [--wait]|capability query; --wait reads the answer",
         "--slot N|0-31, and 2-31 to claim; the config's by default",
+        "--timeout-ms MS|how long --wait listens, 100 by default",
         "|a key is 0-255, fg, bg or cursor; a colour is #rrggbb",
+        "|--wait exits 1 when nothing answers, which means unsupported",
         NULL,
     };
     static const char *init_lines[] = {"|prints integration text; writes nothing", NULL};
@@ -1011,6 +1013,8 @@ static int palette_command(int argc, char **argv) {
     char slot[16];
     snprintf(slot, sizeof(slot), "%d", PIXY_PALETTE_DEFAULT_SLOT);
     bool slot_given = false;
+    bool wait_for_reply = false;
+    long timeout_ms = 100;
 
     enum { MAX_ENTRIES = 256 };
     PixyPaletteEntry *given = calloc(MAX_ENTRIES, sizeof(PixyPaletteEntry));
@@ -1022,6 +1026,24 @@ static int palette_command(int argc, char **argv) {
     int code = 0;
     for (int i = 1; i < argc && code == 0; i++) {
         const char *arg = argv[i];
+        if (strcmp(arg, "--wait") == 0) {
+            wait_for_reply = true;
+            continue;
+        }
+        if (strcmp(arg, "--timeout-ms") == 0) {
+            if (i + 1 >= argc) {
+                pixy_fail(PIXY_EXIT_USAGE, "%s requires a value", arg);
+                code = PIXY_EXIT_USAGE;
+                break;
+            }
+            char *stop = NULL;
+            timeout_ms = strtol(argv[++i], &stop, 10);
+            if (!stop || *stop != '\0' || timeout_ms < 1 || timeout_ms > 10000) {
+                pixy_fail(PIXY_EXIT_USAGE, "a timeout is 1-10000 milliseconds");
+                code = PIXY_EXIT_USAGE;
+            }
+            continue;
+        }
         bool is_slot = strcmp(arg, "--slot") == 0 || strcmp(arg, "--ns") == 0;
         if (is_slot || strcmp(arg, "--config") == 0) {
             if (i + 1 >= argc) {
@@ -1146,7 +1168,21 @@ static int palette_command(int argc, char **argv) {
     } else if (strcmp(verb, "reset") == 0) {
         pixy_palette_reset(&out, slot, PIXY_TARGET_ANSI);
     } else if (strcmp(verb, "ask") == 0) {
-        pixy_palette_ask(&out, PIXY_TARGET_ANSI);
+        /* Without --wait this stays an emitter like every other verb, so it
+         * composes. With it, pixy does the round trip itself and reports what
+         * came back; silence is the protocol's "unsupported", so it is an
+         * answer to branch on rather than a failure to report. */
+        if (wait_for_reply) {
+            unsigned answered_osc = 0;
+            long answered_max = 0;
+            if (!pixy_palette_query(timeout_ms, &answered_osc, &answered_max)) {
+                free(given);
+                return PIXY_EXIT_UNSUPPORTED;
+            }
+            printf("%u %ld\n", answered_osc, answered_max);
+        } else {
+            pixy_palette_ask(&out, PIXY_TARGET_ANSI);
+        }
     } else {
         pixy_fail(PIXY_EXIT_USAGE, "unknown palette command '%s'", verb);
         code = PIXY_EXIT_USAGE;

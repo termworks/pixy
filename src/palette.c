@@ -10,10 +10,17 @@
  */
 #include "palette.h"
 
+#include "host.h"
+
 #include <ctype.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
+#include <unistd.h>
 
 /* Sender-side advice from the spec: other terminals may cap an OSC payload. */
 #define ENTRIES_PER_SET 32
@@ -125,6 +132,102 @@ bool pixy_palette_set(PixyBuf *out, const char *slot, const PixyPaletteEntry *en
         if (!finish(out, target)) return false;
     }
     return true;
+}
+
+/* Reads `have;<osc>;<max>` out of whatever the terminal sent back. Other replies
+ * and stray keystrokes land in the same buffer, so the answer is looked for
+ * rather than assumed to be at the front. */
+static bool find_have(const char *data, size_t len, unsigned *osc_out, long *max_out) {
+    for (size_t i = 0; i + 1 < len; i++) {
+        if (data[i] != '\033' || data[i + 1] != ']') continue;
+        const char *at = data + i + 2;
+        const char *end = data + len;
+        unsigned long introducer = 0;
+        if (!isdigit((unsigned char)*at)) continue;
+        while (at < end && isdigit((unsigned char)*at))
+            introducer = introducer * 10 + (unsigned)(*at++ - '0');
+        if (at >= end || *at != ';') continue;
+        at++;
+        if ((size_t)(end - at) < 5 || strncmp(at, "have;", 5) != 0) continue;
+        at += 5;
+        unsigned long osc = 0, max = 0;
+        if (!isdigit((unsigned char)*at)) continue;
+        while (at < end && isdigit((unsigned char)*at)) osc = osc * 10 + (unsigned)(*at++ - '0');
+        if (at >= end || *at != ';') continue;
+        at++;
+        if (!isdigit((unsigned char)*at)) continue;
+        while (at < end && isdigit((unsigned char)*at)) max = max * 10 + (unsigned)(*at++ - '0');
+        /* The reply has to be terminated, or a truncated read would be taken
+         * for an answer. */
+        bool terminated =
+            at < end && (*at == '\a' || (*at == '\033' && at + 1 < end && at[1] == '\\'));
+        if (!terminated) continue;
+        (void)introducer;
+        *osc_out = (unsigned)osc;
+        *max_out = (long)max;
+        return true;
+    }
+    return false;
+}
+
+/* The one round trip in the protocol, and the only place pixy reads from a
+ * terminal. Silence is the documented answer for "unsupported", so this always
+ * times out rather than waiting, and it talks to /dev/tty rather than stdout,
+ * which for a prompt is usually a pipe. */
+bool pixy_palette_query(long timeout_ms, unsigned *osc_out, long *max_out) {
+    int tty = open("/dev/tty", O_RDWR | O_NOCTTY);
+    if (tty < 0) return false;
+    if (!isatty(tty)) {
+        close(tty);
+        return false;
+    }
+    struct termios saved;
+    if (tcgetattr(tty, &saved) != 0) {
+        close(tty);
+        return false;
+    }
+    /* Held off for the length of the round trip: being killed between the mode
+     * change and the restore would leave the terminal raw. */
+    sigset_t blocked, previous;
+    sigemptyset(&blocked);
+    sigaddset(&blocked, SIGINT);
+    sigaddset(&blocked, SIGQUIT);
+    sigaddset(&blocked, SIGTERM);
+    sigprocmask(SIG_BLOCK, &blocked, &previous);
+
+    struct termios raw = saved;
+    raw.c_lflag &= (tcflag_t) ~(ICANON | ECHO);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 0;
+    bool answered = false;
+    if (tcsetattr(tty, TCSANOW, &raw) == 0) {
+        PixyBuf query = {0};
+        if (pixy_palette_ask(&query, PIXY_TARGET_ANSI) &&
+            write(tty, query.data, query.len) == (ssize_t)query.len) {
+            char buffer[512];
+            size_t len = 0;
+            long long deadline = pixy_now_ms() + (timeout_ms > 0 ? timeout_ms : 100);
+            while (len + 1 < sizeof(buffer)) {
+                long long left = deadline - pixy_now_ms();
+                if (left <= 0) break;
+                struct pollfd waiting = {.fd = tty, .events = POLLIN};
+                int ready = poll(&waiting, 1, (int)left);
+                if (ready <= 0) break;
+                ssize_t got = read(tty, buffer + len, sizeof(buffer) - 1 - len);
+                if (got <= 0) break;
+                len += (size_t)got;
+                if (find_have(buffer, len, osc_out, max_out)) {
+                    answered = true;
+                    break;
+                }
+            }
+        }
+        pixy_buf_free(&query);
+        tcsetattr(tty, TCSANOW, &saved);
+    }
+    sigprocmask(SIG_SETMASK, &previous, NULL);
+    close(tty);
+    return answered;
 }
 
 /* A prompt counts printable width, so the sequences have to be marked
