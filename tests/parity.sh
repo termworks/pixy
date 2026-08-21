@@ -95,7 +95,18 @@ compare_without_palette() {
 for shell in bash zsh fish oslo; do
   compare_without_palette "$shell"
 done
-compare "init hexe-oslo" init hexe-oslo
+# The bundled profile reads the clock in process now; the reference still shells
+# out to `date`. Put that one line back and the rest must match it exactly.
+clock_left=$("$reference" init hexe-oslo 2>&1)
+clock_right=$("$candidate" init hexe-oslo 2>&1 |
+  sed 's|^    return system.clock(ctx)$|    return execute({"date", "+%H:%M:%S"}, {timeout_ms = 30, ttl_ms = 250})|')
+if [ "$clock_left" = "$clock_right" ]; then
+  pass=$((pass + 1))
+else
+  fail=$((fail + 1))
+  printf 'DIFF init hexe-oslo beyond the clock\n'
+  diff <(printf '%s' "$clock_left") <(printf '%s' "$clock_right") | head -20
+fi
 # The version is expected to differ from an older reference; only its shape is
 # part of the contract.
 if ! "$candidate" --version | grep -qE '^pixy [0-9]+\.[0-9]+\.[0-9]+$'; then

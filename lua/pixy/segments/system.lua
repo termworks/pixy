@@ -101,6 +101,15 @@ function M.time(ctx)
   return math.floor((tonumber(ctx and ctx.now_ms) or 0) / 1000)
 end
 
+-- The clock pixy is already holding, formatted in process. Running `date`
+-- instead costs a fork a prompt, ignores a pinned --now-ms, and reads the zone
+-- with whatever libc happens to be first on PATH -- which is how a prompt ends
+-- up hours off when that one cannot find its zoneinfo and quietly falls back to
+-- UTC.
+function M.clock(ctx, format)
+  return os.date(format or "%H:%M:%S", M.time(ctx))
+end
+
 function M.hostname()
   return __pixy_host.env("HOSTNAME")
 end

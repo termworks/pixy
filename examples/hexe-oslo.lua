@@ -105,7 +105,7 @@ end
 
 local function clock(ctx)
   return trim(tostring(overridden(ctx, "time", function()
-    return execute({"date", "+%H:%M:%S"}, {timeout_ms = 30, ttl_ms = 250})
+    return system.clock(ctx)
   end) or "")) or "--:--:--"
 end
 

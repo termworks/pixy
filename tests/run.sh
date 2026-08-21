@@ -207,6 +207,27 @@ esac
 equals "render writes no trailing newline" "1" \
   "$("$pixy" render prompt.left --config "$config" --target plain --context-file "$context" | wc -l | tr -d ' ' | sed 's/^0$/1/')"
 
+# ---- the clock -----------------------------------------------------------------
+
+# Read in process, from the time pixy already holds. Running `date` instead read
+# the zone with whatever libc was first on PATH, and one that cannot find its
+# zoneinfo falls back to UTC without saying so -- a prompt hours behind.
+clock() {
+  "$pixy" render status.left.clock --config "$config" --target plain "$@" | tr -d ' '
+}
+# One instant, four zones, the offsets they are actually owed. `date` is not the
+# reference here: a `date` whose libc cannot find its zoneinfo answers UTC for
+# every one of these, which is the bug this pins.
+equals "the clock follows the zone" "21:20:00 06:20:00 22:20:00 16:20:00" \
+  "$(TZ=UTC clock --now-ms 1200000000) $(TZ=Asia/Tokyo clock --now-ms 1200000000) \
+$(TZ=Europe/Berlin clock --now-ms 1200000000) $(TZ=America/New_York clock --now-ms 1200000000)"
+equals "the same instant renders the same twice" \
+  "$(clock --now-ms 1787292810953)" "$(clock --now-ms 1787292810953)"
+# A caller that supplies its own time still wins.
+equals "a caller's time overrides the clock" "12:34:56" \
+  "$("$pixy" render status.left.clock --config "$config" --target plain \
+     --context-file "$context" | tr -d ' ')"
+
 # ---- palette namespaces --------------------------------------------------------
 
 esc=$'\033'
