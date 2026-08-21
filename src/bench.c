@@ -88,6 +88,45 @@ static int bench_cold(size_t runs, const char *config_source, const char *prefix
     return 0;
 }
 
+/* The same work as `cold`, split into the four things a prompt actually pays
+ * for, so an optimisation can be aimed rather than guessed at. */
+static int bench_phases(size_t runs, const char *config_source, const char *selector) {
+    char path[256];
+    if (config_source && !write_temp_config(path, sizeof(path), config_source)) return 1;
+    long long discover = 0, read = 0, engine_load = 0, render = 0;
+    char *selectors[1] = {(char *)selector};
+
+    for (size_t i = 0; i < runs; i++) {
+        long long a = now_ns();
+        PixyPaths paths;
+        if (!pixy_paths_discover(&paths)) return 1;
+        long long b = now_ns();
+        PixyConfigSource source;
+        if (!pixy_config_load(config_source ? path : NULL, &paths, &source)) return 1;
+        long long c = now_ns();
+        PixyEngine *engine = pixy_engine_load(&source, &paths);
+        pixy_config_free(&source);
+        if (!engine) return 1;
+        long long d = now_ns();
+        PixyRequest request = request_for(selectors, 1, 100);
+        PixyOutput output;
+        if (pixy_engine_render(engine, &request, &output)) pixy_output_free(&output);
+        long long e = now_ns();
+        pixy_engine_free(engine);
+        discover += b - a;
+        read += c - b;
+        engine_load += d - c;
+        render += e - d;
+    }
+
+    printf("phase_discover_ns=%lld\n", discover / (long long)runs);
+    printf("phase_read_config_ns=%lld\n", read / (long long)runs);
+    printf("phase_engine_load_ns=%lld\n", engine_load / (long long)runs);
+    printf("phase_render_ns=%lld\n", render / (long long)runs);
+    if (config_source) unlink(path);
+    return 0;
+}
+
 static int bench_query(size_t runs, const char *config_source, const char *prefix,
                        const char *selector, const char *segment) {
     char path[256];
@@ -143,7 +182,8 @@ static const char SIMPLE_CONFIG[] =
 
 int pixy_bench(int argc, char **argv) {
     if (argc < 1) {
-        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy __bench <cold|query|provider|compat> [count]");
+        pixy_fail(PIXY_EXIT_USAGE,
+                  "usage: pixy __bench <cold|query|provider|compat|phases|compat-phases> [count]");
         return PIXY_EXIT_USAGE;
     }
     size_t count = argc > 1 ? (size_t)strtoul(argv[1], NULL, 10) : 0;
@@ -159,6 +199,12 @@ int pixy_bench(int argc, char **argv) {
     if (strcmp(argv[0], "provider") == 0) {
         return bench_query(count ? count : 100, PROVIDER_CONFIG, "provider_exec", "x", NULL);
     }
+    if (strcmp(argv[0], "phases") == 0) {
+        return bench_phases(count ? count : 200, SIMPLE_CONFIG, "x");
+    }
+    if (strcmp(argv[0], "compat-phases") == 0) {
+        return bench_phases(count ? count : 200, PIXY_HEXE_OSLO_CONFIG, "prompt.left");
+    }
     if (strcmp(argv[0], "compat") == 0) {
         int code =
             bench_cold(count ? count : 500, PIXY_HEXE_OSLO_CONFIG, "compat_cold", "prompt.left");
@@ -166,6 +212,7 @@ int pixy_bench(int argc, char **argv) {
         return bench_query(count ? count : 500, PIXY_HEXE_OSLO_CONFIG, "compat_query",
                            "prompt.left", "prompt.left.hostname");
     }
-    pixy_fail(PIXY_EXIT_USAGE, "usage: pixy __bench <cold|query|provider|compat> [count]");
+    pixy_fail(PIXY_EXIT_USAGE,
+              "usage: pixy __bench <cold|query|provider|compat|phases|compat-phases> [count]");
     return PIXY_EXIT_USAGE;
 }

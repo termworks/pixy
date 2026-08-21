@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
 
 #include "lauxlib.h"
 #include "lua.h"
@@ -267,6 +271,141 @@ static bool validate_config(lua_State *L, int config_index, const char *source_n
 
 /* ---------------------------------------------------------------- loading */
 
+/* A configuration is parsed at every prompt to reach the same functions each
+ * time, and a real one is tens of kilobytes. The compiled form is kept beside
+ * the provider cache, keyed by what the file is and when it was last written,
+ * so an edit is picked up on the next render and a stale compile can never be
+ * used. Anything unreadable, unloadable or simply absent falls back to the
+ * source, which is the only correctness this has to preserve.
+ */
+#define CONFIG_CACHE_MAGIC "pixyluac1"
+
+static uint64_t fold(uint64_t hash, const void *bytes, size_t len) {
+    const unsigned char *at = bytes;
+    for (size_t i = 0; i < len; i++) hash = (hash ^ at[i]) * 1099511628211ULL;
+    return hash;
+}
+
+/* The name carries two hashes: which configuration this is, and which revision
+ * of it. The first lets a new revision delete the ones it replaces, so a file
+ * edited all afternoon leaves one compiled copy rather than an afternoon's
+ * worth. */
+static void config_cache_path(const PixyEngine *engine, const PixyConfigSource *source, char *out,
+                              size_t size, char *prefix, size_t prefix_size) {
+    out[0] = '\0';
+    if (prefix) prefix[0] = '\0';
+    if (!engine->host.cache_dir[0] || !source->path[0]) return;
+
+    uint64_t which = fold(1469598103934665603ULL, source->path, strlen(source->path));
+    which = fold(which, PIXY_VERSION, strlen(PIXY_VERSION));
+    which = fold(which, LUA_RELEASE, strlen(LUA_RELEASE));
+    /* The revision is the content, not the timestamp. `st_mtime` counts whole
+     * seconds, so two edits a moment apart that happen to leave the file the
+     * same length are indistinguishable — and the second one would be served
+     * the first one's compile. The bytes are already in memory to be parsed;
+     * hashing them costs microseconds and cannot be wrong. */
+    uint64_t revision = fold(which, source->source, source->source_len);
+
+    char version[4096];
+    snprintf(version, sizeof(version), "%s/v1", engine->host.cache_dir);
+    if (mkdir(engine->host.cache_dir, 0700) != 0 && errno != EEXIST) return;
+    if (mkdir(version, 0700) != 0 && errno != EEXIST) return;
+    if (prefix) snprintf(prefix, prefix_size, "%016llx-", (unsigned long long)which);
+    snprintf(out, size, "%s/%016llx-%016llx.luac", version, (unsigned long long)which,
+             (unsigned long long)revision);
+}
+
+/* Every earlier revision of the same configuration. */
+static void config_cache_sweep(const PixyEngine *engine, const char *prefix, const char *keep) {
+    char version[4096];
+    snprintf(version, sizeof(version), "%s/v1", engine->host.cache_dir);
+    DIR *dir = opendir(version);
+    if (!dir) return;
+    const char *kept = strrchr(keep, '/');
+    kept = kept ? kept + 1 : keep;
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strncmp(entry->d_name, prefix, strlen(prefix)) != 0) continue;
+        if (strcmp(entry->d_name, kept) == 0) continue;
+        char victim[4200];
+        snprintf(victim, sizeof(victim), "%s/%s", version, entry->d_name);
+        unlink(victim);
+    }
+    closedir(dir);
+}
+
+/* Pushes the compiled chunk on success. */
+static bool config_cache_load(lua_State *L, const char *path, const char *chunk_name) {
+    FILE *file = fopen(path, "rb");
+    if (!file) return false;
+    char magic[sizeof(CONFIG_CACHE_MAGIC)];
+    if (fread(magic, 1, sizeof(magic), file) != sizeof(magic) ||
+        memcmp(magic, CONFIG_CACHE_MAGIC, sizeof(magic)) != 0) {
+        fclose(file);
+        return false;
+    }
+    PixyBuf code = {0};
+    char chunk[8192];
+    size_t got;
+    while ((got = fread(chunk, 1, sizeof(chunk), file)) > 0) pixy_buf_add(&code, chunk, got);
+    fclose(file);
+    bool ok = code.len && luaL_loadbuffer(L, code.data, code.len, chunk_name) == LUA_OK;
+    if (!ok && code.len) lua_pop(L, 1);
+    pixy_buf_free(&code);
+    return ok;
+}
+
+static int collect_code(lua_State *L, const void *chunk, size_t size, void *ud) {
+    (void)L;
+    return pixy_buf_add((PixyBuf *)ud, chunk, size) ? 0 : 1;
+}
+
+/* Written whole and renamed into place, so a reader never sees half a file. */
+static void config_cache_store(lua_State *L, const char *path) {
+    PixyBuf code = {0};
+    if (lua_dump(L, collect_code, &code, 0) != 0 || !code.len) {
+        pixy_buf_free(&code);
+        return;
+    }
+    char temporary[4200];
+    snprintf(temporary, sizeof(temporary), "%s.%d", path, (int)getpid());
+    FILE *file = fopen(temporary, "wb");
+    if (file) {
+        bool ok = fwrite(CONFIG_CACHE_MAGIC, 1, sizeof(CONFIG_CACHE_MAGIC), file) ==
+                      sizeof(CONFIG_CACHE_MAGIC) &&
+                  fwrite(code.data, 1, code.len, file) == code.len;
+        ok = fclose(file) == 0 && ok;
+        if (!ok || rename(temporary, path) != 0) unlink(temporary);
+    }
+    pixy_buf_free(&code);
+}
+
+/* Sits in `package.preload` for every bundled module and does the work only if
+ * `require` ever asks. A configuration that uses two of them should not pay for
+ * the other ten, and most use far fewer than all twelve.
+ *
+ * Precompiled first: the parser was the single largest cost in starting up, and
+ * it would arrive at these same functions every time. Bytecode a build cannot
+ * use is refused cleanly here, so the source stays a working fallback rather
+ * than dead weight. */
+static int load_bundled_module(lua_State *L) {
+    size_t index = (size_t)lua_tointeger(L, lua_upvalueindex(1));
+    const PixyModule *module = &PIXY_MODULES[index];
+    char chunk[256];
+    snprintf(chunk, sizeof(chunk), "@bundled/%s.lua", module->name);
+
+    int loaded = LUA_ERRSYNTAX;
+    if (module->code_len) {
+        loaded = luaL_loadbuffer(L, (const char *)module->code, module->code_len, chunk);
+        if (loaded != LUA_OK) lua_pop(L, 1);
+    }
+    if (loaded != LUA_OK) loaded = luaL_loadbuffer(L, module->source, module->len, chunk);
+    if (loaded != LUA_OK) return lua_error(L);
+
+    lua_call(L, 0, 1);
+    return 1;
+}
+
 static bool run_chunk(PixyEngine *engine, const char *chunk_name, const char *source, size_t len,
                       int results, int code, const char *what) {
     lua_State *L = engine->L;
@@ -301,7 +440,31 @@ PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *pa
         return NULL;
     }
     lua_State *L = engine->L;
-    luaL_openlibs(L);
+    /* Only the libraries a configuration is meant to have. `luaL_openlibs`
+     * would also hand it `io`, `debug` and `os.execute`, and then "reads go
+     * through the host or not at all" would be a description of the host API
+     * rather than a restriction -- `io.open` reaches straight past the trusted
+     * roots. Opening fewer libraries is also less to build at every prompt. */
+    static const luaL_Reg libraries[] = {
+        {LUA_GNAME, luaopen_base},       {LUA_LOADLIBNAME, luaopen_package},
+        {LUA_TABLIBNAME, luaopen_table}, {LUA_STRLIBNAME, luaopen_string},
+        {LUA_MATHLIBNAME, luaopen_math}, {LUA_UTF8LIBNAME, luaopen_utf8},
+        {LUA_OSLIBNAME, luaopen_os},     {NULL, NULL},
+    };
+    for (const luaL_Reg *library = libraries; library->func; library++) {
+        luaL_requiref(L, library->name, library->func, 1);
+        lua_pop(L, 1);
+    }
+
+    /* `os` is here for the clock. The rest of it acts on the machine. */
+    static const char *const withheld[] = {"execute", "remove",    "rename", "tmpname",
+                                           "exit",    "setlocale", NULL};
+    lua_getglobal(L, LUA_OSLIBNAME);
+    for (const char *const *name = withheld; *name; name++) {
+        lua_pushnil(L);
+        lua_setfield(L, -2, *name);
+    }
+    lua_pop(L, 1);
 
     /* A config reads through the host or not at all. */
     lua_pushnil(L);
@@ -324,14 +487,8 @@ PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *pa
     lua_getglobal(L, "package");
     lua_getfield(L, -1, "preload");
     for (size_t i = 0; i < PIXY_MODULE_COUNT; i++) {
-        char chunk[256];
-        snprintf(chunk, sizeof(chunk), "@bundled/%s.lua", PIXY_MODULES[i].name);
-        if (luaL_loadbuffer(L, PIXY_MODULES[i].source, PIXY_MODULES[i].len, chunk) != LUA_OK) {
-            pixy_fail(PIXY_EXIT_CONFIG, "bundled module %s: %s", PIXY_MODULES[i].name,
-                      lua_tostring(L, -1));
-            pixy_engine_free(engine);
-            return NULL;
-        }
+        lua_pushinteger(L, (lua_Integer)i);
+        lua_pushcclosure(L, load_bundled_module, 1);
         lua_setfield(L, -2, PIXY_MODULES[i].name);
     }
     lua_pop(L, 2);
@@ -358,10 +515,29 @@ PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *pa
     engine->render_ref = luaL_ref(L, LUA_REGISTRYINDEX);
     lua_pop(L, 1);
 
-    if (!run_chunk(engine, source->name, source->source, source->source_len, 1, PIXY_EXIT_CONFIG,
-                   source->name)) {
-        pixy_engine_free(engine);
-        return NULL;
+    char cached[4200], cache_prefix[32];
+    config_cache_path(engine, source, cached, sizeof(cached), cache_prefix, sizeof(cache_prefix));
+    if (cached[0] && config_cache_load(L, cached, source->name)) {
+        if (lua_pcall(L, 0, 1, 0) != LUA_OK) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: lua error: @%s", source->name, lua_tostring(L, -1));
+            pixy_engine_free(engine);
+            return NULL;
+        }
+    } else {
+        if (luaL_loadbuffer(L, source->source, source->source_len, source->name) != LUA_OK) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: lua error: @%s", source->name, lua_tostring(L, -1));
+            pixy_engine_free(engine);
+            return NULL;
+        }
+        if (cached[0]) {
+            config_cache_store(L, cached);
+            config_cache_sweep(engine, cache_prefix, cached);
+        }
+        if (lua_pcall(L, 0, 1, 0) != LUA_OK) {
+            pixy_fail(PIXY_EXIT_CONFIG, "%s: lua error: @%s", source->name, lua_tostring(L, -1));
+            pixy_engine_free(engine);
+            return NULL;
+        }
     }
     if (!lua_istable(L, -1)) {
         pixy_fail(PIXY_EXIT_CONFIG, "%s: a config must return a pixy.config table", source->name);

@@ -5,6 +5,9 @@ PROJECT_VERSION := $(shell sed -nE 's/^local PROJECT_VERSION = "([0-9.]+)".*/\1/
 
 TOP_DIR := $(CURDIR)
 CC ?= cc
+# The precompiler runs here, so it is built for this machine even when the
+# binary is not.
+HOSTCC ?= $(CC)
 TARGET ?=
 MUSL_TARGET ?= $(shell uname -m)-unknown-linux-musl
 BUILD := build
@@ -46,7 +49,8 @@ LUA_MODULES := lua/pixy/style.lua lua/pixy/nodes.lua lua/pixy/layout.lua lua/pix
                lua/pixy/segments/system.lua lua/pixy/segments/progress.lua lua/pixy/init.lua
 
 .PHONY: build b compile c run r test t check fmt fmt-check clean verify smoke smoke-shell bench \
-        package-check example-pack release-build release-musl sanitize fuzz docs-images install release help h
+        package-check example-pack release-build release-musl sanitize fuzz bench-compare bench-phases \
+        docs-images install release help h
 
 build: $(BUILD)/pixy
 b: build
@@ -58,9 +62,15 @@ $(BUILD)/pokemon.pack: scripts/pack_sprites.c $(wildcard docs/assets/pokemon/reg
 	@$(CC) -O2 -Ivendor/miniz -o $(BUILD)/pack_sprites scripts/pack_sprites.c $(MINIZ_SRC) -lm
 	@$(BUILD)/pack_sprites docs/assets/pokemon $(BUILD)/pokemon.pack
 
-$(BUILD)/lua_modules.c: $(LUA_MODULES) scripts/embed_text.sh
+# Compiled here rather than at every prompt: parsing the modules was half the
+# cost of starting up, to reach the same functions each time.
+$(BUILD)/lua_precompile: scripts/lua_precompile.c $(LUA_SRC)
 	@mkdir -p $(BUILD)
-	@bash scripts/embed_text.sh modules $@ $(LUA_MODULES)
+	@$(HOSTCC) -O2 -Ivendor/lua/src -Isrc -o $@ $< $(LUA_SRC) $(DEFINES) $(LDLIBS)
+
+$(BUILD)/lua_modules.c: $(LUA_MODULES) $(BUILD)/lua_precompile
+	@mkdir -p $(BUILD)
+	@$(BUILD)/lua_precompile $@ $(LUA_MODULES)
 
 $(BUILD)/texts.c: lua/pixy/default.lua examples/hexe-oslo.lua examples/shell/init.bash examples/shell/init.zsh \
                   examples/shell/init.fish examples/shell/init.oslo scripts/embed_text.sh
@@ -132,6 +142,16 @@ smoke-shell: release-build
 bench: release-build
 	@bash scripts/bench.sh
 
+# Against starship, at what a prompt actually costs. Needs the dev shell, which
+# pins both it and hyperfine.
+bench-compare: release-build
+	@bash scripts/bench_compare.sh
+
+# Where a prompt's time goes, so an optimisation can be aimed.
+bench-phases: release-build
+	@$(BUILD)/pixy __bench phases 400
+	@$(BUILD)/pixy __bench compat-phases 400
+
 package-check: release-build example-pack
 	@RELEASE_DIR=$(BUILD) bash scripts/package_check.sh
 
@@ -173,6 +193,8 @@ help:
 	@echo "  smoke        Run the CLI smoke"
 	@echo "  smoke-shell  Run the shell integration smoke"
 	@echo "  bench        Run release performance checks"
+	@echo "  bench-compare Compare against starship (needs nix develop)"
+	@echo "  bench-phases Where a prompt spends its time"
 	@echo "  package-check Check release artifact contents"
 	@echo "  example-pack Build the example sprite pack"
 	@echo "  docs-images  Regenerate the README frames from live output"

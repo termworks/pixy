@@ -26,11 +26,23 @@
             pkgs.git-cliff
             pkgs.valgrind
             pkgs.gdb
+
+            # Benchmarking. Pinned here rather than taken from the machine so a
+            # comparison is against a known starship, not whichever one happens
+            # to be on PATH.
+            pkgs.hyperfine
+            pkgs.starship
           ];
 
           shellHook = ''
             export PIXY_LUA_SRC=${pkgs.lua5_4.src}
+            export PIXY_BENCH_STARSHIP=${pkgs.starship}/bin/starship
+            # A binary built here links this glibc, whose compiled-in TZDIR
+            # holds no zoneinfo, so every zone would resolve to UTC. The static
+            # musl builds that ship look in the standard paths and are fine.
+            export TZDIR=''${TZDIR:-/usr/share/zoneinfo}
             echo "pixy: zig $(zig version), lua source at \$PIXY_LUA_SRC"
+            echo "      starship $(starship --version | head -1 | cut -d' ' -f2) for comparison"
           '';
         };
 

@@ -12,10 +12,15 @@ typedef struct {
     long long deadline_ms;
 } PixyBudget;
 
+/* Both forms of every bundled module. The bytecode is what gets loaded; the
+ * source is the way back when a binary ends up somewhere its bytecode does not
+ * fit, which is a slower start rather than no start at all. */
 typedef struct {
     const char *name;
     const char *source;
     size_t len;
+    const unsigned char *code;
+    size_t code_len;
 } PixyModule;
 
 void *pixy_bounded_alloc(void *ud, void *ptr, size_t osize, size_t nsize);

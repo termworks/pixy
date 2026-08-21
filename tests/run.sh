@@ -80,6 +80,36 @@ LUA
 equals "a hungry config is stopped" 4 "$?"
 rm -f "$hungry"
 
+# A config reaches the machine through the host or not at all. `io.open` would
+# walk straight past the trusted roots, so the libraries that offer it are never
+# opened rather than being taken away afterwards.
+sandbox=$(mktemp)
+cat >"$sandbox" <<'LUA'
+local pixy = require("pixy")
+return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
+  local reachable = {}
+  if io ~= nil then reachable[#reachable + 1] = "io" end
+  if debug ~= nil then reachable[#reachable + 1] = "debug" end
+  if os and os.execute ~= nil then reachable[#reachable + 1] = "os.execute" end
+  if os and os.remove ~= nil then reachable[#reachable + 1] = "os.remove" end
+  if dofile ~= nil then reachable[#reachable + 1] = "dofile" end
+  if loadfile ~= nil then reachable[#reachable + 1] = "loadfile" end
+  return #reachable == 0 and "sealed" or table.concat(reachable, ",")
+end)})}})
+LUA
+equals "a config cannot reach past the host" "sealed" \
+  "$("$pixy" render x --config "$sandbox" --target plain)"
+# What it does need stays: the clock and the width tables are the whole point.
+cat >"$sandbox" <<'LUA'
+local pixy = require("pixy")
+return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
+  return os.date("!%Y", 0) .. ":" .. tostring(utf8.len("héllo")) .. ":" .. ("x"):rep(2)
+end)})}})
+LUA
+equals "the clock and utf8 are still there" "1970:5:xx" \
+  "$("$pixy" render x --config "$sandbox" --target plain)"
+rm -f "$sandbox"
+
 escape=$(mktemp)
 cat >"$escape" <<'LUA'
 local pixy = require("pixy")
@@ -227,6 +257,34 @@ equals "the same instant renders the same twice" \
 equals "a caller's time overrides the clock" "12:34:56" \
   "$("$pixy" render status.left.clock --config "$config" --target plain \
      --context-file "$context" | tr -d ' ')"
+
+# ---- the compiled config cache -------------------------------------------------
+
+# Parsing a real config was the largest cost left in a prompt, so the compiled
+# form is kept. What it must never do is serve an edit's predecessor: the key is
+# the content, because `st_mtime` counts whole seconds and two edits a moment
+# apart that leave the file the same length look identical to it.
+cachedir=$(mktemp -d)
+live=$(mktemp)
+write_config() {
+  printf 'local pixy = require("pixy")\nreturn pixy.config({zones = {z = pixy.zone({pixy.segment("s", function() return pixy.text("%s") end)})}})\n' "$1" >"$live"
+}
+seen=""
+for word in ONE TWO ONE THREE; do
+  write_config "$word"
+  seen="$seen$(PIXY_CACHE_DIR=$cachedir "$pixy" render z --config "$live" --target plain) "
+done
+equals "an edit is never served the last compile" "ONE TWO ONE THREE " "$seen"
+# One compiled copy per config, not one per edit.
+equals "the cache keeps one copy per config" 1 \
+  "$(find "$cachedir" -name '*.luac' | wc -l | tr -d ' ')"
+# A cache it cannot use is a slower start, never a broken one.
+printf 'not a compiled chunk' >"$(find "$cachedir" -name '*.luac')"
+equals "a corrupt cache falls back to the source" "THREE" \
+  "$(PIXY_CACHE_DIR=$cachedir "$pixy" render z --config "$live" --target plain)"
+equals "a config renders the same with no cache at all" "THREE" \
+  "$(PIXY_CACHE_DIR=/nonexistent/unwritable "$pixy" render z --config "$live" --target plain)"
+rm -rf "$cachedir" "$live"
 
 # ---- the capability query ------------------------------------------------------
 
