@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.1.7] - 2026-08-21
+
+### <!-- 0 -->⛰️  Features
+
+- Read the have reply on ask --wait
+- Colour namespaces over OSC 1330
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- Render frames with monochrome fonts only
+- Read the time in process, not from date
+- Carry declared colours with the claim
+- Terminate bash prompt sequences with BEL
+- Refuse a slot instead of half-applying it
+- Size the frame cell to the font's own box
+
+### <!-- 4 -->⚡ Performance
+
+- Precompile modules and cache compiled configs
+
+### <!-- 6 -->🧪 Testing
+
+- Stop asserting the environment's timezones and terminal
+
+### <!-- 7 -->⚙️ Miscellaneous Tasks
+
+- Add the clang-format the code was written in
+
+### Build
+
+- Keep the sanitized binary out of build/pixy
+- Silence the noise and guard truncated paths
+- Move to xmake, with make as a pass-through
+
 ## [0.1.6] - 2026-08-20
 
 ### <!-- 1 -->🐛 Bug Fixes
