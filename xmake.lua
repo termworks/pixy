@@ -43,7 +43,11 @@ local LUA_MODULES = {
 }
 
 local function common(target)
-    target:add("includedirs", "src", "vendor/lua/src", "vendor/miniz")
+    target:add("includedirs", "src")
+    -- As system headers: miniz defines a handful of functions we never call,
+    -- and the warning belongs to whoever vendored it, not to every file that
+    -- includes it.
+    target:add("sysincludedirs", "vendor/lua/src", "vendor/miniz")
     target:add("defines", "LUA_USE_POSIX", "_GNU_SOURCE",
                'PIXY_VERSION_STRING="' .. PROJECT_VERSION .. '"')
     target:add("syslinks", "m")
@@ -80,7 +84,7 @@ target("pack_sprites")
     set_targetdir(OUTPUT)
     add_files("scripts/pack_sprites.c")
     add_files(MINIZ_SRC, {warnings = "none"})
-    add_includedirs("vendor/miniz")
+    add_sysincludedirs("vendor/miniz")
     -- `-std=c11` alone hides `lstat`; the old build got it from the compiler's
     -- gnu default rather than by asking.
     add_defines("_GNU_SOURCE")
@@ -105,7 +109,10 @@ target("pixy")
     -- loop is a computed goto and miniz trips several on its own.
     add_files(LUA_SRC, {warnings = "none"})
     add_files(MINIZ_SRC, {warnings = "none"})
-    add_files(OUTPUT .. "/lua_modules.c", OUTPUT .. "/texts.c", {always_added = true})
+    -- Generated: one string literal per embedded file, longer than the standard
+    -- obliges a compiler to support, which is the point of generating them.
+    add_files(OUTPUT .. "/lua_modules.c", OUTPUT .. "/texts.c",
+              {always_added = true, warnings = "none"})
 
     on_load(function(target)
         common(target)
@@ -115,7 +122,10 @@ target("pixy")
             target:set("strip", "all")
         else
             target:set("symbols", "debug")
-            target:set("optimize", "none")
+            -- `-Og`, not `-O0`: a hardened toolchain defines _FORTIFY_SOURCE,
+            -- which warns once per file when nothing is optimized.
+            target:set("optimize", "smallest")
+            target:add("cflags", "-Og", {force = true})
         end
         if has_config("sanitize") then
             target:add("cflags", "-fsanitize=address,undefined", "-fno-omit-frame-pointer")

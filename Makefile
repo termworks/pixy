@@ -1,6 +1,19 @@
 # A pass-through. xmake.lua is the build; this exists so `make test` still means
 # what it always did, and so muscle memory and CI do not have to change.
-XMAKE ?= xmake
+#
+# xmake is not something to have installed before a clone will build, so if it
+# is missing and nix is here, borrow it from the dev shell. `make test` on a
+# fresh checkout then works without being told to enter anything first.
+ifeq ($(origin XMAKE), undefined)
+  ifneq ($(shell command -v xmake 2>/dev/null),)
+    XMAKE := xmake
+  else ifneq ($(shell command -v nix 2>/dev/null),)
+    XMAKE := nix develop --command xmake
+  else
+    $(warning pixy builds with xmake: install it, or install nix and use `nix develop`)
+    XMAKE := xmake
+  endif
+endif
 
 .DEFAULT_GOAL := build
 .NOTPARALLEL:

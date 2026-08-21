@@ -251,7 +251,14 @@ bool pixy_config_load(const char *explicit_path, const PixyPaths *paths, PixyCon
                   strerror(errno), errno);
         return false;
     }
-    snprintf(out->name, sizeof(out->name), "@%s", chosen);
+    /* `name` carries a leading `@`, so a path of exactly the buffer's length
+     * would lose its last character -- and that name is what every error
+     * message quotes back. */
+    if (snprintf(out->name, sizeof(out->name), "@%s", chosen) >= (int)sizeof(out->name)) {
+        pixy_fail(PIXY_EXIT_CONFIG, "config path is too long: %s", chosen);
+        free(source);
+        return false;
+    }
     snprintf(out->path, sizeof(out->path), "%s", chosen);
     snprintf(out->directory, sizeof(out->directory), "%s", chosen);
     char *slash = strrchr(out->directory, '/');

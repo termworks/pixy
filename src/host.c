@@ -108,10 +108,18 @@ static int host_read(lua_State *L) {
     PixyHost *host = host_of(L);
     const char *path = luaL_checkstring(L, 1);
     char joined[4096];
+    int written;
     if (path[0] == '/') {
-        snprintf(joined, sizeof(joined), "%s", path);
+        written = snprintf(joined, sizeof(joined), "%s", path);
     } else {
-        snprintf(joined, sizeof(joined), "%s/%s", host->roots[0], path);
+        written = snprintf(joined, sizeof(joined), "%s/%s", host->roots[0], path);
+    }
+    /* A truncated path is a different path, and this one is about to be checked
+     * against the trusted roots: better to answer "no such file" than to test a
+     * prefix of it and read whatever that turns out to name. */
+    if (written < 0 || (size_t)written >= sizeof(joined)) {
+        lua_pushnil(L);
+        return 1;
     }
     char resolved[4096];
     if (!realpath(joined, resolved)) {
@@ -258,7 +266,7 @@ static void cache_key(PixyBuf *key, char **argv, size_t argc, const char *cwd,
 
 static bool cache_path(const PixyHost *host, uint64_t hash, char *out, size_t size) {
     if (!host->cache_dir[0]) return false;
-    char version[4096];
+    char version[4200];
     snprintf(version, sizeof(version), "%s/v1", host->cache_dir);
     if (mkdir(host->cache_dir, 0700) != 0 && errno != EEXIST) return false;
     if (mkdir(version, 0700) != 0 && errno != EEXIST) return false;

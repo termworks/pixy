@@ -242,7 +242,14 @@ static bool collect(const char *root, const char *prefix, BuildItem **items, siz
         }
         BuildItem *item = &(*items)[*count];
         memset(item, 0, sizeof(*item));
-        snprintf(item->name, sizeof(item->name), "%s", relative);
+        /* The name is how a render asks for this item again, so a truncated one
+         * is an item nobody can name. Leave it out of the pack instead. */
+        size_t name_len = strlen(relative);
+        if (name_len >= sizeof(item->name)) {
+            free(raw);
+            continue;
+        }
+        memcpy(item->name, relative, name_len + 1);
         item->raw = raw;
         item->raw_len = got;
         item->checksum = fnv1a(raw, got);

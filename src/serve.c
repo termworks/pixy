@@ -49,12 +49,16 @@ static bool resolve_socket(const char *given, char *out, size_t size) {
 }
 
 static bool socket_answers(const char *path) {
+    size_t length = strlen(path);
+    struct sockaddr_un address;
+    /* Too long to be a socket address is too long to be one anybody is
+     * listening on; truncating would ask about a different path. */
+    if (length >= sizeof(address.sun_path)) return false;
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) return false;
-    struct sockaddr_un address;
     memset(&address, 0, sizeof(address));
     address.sun_family = AF_UNIX;
-    snprintf(address.sun_path, sizeof(address.sun_path), "%s", path);
+    memcpy(address.sun_path, path, length + 1);
     bool live = connect(fd, (struct sockaddr *)&address, sizeof(address)) == 0;
     close(fd);
     return live;
@@ -249,7 +253,7 @@ int pixy_serve(const char *socket_path, const char *config_path, bool force) {
         pixy_engine_free(engine);
         return PIXY_EXIT_TRANSPORT;
     }
-    snprintf(address.sun_path, sizeof(address.sun_path), "%s", path);
+    memcpy(address.sun_path, path, strlen(path) + 1);
     if (bind(listener, (struct sockaddr *)&address, sizeof(address)) != 0) {
         pixy_fail(PIXY_EXIT_TRANSPORT, "failed to bind %s: %s", path, strerror(errno));
         close(listener);

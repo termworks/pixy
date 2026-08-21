@@ -306,8 +306,9 @@ static void config_cache_path(const PixyEngine *engine, const PixyConfigSource *
      * hashing them costs microseconds and cannot be wrong. */
     uint64_t revision = fold(which, source->source, source->source_len);
 
-    char version[4096];
-    snprintf(version, sizeof(version), "%s/v1", engine->host.cache_dir);
+    char version[4200];
+    if (snprintf(version, sizeof(version), "%s/v1", engine->host.cache_dir) >= (int)sizeof(version))
+        return;
     if (mkdir(engine->host.cache_dir, 0700) != 0 && errno != EEXIST) return;
     if (mkdir(version, 0700) != 0 && errno != EEXIST) return;
     if (prefix) snprintf(prefix, prefix_size, "%016llx-", (unsigned long long)which);
@@ -317,7 +318,7 @@ static void config_cache_path(const PixyEngine *engine, const PixyConfigSource *
 
 /* Every earlier revision of the same configuration. */
 static void config_cache_sweep(const PixyEngine *engine, const char *prefix, const char *keep) {
-    char version[4096];
+    char version[4200];
     snprintf(version, sizeof(version), "%s/v1", engine->host.cache_dir);
     DIR *dir = opendir(version);
     if (!dir) return;
@@ -327,8 +328,12 @@ static void config_cache_sweep(const PixyEngine *engine, const char *prefix, con
     while ((entry = readdir(dir)) != NULL) {
         if (strncmp(entry->d_name, prefix, strlen(prefix)) != 0) continue;
         if (strcmp(entry->d_name, kept) == 0) continue;
-        char victim[4200];
-        snprintf(victim, sizeof(victim), "%s/%s", version, entry->d_name);
+        char victim[4500];
+        /* This path is about to be unlinked, so a truncated one is the last
+         * thing wanted: it would name a different file. */
+        if (snprintf(victim, sizeof(victim), "%s/%s", version, entry->d_name) >=
+            (int)sizeof(victim))
+            continue;
         unlink(victim);
     }
     closedir(dir);

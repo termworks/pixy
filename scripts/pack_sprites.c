@@ -48,8 +48,10 @@ static size_t collect(const char *root, const char *variant, unsigned char kind,
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_name[0] == '.') continue;
-        char path[4300];
-        snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name);
+        char path[4400];
+        /* A truncated path names a different file; skip rather than pack it. */
+        if (snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name) >= (int)sizeof(path))
+            continue;
         struct stat info;
         if (lstat(path, &info) != 0 || !S_ISREG(info.st_mode)) continue;
         if (count >= MAX_SPRITES) break;
