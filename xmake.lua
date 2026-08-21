@@ -132,6 +132,12 @@ target("pixy")
             target:add("ldflags", "-fsanitize=address,undefined", {force = true})
             target:set("strip", "none")
             target:set("symbols", "debug")
+            -- Its own file. Sharing `build/pixy` with the ordinary build means
+            -- the last one written wins, and the next build finds a binary
+            -- newer than its objects and relinks nothing -- so `bench` after
+            -- `sanitize` measured the sanitized binary and called it a
+            -- regression.
+            target:set("basename", "pixy-sanitize")
             -- `-O1`, not the mode's `-O0`: the suite holds the binary to the
             -- 100ms render deadline, and unoptimized the largest sprite takes
             -- 110ms, so it would fail a bound it was never held to.
@@ -231,10 +237,14 @@ do
         run_xmake({"build", "pixy"})
     end
 
-    -- For the tasks that need *a* binary rather than a particular one. They
-    -- must not reconfigure: `package-check` run after `release-musl` would
-    -- otherwise rebuild the artifact dynamically linked and check that instead,
-    -- which is how a release ends up shipping the wrong file.
+    -- Only for packaging, which inspects the artifact that is there rather than
+    -- deciding how it was built: `package-check` after `release-musl` would
+    -- otherwise rebuild it dynamically linked and check that instead, which is
+    -- how a release ends up shipping the wrong file.
+    --
+    -- Everything that measures or tests calls `release_build()` instead. Reusing
+    -- whatever was configured last meant `bench` after `sanitize` measured the
+    -- sanitized binary and reported it as a regression.
     local function ensure_binary()
         if os.isfile(path.join(root, OUTPUT, "pixy")) then
             run_xmake({"build", "pixy"})
@@ -294,7 +304,7 @@ do
     end)
 
     register("pixy-test", "Run the test suite", function()
-        ensure_binary()
+        release_build()
         process.execv("bash", {path.join(root, "tests/run.sh")})
     end)
 
@@ -302,6 +312,8 @@ do
         configure("debug", {musl = false, sanitize = true})
         run_xmake({"build", "pixy"})
         process.execv("bash", {path.join(root, "tests/run.sh")}, {envs = {
+            PIXY = path.join(OUTPUT, "pixy-sanitize"),
+            PIXY_BIN = path.join(OUTPUT, "pixy-sanitize"),
             ASAN_OPTIONS = "detect_leaks=1",
             UBSAN_OPTIONS = "print_stacktrace=1:halt_on_error=1",
         }})
@@ -310,33 +322,33 @@ do
     register("fuzz", "Random input at the palette surface", function()
         configure("debug", {musl = false, sanitize = true})
         run_xmake({"build", "pixy"})
-        process.execv("bash", {path.join(root, "tests/fuzz.sh"), path.join(OUTPUT, "pixy"),
+        process.execv("bash", {path.join(root, "tests/fuzz.sh"), path.join(OUTPUT, "pixy-sanitize"),
                           process.getenv("ROUNDS") or "1000"},
                  {envs = {ASAN_OPTIONS = "detect_leaks=1", UBSAN_OPTIONS = "halt_on_error=1"}})
     end)
 
     register("smoke", "Run the CLI smoke", function()
-        ensure_binary()
+        release_build()
         script("smoke.sh")
     end)
 
     register("smoke-shell", "Run the shell integration smoke", function()
-        ensure_binary()
+        release_build()
         script("smoke_shell.sh")
     end)
 
     register("bench", "Run release performance checks", function()
-        ensure_binary()
+        release_build()
         script("bench.sh")
     end)
 
     register("bench-compare", "Compare against starship (needs the dev shell)", function()
-        ensure_binary()
+        release_build()
         script("bench_compare.sh")
     end)
 
     register("bench-phases", "Where a prompt spends its time", function()
-        ensure_binary()
+        release_build()
         process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "phases", "400"})
         process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "compat-phases", "400"})
     end)
@@ -355,7 +367,7 @@ do
     end)
 
     register("docs-images", "Regenerate the README frames from live output", function()
-        ensure_binary()
+        release_build()
         script("docs_images.sh", {}, {PIXY = path.join(OUTPUT, "pixy")})
     end)
 

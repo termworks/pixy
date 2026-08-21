@@ -305,17 +305,11 @@ rm -rf "$cachedir" "$live"
 exits "a timeout is bounded" 2 palette ask --wait --timeout-ms 0
 exits "a timeout is bounded above too" 2 palette ask --wait --timeout-ms 999999
 
-# Against whatever terminal the suite happens to be running in, both answers are
-# right: silence is the protocol's "unsupported", and a terminal that does
-# implement it answers. Running the tests inside hexe should not fail them. What
-# the two must never do is hang or say something malformed; the pty cases below
-# pin each behaviour exactly.
-answer=$("$pixy" palette ask --wait 2>/dev/null)
-case "$?:$answer" in
-  1:) ok ;;
-  0:*[0-9]" "[0-9]*) ok ;;
-  *) bad "ask --wait answers or stays silent" "exit 1, or exit 0 and '<osc> <max>'" "$?:$answer" ;;
-esac
+# Deliberately not run against the terminal the suite is in. `--wait` writes a
+# query to /dev/tty and reads the reply, so doing it here would depend on which
+# terminal someone runs the tests from -- silence outside hexe, an answer inside
+# it -- and would take a keystroke out of their input while it listened. The pty
+# cases below give it a terminal of its own and pin both answers exactly.
 
 probe=$(mktemp -u)
 if ${CC:-cc} -O1 -o "$probe" tests/tty_probe.c -lutil >/dev/null 2>&1; then
