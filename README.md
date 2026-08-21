@@ -213,11 +213,15 @@ install -m 755 pixy ~/.local/bin/pixy
 
 From source:
 
+xmake is the build. `make` is a pass-through, so either spelling works and
+`make test` still means what it always did.
+
 ```sh
-nix develop            # zig, clang and the rest of the toolchain
-make build             # debug
-make release-build     # optimized
-make release-musl      # static, this arch
+nix develop            # xmake, the compilers and the rest of the toolchain
+make build             # debug          (xmake pixy-build)
+make release-build     # optimized      (xmake release-build)
+make release-musl      # static, this arch, and it checks that it is
+make test              # the suite      (xmake pixy-test)
 ```
 
 Then wire it into a shell:

@@ -13,10 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install a musl-capable compiler
+      - name: Install the toolchain
         run: |
           sudo apt-get update
           sudo apt-get install --yes musl-tools clang
+          curl -fsSL https://xmake.io/shget.text | bash
+          echo "$HOME/.local/bin" >>"$GITHUB_PATH"
       - name: Build
         run: make release-build
       - name: Test
@@ -26,4 +28,6 @@ jobs:
           PIXY_BENCH_SCALE: "3"
         run: make smoke smoke-shell bench package-check
       - name: Sanitizers and fuzz
-        run: make sanitize fuzz ROUNDS=400
+        env:
+          ROUNDS: "400"
+        run: make sanitize fuzz

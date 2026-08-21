@@ -28,14 +28,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes musl-tools clang
+          curl -fsSL https://xmake.io/shget.text | bash
+          echo "$HOME/.local/bin" >>"$GITHUB_PATH"
+      # release-musl refuses to finish if the result is not statically linked,
+      # so the artifact cannot quietly come out needing a libc on the target.
       - name: Build
-        run: make release-build example-pack CC=${{ matrix.cc }} LDFLAGS=-static
+        env:
+          PIXY_MUSL_CC: ${{ matrix.cc }}
+        run: make release-musl
       - name: Check the artifact is complete
-        run: make package-check CC=${{ matrix.cc }} LDFLAGS=-static
-      - name: Check the binary is static
-        run: |
-          file build/pixy
-          file build/pixy | grep -q 'static'
+        env:
+          PIXY_MUSL_CC: ${{ matrix.cc }}
+        run: make package-check
       - name: Package
         run: |
           release_dir="build"
