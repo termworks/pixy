@@ -213,16 +213,21 @@ install -m 755 pixy ~/.local/bin/pixy
 
 From source:
 
-xmake is the build. `make` is a pass-through, so either spelling works and
-`make test` still means what it always did.
+`xmake.lua` is the build; `.make.lua` holds it as recipes, the way the rest of
+these tools are configured. At an oslo prompt in this directory `make` is
+enough, and everywhere else it is `oslo make`:
 
 ```sh
 nix develop            # xmake, the compilers and the rest of the toolchain
-make build             # debug          (xmake pixy-build)
-make release-build     # optimized      (xmake release-build)
-make release-musl      # static, this arch, and it checks that it is
-make test              # the suite      (xmake pixy-test)
+make                   # the recipes, and what each of them does
+make build             # debug
+make release-musl      # static, this arch, and it refuses if it is not
+make test              # the suite
+make verify            # the whole local gate
 ```
+
+Without oslo, drive xmake directly — `xmake pixy-build`, `xmake pixy-test`,
+`xmake release-musl`, which is what CI does.
 
 Then wire it into a shell:
 

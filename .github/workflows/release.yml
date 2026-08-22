@@ -35,11 +35,11 @@ jobs:
       - name: Build
         env:
           PIXY_MUSL_CC: ${{ matrix.cc }}
-        run: make release-musl
+        run: xmake release-musl
       - name: Check the artifact is complete
         env:
           PIXY_MUSL_CC: ${{ matrix.cc }}
-        run: make package-check
+        run: xmake package-check
       - name: Package
         run: |
           release_dir="build"

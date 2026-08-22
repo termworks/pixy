@@ -371,17 +371,27 @@ do
         script("docs_images.sh", {}, {PIXY = path.join(OUTPUT, "pixy")})
     end)
 
+    -- The globs are expanded here: these run the program directly, with no shell
+    -- to expand them, and clang-format given a literal `src/*.c` reports that no
+    -- such file exists.
+    local function c_sources()
+        local found = {}
+        for _, pattern in ipairs({"src/*.c", "src/*.h", "scripts/*.c", "tests/*.c"}) do
+            for _, file in ipairs(process.files(pattern)) do table.insert(found, file) end
+        end
+        return found
+    end
+
     register("fmt", "Format the C sources", function()
         local formatter = which("clang-format")
         if not formatter then return report("clang-format is not here; nothing formatted") end
-        process.execv(formatter, {"-i", "src/*.c", "src/*.h", "scripts/*.c", "tests/*.c"},
-                      {shell = true})
+        process.execv(formatter, table.join({"-i"}, c_sources()))
     end)
 
     register("fmt-check", "Check C formatting", function()
         local formatter = which("clang-format")
         if not formatter then return report("clang-format is not here; nothing checked") end
-        process.exec(formatter .. " --dry-run --Werror src/*.c src/*.h scripts/*.c tests/*.c")
+        process.execv(formatter, table.join({"--dry-run", "--Werror"}, c_sources()))
     end)
 
     register("verify", "Format check plus the suite", function()
