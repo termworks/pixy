@@ -23,6 +23,7 @@ void pixy_host_set_env(PixyHost *host, char **names, char **values, size_t count
 void pixy_host_free(PixyHost *host);
 
 long long pixy_now_ms(void);
+long long pixy_cpu_ms(void);
 long long pixy_unix_ms(void);
 
 #endif /* PIXY_HOST_H */

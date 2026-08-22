@@ -35,6 +35,19 @@ long long pixy_now_ms(void) {
     return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
+/* Processor time this process has used, which is what the render deadline is
+ * about: how much a configuration is allowed to *compute*.
+ *
+ * Wall time is the wrong clock for it. A busy machine descheduling pixy, or a
+ * provider blocking in waitpid, spends none of pixy's own time -- but on a wall
+ * clock both look exactly like a runaway loop, and the prompt dies for being
+ * unlucky rather than for being wrong. */
+long long pixy_cpu_ms(void) {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts) != 0) return pixy_now_ms();
+    return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
 long long pixy_unix_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -43,6 +56,12 @@ long long pixy_unix_ms(void) {
 
 void pixy_host_begin_render(PixyHost *host) {
     host->io_spent_ms = 0;
+}
+
+/* Blocking time is charged to the I/O budget. It is not charged to the render
+ * deadline, which counts processor time and so never saw it. */
+static void spent_waiting(PixyHost *host, long long started) {
+    host->io_spent_ms += pixy_now_ms() - started;
 }
 
 static long long io_remaining(const PixyHost *host) {
@@ -153,7 +172,7 @@ static int host_read(lua_State *L) {
     }
     size_t got = fread(bytes, 1, PIXY_MAX_READ + 1, file);
     fclose(file);
-    host->io_spent_ms += pixy_now_ms() - started;
+    spent_waiting(host, started);
     if (got > PIXY_MAX_READ) {
         free(bytes);
         return luaL_error(L, "%s exceeds %u bytes", path, PIXY_MAX_READ);
@@ -577,7 +596,7 @@ static int host_exec(lua_State *L) {
             exec_result_free(&result);
             return luaL_error(L, "failed to run %s", argv[0]);
         }
-        host->io_spent_ms += pixy_now_ms() - started;
+        spent_waiting(host, started);
         if (ttl_ms > 0) {
             cache_write(host, hash, ttl_ms, &result);
             memo_put(hash, pixy_unix_ms() + ttl_ms, &result);
