@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.2.0] - 2026-08-22
+
+### <!-- 0 -->⛰️  Features
+
+- Simplify direnv config and add install alias
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- Build the static binary in the pinned shell
+- Stage the static binary and rename it into place
+- Bound a render by processor time, not wall time
+
+### <!-- 2 -->🚜 Refactor
+
+- Register zones by name and return nothing
+
+### <!-- 7 -->⚙️ Miscellaneous Tasks
+
+- Cleanup
+- Replace the Makefile with .make.lua recipes
+- Cleanup
+
+### Build
+
+- Report the binary, and quiet the cache's line markers
+
 ## [0.1.7] - 2026-08-21
 
 ### <!-- 0 -->⛰️  Features

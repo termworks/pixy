@@ -5,9 +5,9 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 archive="$tmp/pixy.tar.gz"
 release_dir="${RELEASE_DIR:-build}"
-tar -czf "$archive" "$release_dir/pixy" README.md LICENSE THIRD_PARTY.md lua examples docs
+tar -czf "$archive" "$release_dir/pixy" README.md LICENSE vendor/THIRD_PARTY.md lua examples docs
 tar -tzf "$archive" >"$tmp/contents"
-for path in "$release_dir/pixy" README.md LICENSE THIRD_PARTY.md docs/assets/README.md docs/assets/pokemon/regular/pikachu docs/assets/pokemon/shiny/pikachu lua/pixy/init.lua lua/pixy/default.lua examples/init.lua examples/oslo.lua examples/hexe-oslo.lua docs/architecture.md docs/hexe-oslo.md; do
+for path in "$release_dir/pixy" README.md LICENSE vendor/THIRD_PARTY.md docs/assets/README.md docs/assets/pokemon/regular/pikachu docs/assets/pokemon/shiny/pikachu lua/pixy/init.lua lua/pixy/default.lua examples/init.lua examples/oslo.lua examples/hexe-oslo.lua docs/architecture.md docs/hexe-oslo.md; do
   grep -qx "$path" "$tmp/contents"
 done
 if grep -q 'pixy-example.pixypack' "$tmp/contents"; then exit 1; fi

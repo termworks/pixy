@@ -1,7 +1,7 @@
 -- The version lives here and nowhere else: `veri` reads and bumps this line,
 -- the build compiles it in as PIXY_VERSION_STRING, and the flake reads it from
 -- here too, so a release never leaves two files disagreeing.
-local PROJECT_VERSION = "0.1.7"
+local PROJECT_VERSION = "0.2.0"
 
 set_project("pixy")
 set_version(PROJECT_VERSION)
@@ -53,6 +53,16 @@ local function common(target)
     target:add("syslinks", "m")
 end
 
+-- The build cache compiles a preprocessed copy of each source, and that copy
+-- carries `# 1 "file"` line markers -- which `-Wpedantic` calls a GNU extension,
+-- once per file, about a file nobody wrote. Asked of the compiler rather than
+-- assumed, and in on_config because on_load runs before one is chosen.
+local function quiet_line_markers(target)
+    if target:has_cflags("-Wno-gnu-line-marker") then
+        target:add("cflags", "-Wno-gnu-line-marker")
+    end
+end
+
 -- ---------------------------------------------------------------- generators
 
 -- Each generator produces its output as soon as it is built, rather than the
@@ -68,6 +78,7 @@ target("lua_precompile")
     add_files("scripts/lua_precompile.c")
     add_files(LUA_SRC, {warnings = "none"})
     on_load(common)
+    on_config(quiet_line_markers)
     after_build(function(target)
         import("core.project.depend")
         local modules = path.join(OUTPUT, "lua_modules.c")
@@ -89,6 +100,7 @@ target("pack_sprites")
     -- gnu default rather than by asking.
     add_defines("_GNU_SOURCE")
     add_syslinks("m")
+    on_config(quiet_line_markers)
     after_build(function(target)
         local pack = path.join(OUTPUT, "pokemon.pack")
         if not os.isfile(pack) then
@@ -150,6 +162,8 @@ target("pixy")
             target:add("ldflags", "-static", "-no-pie", {force = true})
         end
     end)
+
+    on_config(quiet_line_markers)
 
     -- The generated sources have to exist before the compiler is asked for them,
     -- and they are cheap enough to regenerate whenever their inputs move.
@@ -227,6 +241,10 @@ do
             end
         end
         run_xmake(arguments)
+        -- Every configuration links to the same `build/pixy`, so a binary left by
+        -- the previous one is newer than the objects this one just configured and
+        -- xmake links nothing -- handing back the last build under the new name.
+        process.tryrm(path.join(OUTPUT, "pixy"))
     end
 
     -- The suite asserts production guarantees: the largest sprite renders in
@@ -291,6 +309,7 @@ do
             table.insert(arguments, "--ld=" .. compiler)
         end
         run_xmake(arguments)
+        process.tryrm(path.join(OUTPUT, "pixy"))
         run_xmake({"build", "pixy"})
 
         -- A release binary should need nothing on the machine it lands on, and
@@ -371,31 +390,32 @@ do
         script("docs_images.sh", {}, {PIXY = path.join(OUTPUT, "pixy")})
     end)
 
+    -- The globs are expanded here: these run the program directly, with no shell
+    -- to expand them, and clang-format given a literal `src/*.c` reports that no
+    -- such file exists.
+    local function c_sources()
+        local found = {}
+        for _, pattern in ipairs({"src/*.c", "src/*.h", "scripts/*.c", "tests/*.c"}) do
+            for _, file in ipairs(process.files(pattern)) do table.insert(found, file) end
+        end
+        return found
+    end
+
     register("fmt", "Format the C sources", function()
         local formatter = which("clang-format")
         if not formatter then return report("clang-format is not here; nothing formatted") end
-        process.execv(formatter, {"-i", "src/*.c", "src/*.h", "scripts/*.c", "tests/*.c"},
-                      {shell = true})
+        process.execv(formatter, table.join({"-i"}, c_sources()))
     end)
 
     register("fmt-check", "Check C formatting", function()
         local formatter = which("clang-format")
         if not formatter then return report("clang-format is not here; nothing checked") end
-        process.exec(formatter .. " --dry-run --Werror src/*.c src/*.h scripts/*.c tests/*.c")
+        process.execv(formatter, table.join({"--dry-run", "--Werror"}, c_sources()))
     end)
 
     register("verify", "Format check plus the suite", function()
         run_xmake({"fmt-check"})
         run_xmake({"pixy-test"})
-    end)
-
-    register("pixy-install", "Install into PREFIX/bin", function()
-        release_build()
-        local prefix = process.getenv("PREFIX") or path.join(process.getenv("HOME"), ".local")
-        local destination = path.join(prefix, "bin")
-        process.mkdir(destination)
-        process.cp(path.join(OUTPUT, "pixy"), path.join(destination, "pixy"))
-        report("installed " .. path.join(destination, "pixy"))
     end)
 
     register("release", "Release a new version", function()

@@ -4,6 +4,11 @@ local encode = require("pixy.encode")
 
 local M = {host = __pixy_host}
 
+-- What `pixy.zone(name, ...)` registers into, and what the host reads off this
+-- table once the config chunk has run. Kept in Lua so a config can read it back
+-- or assign it outright.
+M.zones = {}
+
 for key, value in pairs(nodes) do
   if key ~= "item" then M[key] = value end
 end
@@ -30,9 +35,20 @@ function M.segment(name, render, options)
   return {kind = "pixy_segment", name = name, render = render, options = options or {}}
 end
 
-function M.zone(segments)
+-- Registered by name, into a table the host reads after the chunk has run, so a
+-- config is statements rather than one returned value. Registering a name twice
+-- replaces it, which is what lets a config override a zone a preset set up.
+--
+-- `pixy.zone(segments)` is still a value constructor, for the configs that build
+-- a `zones` table and return `pixy.config`.
+function M.zone(name, segments)
+  if segments == nil then
+    if type(name) ~= "table" then error("pixy.zone requires a segment list") end
+    return {kind = "pixy_zone", segments = name}
+  end
+  if type(name) ~= "string" or name == "" then error("pixy.zone requires a zone name") end
   if type(segments) ~= "table" then error("pixy.zone requires a segment list") end
-  return {kind = "pixy_zone", segments = segments}
+  M.zones[name] = {kind = "pixy_zone", segments = segments}
 end
 
 local function priority(value)

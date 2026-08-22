@@ -23,23 +23,19 @@ local function block(text, bg, fg, next_bg)
   })
 end
 
-return pixy.config({
-  zones = {
-    ["prompt.left"] = pixy.zone({
-      pixy.segment("directory", function(ctx)
-        local branch = git.branch(ctx)
-        return block(fish_path(ctx.values.cwd) or "?", 25, 255, branch and 240 or nil)
-      end, {priority = 1}),
-      pixy.segment("git", function(ctx)
-        local branch = git.branch(ctx)
-        if not branch then return nil end
-        local mark = git.status(ctx) == "dirty" and " ●" or ""
-        return block(utf8.char(0xE0A0) .. " " .. branch .. mark, 240, 255, nil)
-      end, {priority = 2}),
-      pixy.segment("status", function(ctx)
-        if (ctx.values.status or 0) == 0 then return nil end
-        return pixy.text(" " .. ctx.values.status .. " ", {bg = 160, fg = 255, bold = true})
-      end, {priority = 9}),
-    }),
-  },
+pixy.zone("prompt.left", {
+  pixy.segment("directory", function(ctx)
+    local branch = git.branch(ctx)
+    return block(fish_path(ctx.values.cwd) or "?", 25, 255, branch and 240 or nil)
+  end, {priority = 1}),
+  pixy.segment("git", function(ctx)
+    local branch = git.branch(ctx)
+    if not branch then return nil end
+    local mark = git.status(ctx) == "dirty" and " ●" or ""
+    return block(utf8.char(0xE0A0) .. " " .. branch .. mark, 240, 255, nil)
+  end, {priority = 2}),
+  pixy.segment("status", function(ctx)
+    if (ctx.values.status or 0) == 0 then return nil end
+    return pixy.text(" " .. ctx.values.status .. " ", {bg = 160, fg = 255, bold = true})
+  end, {priority = 9}),
 })

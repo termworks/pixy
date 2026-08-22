@@ -79,14 +79,14 @@ static void deadline_hook(lua_State *L, lua_Debug *ar) {
     (void)ar;
     PixyBudget *budget;
     lua_getallocf(L, (void **)&budget);
-    if (budget->deadline_ms && pixy_now_ms() >= budget->deadline_ms) {
+    if (budget->deadline_ms && pixy_cpu_ms() >= budget->deadline_ms) {
         budget->deadline_ms = 0; /* report once; the error unwinds from here */
         luaL_error(L, "exceeded its deadline");
     }
 }
 
 static void arm(PixyEngine *engine, long long ms) {
-    engine->budget.deadline_ms = pixy_now_ms() + ms;
+    engine->budget.deadline_ms = pixy_cpu_ms() + ms;
     lua_sethook(engine->L, deadline_hook, LUA_MASKCOUNT, PIXY_FUEL_PER_SLICE);
 }
 
@@ -312,8 +312,10 @@ static void config_cache_path(const PixyEngine *engine, const PixyConfigSource *
     if (mkdir(engine->host.cache_dir, 0700) != 0 && errno != EEXIST) return;
     if (mkdir(version, 0700) != 0 && errno != EEXIST) return;
     if (prefix) snprintf(prefix, prefix_size, "%016llx-", (unsigned long long)which);
-    snprintf(out, size, "%s/%016llx-%016llx.luac", version, (unsigned long long)which,
-             (unsigned long long)revision);
+    if (snprintf(out, size, "%s/%016llx-%016llx.luac", version, (unsigned long long)which,
+                 (unsigned long long)revision) >= (int)size) {
+        out[0] = '\0';
+    }
 }
 
 /* Every earlier revision of the same configuration. */
@@ -544,8 +546,27 @@ PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *pa
             return NULL;
         }
     }
+    /* A config registers its zones and returns nothing, so what it built is read
+     * off the module afterwards. Returning a `pixy.config` table still works and
+     * means the same thing -- it is the same zones, handed over differently. */
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        lua_getglobal(L, "package");
+        lua_getfield(L, -1, "loaded");
+        lua_getfield(L, -1, "pixy");
+        lua_newtable(L);
+        if (lua_istable(L, -2)) {
+            lua_getfield(L, -2, "zones");
+        } else {
+            lua_pushnil(L);
+        }
+        lua_setfield(L, -2, "zones");
+        lua_replace(L, -4);
+        lua_pop(L, 2);
+    }
     if (!lua_istable(L, -1)) {
-        pixy_fail(PIXY_EXIT_CONFIG, "%s: a config must return a pixy.config table", source->name);
+        pixy_fail(PIXY_EXIT_CONFIG,
+                  "%s: a config must register zones or return a pixy.config table", source->name);
         pixy_engine_free(engine);
         return NULL;
     }

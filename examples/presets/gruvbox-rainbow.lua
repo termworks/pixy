@@ -38,27 +38,23 @@ local function block(name, text, ctx)
   })
 end
 
-return pixy.config({
-  zones = {
-    ["prompt.left"] = pixy.zone({
-      pixy.segment("host", function(ctx)
-        return block("host", utf8.char(0xF108) .. " " .. (ctx.values.hostname or "local"), ctx)
-      end, {priority = 5}),
-      pixy.segment("directory", function(ctx)
-        return block("directory", utf8.char(0xF07B) .. " " .. ((ctx.values.cwd or "?"):match("([^/]+)/?$") or "/"), ctx)
-      end, {priority = 1}),
-      pixy.segment("git", function(ctx)
-        local branch = git.branch(ctx)
-        if not branch then return nil end
-        return block("git", utf8.char(0xE0A0) .. " " .. branch, ctx)
-      end, {priority = 2}),
-      pixy.segment("runtime", function(ctx)
-        if not ctx.values.language then return nil end
-        return block("runtime", utf8.char(0xE7A8) .. " " .. ctx.values.language, ctx)
-      end, {priority = 4}),
-      pixy.segment("time", function(ctx)
-        return block("time", utf8.char(0xF017) .. " " .. (ctx.values.time or "12:34"), ctx)
-      end, {priority = 6}),
-    }),
-  },
+pixy.zone("prompt.left", {
+  pixy.segment("host", function(ctx)
+    return block("host", utf8.char(0xF108) .. " " .. (ctx.values.hostname or "local"), ctx)
+  end, {priority = 5}),
+  pixy.segment("directory", function(ctx)
+    return block("directory", utf8.char(0xF07B) .. " " .. ((ctx.values.cwd or "?"):match("([^/]+)/?$") or "/"), ctx)
+  end, {priority = 1}),
+  pixy.segment("git", function(ctx)
+    local branch = git.branch(ctx)
+    if not branch then return nil end
+    return block("git", utf8.char(0xE0A0) .. " " .. branch, ctx)
+  end, {priority = 2}),
+  pixy.segment("runtime", function(ctx)
+    if not ctx.values.language then return nil end
+    return block("runtime", utf8.char(0xE7A8) .. " " .. ctx.values.language, ctx)
+  end, {priority = 4}),
+  pixy.segment("time", function(ctx)
+    return block("time", utf8.char(0xF017) .. " " .. (ctx.values.time or "12:34"), ctx)
+  end, {priority = 6}),
 })

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Diffs this build against a reference binary, which during the port from Rust
-# is the Rust binary itself. Every rendering path, byte for byte.
+# Diffs this build against a reference binary. Every rendering path, byte for
+# byte.
+#
+# During the port from Rust the reference was the Rust binary. That comparison is
+# done, and the reference has to understand the current config API, so what this
+# is for now is holding one pixy build against another across a refactor.
 #
 #   tests/parity.sh <reference-binary> [candidate-binary]
 set -uo pipefail
@@ -74,39 +78,11 @@ compare "check" check --config "$config"
 compare "names" names
 compare "names unknown" names definitely-not-a-pack
 compare "pack list" pack list
-# The integrations gained palette namespaces, which the reference predates. Take
-# the palette back out and the rest must still match it line for line, so the
-# one intended difference stays the only one.
-compare_without_palette() {
-  local shell=$1 left right
-  left=$("$reference" init "$shell" 2>&1)
-  right=$("$candidate" init "$shell" 2>&1 | sed \
-    -e 's/ --palette//' -e 's/, "--palette"//' \
-    -e '/^command pixy palette set$/d' \
-    -e '/^-- The colours the pixy config declares/,/^os.execute("pixy palette set")$/d')
-  if [ "$left" = "$right" ]; then
-    pass=$((pass + 1))
-  else
-    fail=$((fail + 1))
-    printf 'DIFF init %s beyond the palette\n  reference: %s\n  candidate: %s\n' "$shell" "$left" "$right"
-  fi
-}
-
 for shell in bash zsh fish oslo; do
-  compare_without_palette "$shell"
+  compare "init $shell" init "$shell"
 done
-# The bundled profile reads the clock in process now; the reference still shells
-# out to `date`. Put that one line back and the rest must match it exactly.
-clock_left=$("$reference" init hexe-oslo 2>&1)
-clock_right=$("$candidate" init hexe-oslo 2>&1 |
-  sed 's|^    return system.clock(ctx)$|    return execute({"date", "+%H:%M:%S"}, {timeout_ms = 30, ttl_ms = 250})|')
-if [ "$clock_left" = "$clock_right" ]; then
-  pass=$((pass + 1))
-else
-  fail=$((fail + 1))
-  printf 'DIFF init hexe-oslo beyond the clock\n'
-  diff <(printf '%s' "$clock_left") <(printf '%s' "$clock_right") | head -20
-fi
+compare "init hexe-oslo" init hexe-oslo
+
 # The version is expected to differ from an older reference; only its shape is
 # part of the contract.
 if ! "$candidate" --version | grep -qE '^pixy [0-9]+\.[0-9]+\.[0-9]+$'; then

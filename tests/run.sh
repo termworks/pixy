@@ -110,6 +110,25 @@ equals "the clock and utf8 are still there" "1970:5:xx" \
   "$("$pixy" render x --config "$sandbox" --target plain)"
 rm -f "$sandbox"
 
+# The deadline bounds how long a config may *compute*. Waiting on a provider is
+# not computing, and providers have a budget of their own an order of magnitude
+# larger, so charging the deadline for time spent blocked in waitpid killed
+# prompts that were doing exactly what they were meant to: ask a few providers,
+# then lay the answer out.
+waiting=$(mktemp)
+cat >"$waiting" <<'LUA'
+local pixy = require("pixy")
+return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
+  for _ = 1, 3 do pixy.host.exec({"sleep", "0.05"}, {timeout_ms = 500, ttl_ms = 0}) end
+  local total = 0
+  for i = 1, 200000 do total = total + i end
+  return pixy.text(tostring(total))
+end)})}})
+LUA
+equals "waiting on providers does not spend the deadline" "20000100000" \
+  "$("$pixy" render x --config "$waiting" --target plain)"
+rm -f "$waiting"
+
 escape=$(mktemp)
 cat >"$escape" <<'LUA'
 local pixy = require("pixy")

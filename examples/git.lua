@@ -16,11 +16,7 @@ local function dirty(ctx)
   return pixy.text(" ! ", {bg = 3, fg = 0})
 end
 
-return pixy.config({
-  zones = {
-    ["prompt.right"] = pixy.zone({
-      pixy.segment("branch", branch, {priority = 1}),
-      pixy.segment("dirty", dirty, {priority = 2}),
-    }),
-  },
+pixy.zone("prompt.right", {
+  pixy.segment("branch", branch, {priority = 1}),
+  pixy.segment("dirty", dirty, {priority = 2}),
 })

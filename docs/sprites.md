@@ -24,7 +24,7 @@ result in the executable. Lookup scans the bounded index and inflates only the
 selected sprite. No asset files are read or downloaded at runtime.
 
 The imported artwork, source chain, copyright notice, and applicable license
-are recorded in `docs/assets/README.md`, `THIRD_PARTY.md`, and
+are recorded in `docs/assets/README.md`, `vendor/THIRD_PARTY.md`, and
 `LICENSES/GPL-3.0-only.txt`.
 
 The bundled config exposes regular and shiny Pikachu directly:

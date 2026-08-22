@@ -73,5 +73,5 @@ numbers the Rust host used.
 
 One line holds the version: `local PROJECT_VERSION` in `xmake.lua`. `veri` reads
 and bumps it, the build compiles it in as `PIXY_VERSION_STRING`, and the
-flake reads it for its package, so `make release TYPE=patch` moves a single
+flake reads it for its package, so `make release --type patch` moves a single
 number and nothing drifts.

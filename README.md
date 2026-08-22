@@ -84,20 +84,20 @@ something ancient.
 ```lua
 local pixy = require("pixy")
 
-return pixy.config({
-  zones = {
-    ["prompt.left"] = pixy.zone({
-      pixy.segment("directory", function(ctx)
-        return pixy.text(" " .. (ctx.values.cwd or "?") .. " ", {bg = 237, fg = 250})
-      end, {priority = 1}),
-      pixy.segment("status", function(ctx)
-        if (ctx.values.status or 0) == 0 then return nil end
-        return pixy.text(" " .. ctx.values.status .. " ", {bg = 1, fg = 15, bold = true})
-      end, {priority = 5}),
-    }),
-  },
+pixy.zone("prompt.left", {
+  pixy.segment("directory", function(ctx)
+    return pixy.text(" " .. (ctx.values.cwd or "?") .. " ", {bg = 237, fg = 250})
+  end, {priority = 1}),
+  pixy.segment("status", function(ctx)
+    if (ctx.values.status or 0) == 0 then return nil end
+    return pixy.text(" " .. ctx.values.status .. " ", {bg = 1, fg = 15, bold = true})
+  end, {priority = 5}),
 })
 ```
+
+A config registers its zones and returns nothing. Registering a name twice
+replaces it, so a preset's zone can be overridden by registering that zone again
+afterwards.
 
 <img src="docs/images/minimal.png" alt="the minimal example rendered" width="400">
 
@@ -140,7 +140,7 @@ The same zone is a prompt at 26 columns and a status bar at 88. Segments drop by
 priority as the room runs out, and `pixy.spacer()` absorbs whatever is left:
 
 ```lua
-status = pixy.zone({
+pixy.zone("status", {
   pixy.segment("clock",   clock),
   pixy.segment("session", session),
   pixy.segment("gap1",    function() return pixy.spacer() end),
@@ -213,16 +213,21 @@ install -m 755 pixy ~/.local/bin/pixy
 
 From source:
 
-xmake is the build. `make` is a pass-through, so either spelling works and
-`make test` still means what it always did.
+`xmake.lua` is the build; `.make.lua` holds it as recipes, the way the rest of
+these tools are configured. At an oslo prompt in this directory `make` is
+enough, and everywhere else it is `oslo make`:
 
 ```sh
 nix develop            # xmake, the compilers and the rest of the toolchain
-make build             # debug          (xmake pixy-build)
-make release-build     # optimized      (xmake release-build)
-make release-musl      # static, this arch, and it checks that it is
-make test              # the suite      (xmake pixy-test)
+make                   # the recipes, and what each of them does
+make build             # debug
+make release-musl      # static, this arch, and it refuses if it is not
+make test              # the suite
+make verify            # the whole local gate
 ```
+
+Without oslo, drive xmake directly — `xmake pixy-build`, `xmake pixy-test`,
+`xmake release-musl`, which is what CI does.
 
 Then wire it into a shell:
 
@@ -324,7 +329,7 @@ pixy init hexe-oslo > ~/.config/pixy/init.lua && pixy check
 ## License
 
 MIT — see [`LICENSE`](LICENSE). Sprite provenance and third-party notices live in
-[`THIRD_PARTY.md`](THIRD_PARTY.md).
+[`vendor/THIRD_PARTY.md`](vendor/THIRD_PARTY.md).
 
 <sub>Every frame in this README is generated from live output by
 <code>make docs-images</code>. Each is shown at its own size and one shared scale.</sub>
