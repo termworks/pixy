@@ -1,24 +1,38 @@
 # Lua API
 
-A config defines zones containing ordered named segments:
+A config registers zones, each holding ordered named segments, and returns
+nothing:
 
 ```lua
 local pixy = require("pixy")
 
-return pixy.config({
-  zones = {
-    ["prompt.left"] = pixy.zone({
-      pixy.segment("directory", function(ctx)
-        return pixy.text(ctx.values.cwd or "?", {fg = 14})
-      end, {priority = 2}),
-      pixy.segment("status", function(ctx)
-        if (ctx.values.status or 0) == 0 then return nil end
-        return pixy.text(tostring(ctx.values.status), {fg = 9})
-      end, {priority = 1}),
-    }),
-  },
+pixy.zone("prompt.left", {
+  pixy.segment("directory", function(ctx)
+    return pixy.text(ctx.values.cwd or "?", {fg = 14})
+  end, {priority = 2}),
+  pixy.segment("status", function(ctx)
+    if (ctx.values.status or 0) == 0 then return nil end
+    return pixy.text(tostring(ctx.values.status), {fg = 9})
+  end, {priority = 1}),
 })
 ```
+
+The name goes on the call, so there is no zones table to key it into and nothing
+to hand back; the host reads `pixy.zones` once the file has run. A config is
+therefore a list of statements and can compute freely between them — build a
+segment list in a loop, register it, register another zone under a condition.
+
+Registering a name twice **replaces** it. That is what makes a preset usable: it
+registers its own zones, `require` runs it, and registering one of those zones
+again afterwards overrides just that one.
+
+```lua
+require("pixy.presets.powerline")        -- registers prompt.left
+pixy.zone("prompt.left", { ... })        -- and this one wins
+```
+
+`return pixy.config({zones = {...}})` still loads and means the same thing —
+the same zones, handed over differently.
 
 `pixy render prompt.left` evaluates and composes the complete zone.
 `pixy render prompt.left.status` evaluates only the named segment. Zone names

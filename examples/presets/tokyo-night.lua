@@ -31,25 +31,21 @@ local function short_path(path)
   return table.concat({parts[#parts - 1], parts[#parts]}, "/")
 end
 
-return pixy.config({
-  zones = {
-    ["prompt.left"] = pixy.zone({
-      pixy.segment("directory", function(ctx)
-        return capsule(" " .. utf8.char(0xF07B) .. " " .. short_path(ctx.values.cwd) .. " ", hues.directory)
-      end, {priority = 1}),
-      pixy.segment("git", function(ctx)
-        local branch = git.branch(ctx)
-        if not branch then return nil end
-        return capsule(" " .. utf8.char(0xE0A0) .. " " .. branch .. (git.status(ctx) == "dirty" and " *" or "") .. " ", hues.git)
-      end, {priority = 2}),
-      pixy.segment("language", function(ctx)
-        if not ctx.values.language then return nil end
-        return capsule(" " .. utf8.char(0xE7A8) .. " " .. ctx.values.language .. " ", hues.runtime)
-      end, {priority = 4}),
-      pixy.segment("status", function(ctx)
-        if (tonumber(ctx.values.status) or 0) == 0 then return nil end
-        return capsule(" " .. utf8.char(0xF0E7) .. " " .. ctx.values.status .. " ", hues.failure)
-      end, {priority = 9}),
-    }),
-  },
+pixy.zone("prompt.left", {
+  pixy.segment("directory", function(ctx)
+    return capsule(" " .. utf8.char(0xF07B) .. " " .. short_path(ctx.values.cwd) .. " ", hues.directory)
+  end, {priority = 1}),
+  pixy.segment("git", function(ctx)
+    local branch = git.branch(ctx)
+    if not branch then return nil end
+    return capsule(" " .. utf8.char(0xE0A0) .. " " .. branch .. (git.status(ctx) == "dirty" and " *" or "") .. " ", hues.git)
+  end, {priority = 2}),
+  pixy.segment("language", function(ctx)
+    if not ctx.values.language then return nil end
+    return capsule(" " .. utf8.char(0xE7A8) .. " " .. ctx.values.language .. " ", hues.runtime)
+  end, {priority = 4}),
+  pixy.segment("status", function(ctx)
+    if (tonumber(ctx.values.status) or 0) == 0 then return nil end
+    return capsule(" " .. utf8.char(0xF0E7) .. " " .. ctx.values.status .. " ", hues.failure)
+  end, {priority = 9}),
 })

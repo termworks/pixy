@@ -5,15 +5,11 @@ local function cwd_of(ctx)
   return ctx.values.cwd or pixy.host.env("PWD")
 end
 
-return pixy.config({
-  zones = {
-    hello = pixy.zone({
-      pixy.segment("label", function()
-        return pixy.text(" hello ", {fg = 15, bg = 24, bold = true})
-      end),
-      pixy.segment("directory", function(ctx)
-        return pixy.text(cwd_of(ctx) or "?", {fg = 14})
-      end),
-    }),
-  },
+pixy.zone("hello", {
+  pixy.segment("label", function()
+    return pixy.text(" hello ", {fg = 15, bg = 24, bold = true})
+  end),
+  pixy.segment("directory", function(ctx)
+    return pixy.text(cwd_of(ctx) or "?", {fg = 14})
+  end),
 })

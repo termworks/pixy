@@ -24,3 +24,6 @@ __pycache__/
 /.zig-cache
 /zig-out
 /.xmake
+
+# Notes for the config-style conversion; not part of the project.
+/OSLO_LUA_STYLE.md
