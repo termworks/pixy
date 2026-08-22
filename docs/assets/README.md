@@ -14,4 +14,4 @@ The source chain recorded by Hexe is:
 Pixy packs the collection deterministically during the Cargo build and embeds
 the resulting archive in the binary. Raw sprites are not read at runtime.
 
-See `THIRD_PARTY.md` and `LICENSES/GPL-3.0-only.txt` for distribution notices.
+See `vendor/THIRD_PARTY.md` and `LICENSES/GPL-3.0-only.txt` for distribution notices.

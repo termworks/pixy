@@ -42,6 +42,35 @@ local function xmake(...)
   end
 end
 
+-- For the recipes that need a tool the flake pins rather than one the machine
+-- happens to have. The static build wants a musl compiler; without one, `-static`
+-- is handed to a glibc that ships no `libc.a` and the link fails on `-lc`.
+local function xmake_pinned(...)
+  local have_musl = (os.getenv("PIXY_MUSL_CC") or "") ~= ""
+  if HAVE_XMAKE and have_musl then
+    sh.xmake(...)
+  elseif HAVE_NIX then
+    sh.nix("develop", "--command", "xmake", ...)
+  else
+    xmake(...)
+  end
+end
+
+local function absolute(path)
+  if oslo.path.is_absolute(path) then return oslo.path.normalize(path) end
+  return oslo.path.normalize(oslo.path.join(oslo.fs.cwd(), path))
+end
+
+-- Whether `dir` is somewhere `$PATH` already looks. Compared as absolute paths,
+-- because `$PATH` carries whatever spelling was put in it.
+local function on_path(dir)
+  local want = absolute(dir)
+  for entry in ((os.getenv("PATH") or "") .. ":"):gmatch("([^:]*):") do
+    if entry ~= "" and absolute(entry) == want then return true end
+  end
+  return false
+end
+
 ---------------------------------------------------------------------------- building
 
 make.recipe{ name = "version", desc = "what this checkout calls itself",
@@ -67,7 +96,7 @@ make.recipe{
 make.recipe{
   name = "release-musl",
   desc = "a static binary that needs nothing on the target machine",
-  run = function() xmake("release-musl") end,
+  run = function() xmake_pinned("release-musl") end,
 }
 
 make.recipe{ name = "clean", desc = "remove every build output",
@@ -168,17 +197,28 @@ make.recipe{
   run = function() xmake("docs-images") end,
 }
 
--- The static build, staged and renamed into place. A prompt runs this binary constantly, and
--- writing over one that is executing is "text file busy"; a rename swaps the name atomically and
--- leaves the running copy alone.
 make.recipe{
   name = "install",
-  desc = "the static binary, into $PREFIX/bin",
+  desc = "put the static binary in $PREFIX/bin",
+  deps = { "release-musl" },
   run = function()
-    xmake("pixy-install")
-    local installed = PREFIX .. "/bin/pixy"
-    local reported = oslo.run{ installed, "--version", capture = true }
-    print(("installed %s (%s)"):format(installed, (reported.out or "?"):gsub("%s+$", "")))
+    local dest = (os.getenv("DESTDIR") or "") .. PREFIX .. "/bin"
+    local target = dest .. "/" .. NAME
+    sh.install("-d", dest)
+    -- Staged, then renamed. A prompt runs this binary on every command, and
+    -- `install` writes the destination in place -- which on a file that is
+    -- executing is "text file busy". A rename swaps the name atomically and
+    -- leaves whatever is still running alone.
+    sh.install("-m", "755", BIN, target .. ".new")
+    os.rename(target .. ".new", target)
+
+    local reported = oslo.run{ target, "--version", capture = true }
+    print(oslo.ui.style("✓ ", { fg = "green" }) .. target ..
+          "  " .. ((reported.out or ""):gsub("%s+$", "")))
+    if not on_path(dest) then
+      print(oslo.ui.subtitle(("  %s is not on $PATH, so `%s` still finds something else")
+        :format(dest, NAME)))
+    end
   end,
 }
 
