@@ -141,9 +141,16 @@ void pixy_clear_error(void) {
  * undefined, and here it silently produced a cache directory that never
  * existed, which turned every cached provider into an uncached one. */
 static void join(char *out, size_t size, const char *base, const char *leaf) {
-    char scratch[4096];
-    snprintf(scratch, sizeof(scratch), "%s/%s", base, leaf);
-    snprintf(out, size, "%s", scratch);
+    /* Wide enough that the join itself cannot be cut short, so the only thing
+     * that can fail is the copy back -- and a path that does not fit is left
+     * empty rather than silently becoming a shorter, different one. */
+    char scratch[8320];
+    int written = snprintf(scratch, sizeof(scratch), "%s/%s", base, leaf);
+    if (written < 0 || (size_t)written >= size) {
+        out[0] = '\0';
+        return;
+    }
+    memcpy(out, scratch, (size_t)written + 1);
 }
 
 static bool env_dir(const char *name, char *out, size_t size) {

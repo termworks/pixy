@@ -53,6 +53,16 @@ local function common(target)
     target:add("syslinks", "m")
 end
 
+-- The build cache compiles a preprocessed copy of each source, and that copy
+-- carries `# 1 "file"` line markers -- which `-Wpedantic` calls a GNU extension,
+-- once per file, about a file nobody wrote. Asked of the compiler rather than
+-- assumed, and in on_config because on_load runs before one is chosen.
+local function quiet_line_markers(target)
+    if target:has_cflags("-Wno-gnu-line-marker") then
+        target:add("cflags", "-Wno-gnu-line-marker")
+    end
+end
+
 -- ---------------------------------------------------------------- generators
 
 -- Each generator produces its output as soon as it is built, rather than the
@@ -68,6 +78,7 @@ target("lua_precompile")
     add_files("scripts/lua_precompile.c")
     add_files(LUA_SRC, {warnings = "none"})
     on_load(common)
+    on_config(quiet_line_markers)
     after_build(function(target)
         import("core.project.depend")
         local modules = path.join(OUTPUT, "lua_modules.c")
@@ -89,6 +100,7 @@ target("pack_sprites")
     -- gnu default rather than by asking.
     add_defines("_GNU_SOURCE")
     add_syslinks("m")
+    on_config(quiet_line_markers)
     after_build(function(target)
         local pack = path.join(OUTPUT, "pokemon.pack")
         if not os.isfile(pack) then
@@ -150,6 +162,8 @@ target("pixy")
             target:add("ldflags", "-static", "-no-pie", {force = true})
         end
     end)
+
+    on_config(quiet_line_markers)
 
     -- The generated sources have to exist before the compiler is asked for them,
     -- and they are cheap enough to regenerate whenever their inputs move.
@@ -227,6 +241,10 @@ do
             end
         end
         run_xmake(arguments)
+        -- Every configuration links to the same `build/pixy`, so a binary left by
+        -- the previous one is newer than the objects this one just configured and
+        -- xmake links nothing -- handing back the last build under the new name.
+        process.tryrm(path.join(OUTPUT, "pixy"))
     end
 
     -- The suite asserts production guarantees: the largest sprite renders in
@@ -291,6 +309,7 @@ do
             table.insert(arguments, "--ld=" .. compiler)
         end
         run_xmake(arguments)
+        process.tryrm(path.join(OUTPUT, "pixy"))
         run_xmake({"build", "pixy"})
 
         -- A release binary should need nothing on the machine it lands on, and

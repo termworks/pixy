@@ -289,7 +289,8 @@ static bool cache_path(const PixyHost *host, uint64_t hash, char *out, size_t si
     snprintf(version, sizeof(version), "%s/v1", host->cache_dir);
     if (mkdir(host->cache_dir, 0700) != 0 && errno != EEXIST) return false;
     if (mkdir(version, 0700) != 0 && errno != EEXIST) return false;
-    snprintf(out, size, "%s/%016llx.json", version, (unsigned long long)hash);
+    if (snprintf(out, size, "%s/%016llx.json", version, (unsigned long long)hash) >= (int)size)
+        return false;
     return true;
 }
 

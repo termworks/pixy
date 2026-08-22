@@ -312,8 +312,10 @@ static void config_cache_path(const PixyEngine *engine, const PixyConfigSource *
     if (mkdir(engine->host.cache_dir, 0700) != 0 && errno != EEXIST) return;
     if (mkdir(version, 0700) != 0 && errno != EEXIST) return;
     if (prefix) snprintf(prefix, prefix_size, "%016llx-", (unsigned long long)which);
-    snprintf(out, size, "%s/%016llx-%016llx.luac", version, (unsigned long long)which,
-             (unsigned long long)revision);
+    if (snprintf(out, size, "%s/%016llx-%016llx.luac", version, (unsigned long long)which,
+                 (unsigned long long)revision) >= (int)size) {
+        out[0] = '\0';
+    }
 }
 
 /* Every earlier revision of the same configuration. */

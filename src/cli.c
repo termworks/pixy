@@ -917,6 +917,9 @@ static void list_installed_packs(const char *directory) {
     while ((entry = readdir(dir)) != NULL && count < 256) {
         const char *dot = strrchr(entry->d_name, '.');
         if (!dot || strcmp(dot, ".pixypack") != 0) continue;
+        /* A name that does not fit is skipped, not shortened: a shortened one
+         * names a pack nobody can ask for. */
+        if (strlen(entry->d_name) >= sizeof(names[count])) continue;
         snprintf(names[count], sizeof(names[count]), "%s", entry->d_name);
         count++;
     }
@@ -924,14 +927,15 @@ static void list_installed_packs(const char *directory) {
     qsort(names, count, sizeof(names[0]), (int (*)(const void *, const void *))strcmp);
     for (size_t i = 0; i < count; i++) {
         char path[4400];
-        snprintf(path, sizeof(path), "%s/%s", directory, names[i]);
+        if (snprintf(path, sizeof(path), "%s/%s", directory, names[i]) >= (int)sizeof(path))
+            continue;
         PixyPack pack;
         if (!pixy_pack_load(path, &pack)) {
             pixy_clear_error();
             continue;
         }
-        char stem[256];
-        snprintf(stem, sizeof(stem), "%s", names[i]);
+        char stem[sizeof(names[0])];
+        memcpy(stem, names[i], sizeof(stem));
         char *dot = strrchr(stem, '.');
         if (dot) *dot = '\0';
         printf("%s\t%zu\t%s\n", stem, pack.count, pack.source);

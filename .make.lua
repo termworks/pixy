@@ -71,6 +71,73 @@ local function on_path(dir)
   return false
 end
 
+---------------------------------------------------------------------------- saying what was built
+
+local function dim(text)
+  return oslo.ui.style(text, { dim = true })
+end
+
+local function line(label, value)
+  print(dim(oslo.ui.pad(label, 8)) .. value)
+end
+
+-- `2242256` → `2,242,256`. A number this long is read in groups or not at all.
+local function grouped(n)
+  local text = tostring(math.floor(n))
+  local out = text:sub(-3)
+  local at = #text - 3
+  while at > 0 do
+    out = text:sub(math.max(1, at - 2), at) .. "," .. out
+    at = at - 3
+  end
+  return out
+end
+
+-- Asked of the ELF, not assumed. pixy has three builds and only one of them is
+-- static, so a report that always claimed "static" would be wrong twice out of
+-- three -- and "static" quietly coming out dynamic is the exact thing the
+-- release build refuses to ship.
+local function linkage(path)
+  local segments = oslo.run{ "readelf", "-l", path, capture = true }
+  local dynamic = oslo.run{ "readelf", "-d", path, capture = true }
+  if not segments.ok then return nil end
+  local interpreted = (segments.out or ""):find("program interpreter")
+  local needed = (dynamic.out or ""):find("NEEDED")
+  if interpreted or needed then return "dynamic" end
+  return "static"
+end
+
+local function report(path)
+  local stat = oslo.fs.stat(path)
+  if not stat then return end
+  local dir = oslo.path.parent(path)
+  local megabytes = ("%.2f MB"):format(stat.size / 1048576)
+
+  print("")
+  print(oslo.ui.title(("%s %s   %s"):format(NAME, VERSION, megabytes)))
+  line("binary", path)
+  -- Bytes beside megabytes: `2.14 MB` cannot be subtracted from last week's
+  -- `2.11 MB` to get one.
+  line("size", megabytes .. dim("   " .. grouped(stat.size) .. " bytes"))
+
+  local kind = linkage(path)
+  if kind == "static" then
+    line("linking", oslo.ui.style("✓ static", { fg = "green" }) ..
+                    dim("   no runtime dependencies"))
+  elseif kind == "dynamic" then
+    line("linking", oslo.ui.style("dynamic", { fg = "yellow" }) ..
+                    dim("   make release-musl for the one that ships"))
+  end
+
+  if on_path(dir) then
+    line("path", oslo.ui.style("✓ on $PATH", { fg = "green" }) .. dim("  " .. dir))
+  else
+    line("path", oslo.ui.style("✗ not on $PATH", { fg = "yellow" }))
+    print(oslo.ui.subtitle(('         add to .env.lua:  oslo.direnv.path_add("%s")'):format(dir)))
+  end
+  print("")
+end
+
 ---------------------------------------------------------------------------- building
 
 make.recipe{ name = "version", desc = "what this checkout calls itself",
@@ -79,7 +146,10 @@ make.recipe{ name = "version", desc = "what this checkout calls itself",
 make.recipe{
   name = "build",
   desc = "the debug binary",
-  run = function() xmake("pixy-build") end,
+  run = function()
+    xmake("pixy-build")
+    report(BIN)
+  end,
 }
 
 make.alias("b", "build")
@@ -87,7 +157,10 @@ make.alias("b", "build")
 make.recipe{
   name = "release-build",
   desc = "the optimised binary",
-  run = function() xmake("release-build") end,
+  run = function()
+    xmake("release-build")
+    report(BIN)
+  end,
 }
 
 -- The one that gets installed and shipped. It refuses to finish unless the result really is
@@ -96,7 +169,10 @@ make.recipe{
 make.recipe{
   name = "release-musl",
   desc = "a static binary that needs nothing on the target machine",
-  run = function() xmake_pinned("release-musl") end,
+  run = function()
+    xmake_pinned("release-musl")
+    report(BIN)
+  end,
 }
 
 make.recipe{ name = "clean", desc = "remove every build output",
