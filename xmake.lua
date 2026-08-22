@@ -390,12 +390,21 @@ do
     end)
 
     register("pixy-install", "Install into PREFIX/bin", function()
-        release_build()
+        -- The static build: what gets installed should need nothing on the
+        -- machine it runs on, and a glibc build from a Nix shell cannot even
+        -- resolve a timezone without TZDIR set.
+        run_xmake({"release-musl"})
         local prefix = process.getenv("PREFIX") or path.join(process.getenv("HOME"), ".local")
         local destination = path.join(prefix, "bin")
         process.mkdir(destination)
-        process.cp(path.join(OUTPUT, "pixy"), path.join(destination, "pixy"))
-        report("installed " .. path.join(destination, "pixy"))
+        -- Renamed into place rather than copied over: a prompt runs this binary
+        -- constantly, and writing to one that is executing is "text file busy".
+        -- A rename swaps the name atomically and leaves the running copy alone.
+        local installed = path.join(destination, "pixy")
+        local staged = installed .. ".new"
+        process.cp(path.join(OUTPUT, "pixy"), staged)
+        process.mv(staged, installed)
+        report("installed " .. installed)
     end)
 
     register("release", "Release a new version", function()
