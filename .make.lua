@@ -4,6 +4,7 @@
 --   make build           the debug binary
 --   make test            the suite
 --   make install         the static binary, into $PREFIX/bin
+--   make configs         config/ into $XDG_CONFIG_HOME/pixy
 --   make verify          the whole local gate
 --
 -- At an oslo prompt in this directory `make` is enough; everywhere else it is `oslo make`.
@@ -295,6 +296,52 @@ make.recipe{
       print(oslo.ui.subtitle(("  %s is not on $PATH, so `%s` still finds something else")
         :format(dest, NAME)))
     end
+  end,
+}
+
+-- pixy's own configuration lives in `config/`, and this installs it: `config/*` becomes
+-- `$XDG_CONFIG_HOME/pixy/*`. The repository is the copy that is edited and reviewed; the one under
+-- `~/.config` is a deployment of it.
+make.recipe{
+  name = "configs",
+  desc = "install config/ into $XDG_CONFIG_HOME/pixy",
+  params = { { "--dest", desc = "somewhere other than the config directory" } },
+  run = function(a)
+    assert(oslo.run{ "sh", "-c", "command -v rsync", capture = true }.ok,
+           "rsync is not installed; install it first")
+    -- Asked of git rather than assumed from the working directory, so this works from anywhere in
+    -- the tree. Outside a repository, where the command was run is the best answer available.
+    local top = oslo.run{ "git", "rev-parse", "--show-toplevel", capture = true }
+    local root = top.ok and (top.out or ""):match("^%s*(.-)%s*$") or ""
+    if root == "" then root = oslo.fs.cwd() end
+    local source = root .. "/config"
+    assert(oslo.fs.stat(source .. "/"), "there is no config/ directory in " .. root)
+
+    local dest = a.dest
+    if not dest then
+      local config = os.getenv("XDG_CONFIG_HOME")
+      if not config or config == "" then config = os.getenv("HOME") .. "/.config" end
+      dest = config .. "/" .. NAME
+    end
+    sh.mkdir("-p", dest)
+
+    -- One entry at a time, each mirrored with --delete, rather than one --delete over the whole
+    -- tree: the destination is where anything else you keep beside init.lua lives -- a sprite pack,
+    -- a theme you are trying out -- and a tree-wide mirror would take it with it.
+    local synced = 0
+    for _, path in ipairs(oslo.fs.glob(source .. "/*")) do
+      local name = oslo.path.name(path)
+      if oslo.fs.stat(path .. "/") then
+        sh.mkdir("-p", dest .. "/" .. name)
+        sh.rsync("-a", "--delete", path .. "/", dest .. "/" .. name .. "/")
+      else
+        sh.rsync("-a", path, dest .. "/" .. name)
+      end
+      synced = synced + 1
+    end
+    print(oslo.ui.style("✓ ", { fg = "green" }) ..
+          ("%d entr%s -> %s"):format(synced, synced == 1 and "y" or "ies", dest))
+    print(oslo.ui.subtitle("  anything else in that directory is left alone"))
   end,
 }
 
