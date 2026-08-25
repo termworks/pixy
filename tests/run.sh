@@ -53,6 +53,41 @@ equals "status@26 sheds" "$(render status 26 | wc -L)" "$(render status 26 | wc 
 
 # ---- the guarantees ----------------------------------------------------------
 
+# A label beside a spinner is held for the whole run, not re-rolled per frame.
+#
+# `system.random` used to seed from `now_ms`, so it picked again on every frame
+# the bar drew -- and the spinner next to it asks for one every few tens of
+# milliseconds, so the word churned instead of labelling anything. Seeding is
+# from the run's start now: the spinner moves, the word does not.
+#
+# The bundled fixture supplies `randomdo`, which short-circuits the random path
+# entirely, so this needs a context of its own or it would prove nothing.
+runctx='{"values":{"shell_running":true,"alt_screen":false,"started_at_ms":1000000}}'
+first=""
+churned=0
+# Deliberately NOT multiples of the frame step: with four words, times that are
+# all congruent mod 4 land on the same entry and would pass whatever the seed.
+for t in 0 37 71 118 163 209 254 301; do
+  word=$("$pixy" render status.left.random --context-json "$runctx" \
+         --target plain --now-ms "$((1000000 + t))" 2>/dev/null)
+  if [ -z "$first" ]; then first="$word"; elif [ "$word" != "$first" ]; then churned=1; fi
+done
+if [ -n "$first" ]; then ok; else bad "the label rendered at all" "a word" "nothing"; fi
+equals "the label is held for the whole run" 0 "$churned"
+
+# ...and a different run may still get a different word, or it is not a label
+# for the run, it is a constant.
+varies=0
+prev=""
+for r in 1000000 1000001 1000002 1000003; do
+  word=$("$pixy" render status.left.random --context-json \
+         "{\"values\":{\"shell_running\":true,\"alt_screen\":false,\"started_at_ms\":$r}}" \
+         --target plain --now-ms 9999999 2>/dev/null)
+  if [ -n "$prev" ] && [ "$word" != "$prev" ]; then varies=1; fi
+  prev="$word"
+done
+equals "a different run may get a different word" 1 "$varies"
+
 runaway=$(mktemp)
 cat >"$runaway" <<'LUA'
 local pixy = require("pixy")
