@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2026-08-25
+
+### <!-- 7 -->⚙️ Miscellaneous Tasks
+
+- A configs recipe for the config tree
+
 ## [0.2.0] - 2026-08-22
 
 ### <!-- 0 -->⛰️  Features
