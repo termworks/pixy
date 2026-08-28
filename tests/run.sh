@@ -560,60 +560,26 @@ equals "check counts the palette it accepts" 1 \
 equals "check stays quiet without one" 0 \
   "$("$pixy" check --config examples/minimal.lua | grep -c palette)"
 
-# ---- the painter socket --------------------------------------------------------
-
-socket=$(mktemp -u /tmp/pixy-test-XXXXXX.sock)
-"$pixy" serve --socket "$socket" --config "$config" >/dev/null 2>&1 &
-holder=$!
-for _ in $(seq 400); do
-  [ -S "$socket" ] && break
-  sleep 0.01
-done
-if [ -S "$socket" ]; then
-  ok
-  # A second painter must not displace the first.
-  "$pixy" serve --socket "$socket" >/dev/null 2>&1
-  equals "serve refuses to steal a live socket" 5 "$?"
-else
-  bad "serve binds" "a socket" "nothing"
-fi
-kill "$holder" 2>/dev/null
-wait "$holder" 2>/dev/null
-rm -f "$socket"
-
-# ---- the same protocol over a pipe ---------------------------------------------
+# ---- the painter on a pipe -----------------------------------------------------
 #
-# `--stdio` exists so a host can own its painter instead of sharing one: a
-# socket painter is a single process every session talks to, with one accept
-# loop serialising them and a stale one outliving the binary that made it.
-#
-# What makes it worth having is that it is the SAME protocol -- so the bytes off
-# a pipe must equal the bytes off a socket, or a host needs two code paths and
-# the two drift.
+# The only transport. It used to be one of two, and the socket was the wrong
+# shape: a single painter every session on the machine talked to, one accept
+# loop serialising them, and a stale one outliving the binary that made it.
 req='{"version":1,"select":["status.center"],"mode":"run","width":60,"height":1,"now_ms":1000,"context":{"values":{"tabs":["main","logs"],"active_tab":0}}}'
 len=${#req}
 header=$(printf '\\x%02x\\x%02x\\x%02x\\x%02x' \
   $((len >> 24 & 255)) $((len >> 16 & 255)) $((len >> 8 & 255)) $((len & 255)))
 
-pipe_out=$(mktemp); sock_out=$(mktemp)
+pipe_out=$(mktemp)
 printf "$header%s" "$req" | "$pixy" serve --stdio --config "$config" >"$pipe_out" 2>/dev/null
+if [ -s "$pipe_out" ]; then ok
+else bad "the pipe answered" "a framed reply" "nothing"; fi
 
-socket2=$(mktemp -u /tmp/pixy-stdio-XXXXXX.sock)
-"$pixy" serve --socket "$socket2" --config "$config" >/dev/null 2>&1 &
-holder2=$!
-for _ in $(seq 400); do [ -S "$socket2" ] && break; sleep 0.01; done
-if [ -S "$socket2" ] && command -v socat >/dev/null 2>&1; then
-  printf "$header%s" "$req" | socat -t 2 - "UNIX-CONNECT:$socket2" >"$sock_out" 2>/dev/null
-  if cmp -s "$pipe_out" "$sock_out"; then ok
-  else bad "a pipe answers exactly what a socket answers" "identical frames" "they differ"; fi
-else
-  # No socat: still assert the pipe answered something well-formed, so this
-  # cannot pass by producing nothing at all.
-  if [ -s "$pipe_out" ]; then ok
-  else bad "the pipe answered" "a framed reply" "nothing"; fi
-fi
-kill "$holder2" 2>/dev/null; wait "$holder2" 2>/dev/null
-rm -f "$socket2"
+# `serve` with no flag is the same thing: --stdio is accepted, not required.
+bare=$(mktemp)
+printf "$header%s" "$req" | "$pixy" serve --config "$config" >"$bare" 2>/dev/null
+if cmp -s "$pipe_out" "$bare"; then ok
+else bad "serve needs no transport flag" "identical frames" "they differ"; fi
 
 # It must LOOP: two requests on one child, so the VM and config are paid for
 # once rather than per frame. A one-shot would answer the first and hang up.
@@ -622,7 +588,12 @@ printf "$header%s$header%s" "$req" "$req" | "$pixy" serve --stdio --config "$con
 first=$(wc -c <"$pipe_out"); both=$(wc -c <"$two")
 if [ "$both" -eq $((first * 2)) ]; then ok
 else bad "one child answers many requests" "$((first * 2)) bytes" "$both bytes"; fi
-rm -f "$pipe_out" "$sock_out" "$two"
+
+# And it must EXIT when its caller goes: closing stdin is the whole shutdown
+# protocol, which is what a socket painter never had.
+printf "$header%s" "$req" | "$pixy" serve --stdio --config "$config" >/dev/null 2>&1
+equals "the painter exits when stdin closes" 0 "$?"
+rm -f "$pipe_out" "$bare" "$two"
 
 
 # ---- filmstrips --------------------------------------------------------------

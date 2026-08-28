@@ -9,33 +9,31 @@ pixy stream <names> [--fps N] [--duration MS]
 pixy pack build|check|list ...
 pixy names [<pack>]
 pixy palette set|use|end|reset|ask [--slot N] [--wait] [key=colour ...]
-pixy serve [--socket PATH | --stdio]
+pixy serve [--stdio]
 pixy --help | --version
 ```
 
-## Two transports, one protocol
+## Serving a host
 
-`serve` answers length-prefixed JSON — a four-byte big-endian length, then the
-request; the same, back. `--socket` binds a path; `--stdio` answers on stdin and
-stdout instead. **The frames are byte-identical**, so a host writes one encoder
-and one decoder and chooses a transport, never a protocol.
+`serve` answers length-prefixed JSON on stdin and stdout — a four-byte
+big-endian length, then the request; the same, back. It loops until stdin
+closes, so one child answers many requests and the Lua VM and the config are
+paid for once rather than per frame. `--stdio` is accepted and is the default;
+there is no other transport.
 
-They are for different shapes of host:
+**There used to be a `--socket` server, and removing it was the point.** A
+shared painter is one process every session on the machine talks to: a single
+accept loop serialising them, one config to restart for all of them, a slow
+render that is everybody's, and — since nothing owns it — one still running days
+later from a build that is no longer installed. None of those are properties of
+painting; they are properties of sharing. A host that spawns its own has none of
+them, and needs no shutdown protocol: the pipe closing *is* the shutdown, so a
+host that is killed cannot leave a painter behind.
 
-| | |
-|---|---|
-| `--socket` | one painter, shared by everything on the machine |
-| `--stdio` | one painter per host, spawned and owned by it |
-
-A shared painter is a single process every session talks to: one accept loop
-serialising them all, one config to restart, and a stale one that outlives the
-binary that made it. A host that spawns its own over a pipe pays the Lua VM and
-config once, keeps it for as long as it wants it, and takes it down with itself.
-`--stdio` loops until stdin closes, so one child answers many requests.
-
-A one-shot `pixy render` is the third option and needs no server at all — right
-for a prompt, which is drawn a few times a second. It costs a process start per
-render, so it is the wrong shape for anything animating.
+A one-shot `pixy render` needs no server at all — right for a prompt, drawn a
+few times a second. It costs a process start per render, so for anything
+animating ask for a filmstrip (`--frames-ms`) and play it back, which is one
+start per cycle rather than one per frame.
 
 `<name>` is a zone such as `prompt.left` or a segment selector such as
 `prompt.left.directory`. Pixy resolves an exact zone first; otherwise the final

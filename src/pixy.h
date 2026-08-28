@@ -199,7 +199,6 @@ bool pixy_filmstrip_json(const PixyOutput *frames, size_t count, PixyBuf *out);
 /* -------------------------------------------------------------------- cli */
 
 int pixy_main(int argc, char **argv);
-int pixy_serve(const char *socket_path, const char *config_path, bool force);
 /* The same protocol over stdin/stdout, so a host can own its painter instead of
  * sharing one. Returns when stdin closes. */
 int pixy_serve_stdio(const char *config_path);

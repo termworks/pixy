@@ -74,7 +74,7 @@ static void print_help(void) {
     } commands[] = {
         {"render", "<zone[.segment][,...]>", "render once and exit"},
         {"stream", "<zone[.segment][,...]>", "animate for a bounded time"},
-        {"serve", "[--socket PATH|--stdio]", "answer painter requests, on a socket or a pipe"},
+        {"serve", "[--stdio]", "answer painter requests on stdin and stdout"},
         {"list", "", "every zone and segment the config defines"},
         {"check", "", "load the config and report what it holds"},
         {"names", "[<pack>]", "the vocabulary a pack can draw, one id per line"},
@@ -107,6 +107,7 @@ static void print_help(void) {
         {"--set key=value", "a context value, repeatable"},
         {"--context-json  --context-file", "the whole context at once"},
         {"--now-ms MS", "pin the clock, so animation is reproducible"},
+        {"--frames-ms MS", "draw the next MS as a filmstrip, all frames at once"},
         {"--palette [N]", "wrap the line in a colour namespace"},
         {"--newline", "end the output with a newline"},
         {"-h, --help  -V, --version", "this text, or the version"},
@@ -145,6 +146,7 @@ static bool command_help(const char *name) {
         "--context-json J  --context-file P|the whole context",
         "--now-ms MS|pin the clock",
         "--ignore-missing|skip selectors the config does not define",
+        "--frames-ms MS|every frame of the next MS, so a caller animates from one run",
         NULL,
     };
     static const char *stream_lines[] = {
@@ -153,9 +155,8 @@ static bool command_help(const char *name) {
         NULL,
     };
     static const char *serve_lines[] = {
-        "--socket PATH|bind here instead of the default painter socket",
-        "--force|take over a socket another painter is holding",
-        "|else $HEXE_PAINTER_SOCKET, then $XDG_RUNTIME_DIR/hexe/painter.sock",
+        "|reads requests on stdin, writes answers on stdout",
+        "|exits when stdin closes, so it goes when its caller does",
         NULL,
     };
     static const char *names_lines[] = {
@@ -192,7 +193,7 @@ static bool command_help(const char *name) {
         usage = "pixy stream <zone[.segment][,...]> [options]";
         lines = stream_lines;
     } else if (strcmp(name, "serve") == 0) {
-        usage = "pixy serve [--socket PATH] [--config PATH]";
+        usage = "pixy serve [--stdio] [--config PATH]";
         lines = serve_lines;
     } else if (strcmp(name, "names") == 0) {
         usage = "pixy names [<pack>]";
@@ -1221,25 +1222,22 @@ static int palette_command(int argc, char **argv) {
     return code;
 }
 
+/* Answers on stdin and stdout, and only there.
+ *
+ * There used to be a `--socket` server as well, and it was the wrong shape for
+ * what a painter is: one process on the machine that every caller shared, whose
+ * accept loop serialised them, whose config outlived the binary that wrote it,
+ * and that nothing ever shut down. A caller that spawns pixy owns it instead --
+ * it starts with them, answers only them, and exits when their end of the pipe
+ * closes, which needs no shutdown protocol at all. */
 static int serve_command(int argc, char **argv) {
-    const char *socket_path = NULL;
     const char *config_path = NULL;
-    bool force = false;
-    bool stdio = false;
     for (int i = 0; i < argc; i++) {
-        if (strcmp(argv[i], "--socket") == 0 && i + 1 < argc) socket_path = argv[++i];
-        else if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) config_path = argv[++i];
-        else if (strcmp(argv[i], "--force") == 0) force = true;
-        else if (strcmp(argv[i], "--stdio") == 0) stdio = true;
+        if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) config_path = argv[++i];
+        else if (strcmp(argv[i], "--stdio") == 0) continue; /* the only transport; accepted so
+                                                             * existing callers keep working */
     }
-    if (stdio) {
-        if (socket_path) {
-            pixy_fail(PIXY_EXIT_USAGE, "--stdio and --socket are two transports; pick one");
-            return PIXY_EXIT_USAGE;
-        }
-        return pixy_serve_stdio(config_path);
-    }
-    return pixy_serve(socket_path, config_path, force);
+    return pixy_serve_stdio(config_path);
 }
 
 int pixy_main(int argc, char **argv) {

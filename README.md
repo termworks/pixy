@@ -288,7 +288,7 @@ the bar repaints — `serve` reloads on write.
 |---|---|
 | `pixy render <zone[.segment]>` | render once and exit |
 | `pixy stream <zone>` | bounded animation, `--fps`, `--duration` |
-| `pixy serve` | painter socket for hexe |
+| `pixy serve` | answer a host on stdin/stdout, until it closes the pipe |
 | `pixy list` · `pixy check` | inventory · config validation |
 | `pixy init <shell>` | shell integration text |
 | `pixy pack build\|check\|list` | sprite packs |

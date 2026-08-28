@@ -1,68 +1,28 @@
-/* The painter socket.
+/* The painter, answering on a pipe.
  *
- * A host connects, sends one request, reads one response and closes. Each
- * message is a four-byte big-endian length followed by one JSON value. The
- * selector in a request is a zone name, so what a view contains is decided by
- * the configuration and never by this file.
+ * A caller writes one request and reads one response. Each message is a
+ * four-byte big-endian length followed by one JSON value. The selector in a
+ * request is a zone name, so what a view contains is decided by the
+ * configuration and never by this file.
+ *
+ * There used to be a socket server here as well, and it was the wrong shape for
+ * what a painter is: one process every caller on the machine shared, serialised
+ * behind a single accept loop, still running the configuration it was started
+ * with long after that file had changed, and with nothing that ever shut it
+ * down. A caller that spawns pixy owns it instead -- and the pipe closing is
+ * the whole shutdown protocol.
  */
 #include "pixy.h"
 
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/un.h>
-#include <time.h>
 #include <unistd.h>
 
 #include "host.h"
 
 #define MAX_FRAME (1024u * 1024)
-#define IO_TIMEOUT_SEC 2
-
-static bool resolve_socket(const char *given, char *out, size_t size) {
-    if (given && given[0]) {
-        snprintf(out, size, "%s", given);
-        return true;
-    }
-    const char *from_env = getenv("HEXE_PAINTER_SOCKET");
-    if (from_env && from_env[0]) {
-        snprintf(out, size, "%s", from_env);
-        return true;
-    }
-    const char *runtime = getenv("XDG_RUNTIME_DIR");
-    char directory[4000];
-    if (runtime && runtime[0]) {
-        snprintf(directory, sizeof(directory), "%s/hexe", runtime);
-    } else {
-        snprintf(directory, sizeof(directory), "/tmp/hexe-%u", (unsigned)getuid());
-    }
-    if (mkdir(directory, 0700) != 0 && errno != EEXIST) {
-        pixy_fail(PIXY_EXIT_TRANSPORT, "failed to create %s: %s", directory, strerror(errno));
-        return false;
-    }
-    snprintf(out, size, "%s/painter.sock", directory);
-    return true;
-}
-
-static bool socket_answers(const char *path) {
-    size_t length = strlen(path);
-    struct sockaddr_un address;
-    /* Too long to be a socket address is too long to be one anybody is
-     * listening on; truncating would ask about a different path. */
-    if (length >= sizeof(address.sun_path)) return false;
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) return false;
-    memset(&address, 0, sizeof(address));
-    address.sun_family = AF_UNIX;
-    memcpy(address.sun_path, path, length + 1);
-    bool live = connect(fd, (struct sockaddr *)&address, sizeof(address)) == 0;
-    close(fd);
-    return live;
-}
 
 static bool read_exact(int fd, void *into, size_t want) {
     unsigned char *at = into;
@@ -259,7 +219,7 @@ int pixy_serve_stdio(const char *config_path) {
     time_t stamp = stat(watched, &info) == 0 ? info.st_mtime : 0;
 
     for (;;) {
-        /* Same reload rule as the socket: saving the file is the procedure. */
+        /* Saving the file is the whole reload procedure. */
         if (watched[0] && stat(watched, &info) == 0 && info.st_mtime != stamp) {
             stamp = info.st_mtime;
             PixyConfigSource next;
@@ -282,90 +242,3 @@ int pixy_serve_stdio(const char *config_path) {
     return 0;
 }
 
-int pixy_serve(const char *socket_path, const char *config_path, bool force) {
-    PixyPaths paths;
-    if (!pixy_paths_discover(&paths)) return pixy_error_code();
-    PixyConfigSource source;
-    if (!pixy_config_load(config_path, &paths, &source)) return pixy_error_code();
-    char watched[4096];
-    snprintf(watched, sizeof(watched), "%s", source.path);
-    PixyEngine *engine = pixy_engine_load(&source, &paths);
-    pixy_config_free(&source);
-    if (!engine) return pixy_error_code();
-
-    struct stat info;
-    time_t stamp = stat(watched, &info) == 0 ? info.st_mtime : 0;
-
-    char path[4096];
-    if (!resolve_socket(socket_path, path, sizeof(path))) {
-        pixy_engine_free(engine);
-        return pixy_error_code();
-    }
-    /* Binding blind unlinks whatever was there, so a second painter silently
-     * takes the first one's place and the host keeps talking to whichever bound
-     * last. A socket that answers belongs to someone; only a dead one is ours. */
-    if (!force && socket_answers(path)) {
-        pixy_fail(PIXY_EXIT_TRANSPORT,
-                  "a painter is already listening on %s; --force takes it over", path);
-        pixy_engine_free(engine);
-        return PIXY_EXIT_TRANSPORT;
-    }
-    unlink(path);
-
-    int listener = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (listener < 0) {
-        pixy_fail(PIXY_EXIT_TRANSPORT, "socket: %s", strerror(errno));
-        pixy_engine_free(engine);
-        return PIXY_EXIT_TRANSPORT;
-    }
-    struct sockaddr_un address;
-    memset(&address, 0, sizeof(address));
-    address.sun_family = AF_UNIX;
-    if (strlen(path) >= sizeof(address.sun_path)) {
-        pixy_fail(PIXY_EXIT_TRANSPORT, "failed to bind %s: path must be shorter than SUN_LEN",
-                  path);
-        close(listener);
-        pixy_engine_free(engine);
-        return PIXY_EXIT_TRANSPORT;
-    }
-    memcpy(address.sun_path, path, strlen(path) + 1);
-    if (bind(listener, (struct sockaddr *)&address, sizeof(address)) != 0) {
-        pixy_fail(PIXY_EXIT_TRANSPORT, "failed to bind %s: %s", path, strerror(errno));
-        close(listener);
-        pixy_engine_free(engine);
-        return PIXY_EXIT_TRANSPORT;
-    }
-    chmod(path, 0600);
-    listen(listener, 16);
-    fprintf(stderr, "pixy serve: listening on %s\n", path);
-
-    for (;;) {
-        int fd = accept(listener, NULL, NULL);
-        if (fd < 0) continue;
-        struct timeval timeout = {IO_TIMEOUT_SEC, 0};
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-
-        /* A config edited under a running painter takes effect on the next
-         * request, so saving the file is the whole reload procedure. */
-        if (watched[0] && stat(watched, &info) == 0 && info.st_mtime != stamp) {
-            stamp = info.st_mtime;
-            PixyConfigSource next;
-            if (pixy_config_load(config_path, &paths, &next)) {
-                PixyEngine *reloaded = pixy_engine_load(&next, &paths);
-                pixy_config_free(&next);
-                if (reloaded) {
-                    pixy_engine_free(engine);
-                    engine = reloaded;
-                } else {
-                    fprintf(stderr, "pixy serve: keeping the last config: %s\n",
-                            pixy_error_message());
-                    pixy_clear_error();
-                }
-            }
-        }
-
-        answer(engine, fd, fd);
-        close(fd);
-    }
-}
