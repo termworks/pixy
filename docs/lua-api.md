@@ -154,7 +154,7 @@ or an unrecognised state, so a config never has to special-case "no progress".
 The pieces are available on their own: `bar{width, percent}`, `sweep{width,
 block, interval_ms}`, `state(ctx)` and `percent(ctx)`.
 
-A sweep sets `next_frame_ms` to the moment its picture next changes, so a host
+A sweep sets `next_frame_ms` to how long until its picture next changes, so a host
 polls then rather than on a timer.
 
 `progress.spinner(name, options, ctx)` returns one frame of a named spinner —

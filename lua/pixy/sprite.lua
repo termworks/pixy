@@ -193,7 +193,8 @@ function M.resolve(options, ctx)
     local elapsed = math.max(0, now - started)
     local index = math.floor(elapsed / interval) % #frames + 1
     local next_frame
-    if #frames > 1 then next_frame = now + interval - (elapsed % interval) end
+    -- Relative, like every other cadence: see the note in layout.lua.
+    if #frames > 1 then next_frame = interval - (elapsed % interval) end
     local raw = tostring(frames[index])
     local format = options.format or (raw:find("\27", 1, true) and "ansi" or "plain")
     local raw_lines, frame_width = frame_lines(raw, format), 0

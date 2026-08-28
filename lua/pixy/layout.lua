@@ -80,6 +80,9 @@ local function horizontal(parts)
   return output
 end
 
+-- The soonest of two cadences. Both are "ask again in N ms", so the smaller
+-- number is the sooner one -- the same comparison an absolute deadline wanted,
+-- which is why this needed no change when the meaning was pinned down.
 local function earlier(left, right)
   if not left then return right end
   if not right then return left end
@@ -401,7 +404,10 @@ flatten = function(value, ctx, inherited)
     local elapsed = math.max(0, now - started)
     local index = math.floor(elapsed / interval) % #frames + 1
     local next_frame
-    if #frames > 1 then next_frame = now + interval - (elapsed % interval) end
+    -- Relative: "ask again in N ms", which is what the protocol means by this.
+    -- Sending an absolute timestamp made every host clamp it away as an enormous
+    -- interval, so an animation silently ran at the refresh rate instead.
+    if #frames > 1 then next_frame = interval - (elapsed % interval) end
     return {{run(tostring(frames[index]), style.merge(inherited, value.style))}}, next_frame
   end
   if kind == "animate" then
@@ -412,7 +418,7 @@ flatten = function(value, ctx, inherited)
       local started = tonumber(value.started_at_ms or ctx.values.started_at_ms or 0) or 0
       local now = tonumber(ctx.now_ms or 0) or 0
       local elapsed = math.max(0, now - started)
-      local scheduled = now + interval - (elapsed % interval)
+      local scheduled = interval - (elapsed % interval)
       if not next_frame or scheduled < next_frame then next_frame = scheduled end
     end
     return lines, next_frame

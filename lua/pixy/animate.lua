@@ -6,7 +6,8 @@ function M.frames(frames, interval_ms, now_ms, started_at_ms)
   local elapsed = math.max(0, (tonumber(now_ms) or 0) - (tonumber(started_at_ms) or 0))
   local index = math.floor(elapsed / interval) % #frames + 1
   local next_frame
-  if #frames > 1 then next_frame = (tonumber(now_ms) or 0) + interval - (elapsed % interval) end
+  -- Relative, not a deadline: see the note in layout.lua.
+  if #frames > 1 then next_frame = interval - (elapsed % interval) end
   return frames[index], next_frame
 end
 
@@ -57,7 +58,7 @@ function M.knight_rider(options, ctx)
     children[#children + 1] = {kind = "text", text = glyph, style = {fg = color, bg = options.bg}}
   end
   if options.suffix then children[#children + 1] = options.suffix end
-  return {kind = "row", children = children}, now + step - (elapsed % step)
+  return {kind = "row", children = children}, step - (elapsed % step)
 end
 
 return M

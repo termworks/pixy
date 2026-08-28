@@ -74,7 +74,7 @@ static void print_help(void) {
     } commands[] = {
         {"render", "<zone[.segment][,...]>", "render once and exit"},
         {"stream", "<zone[.segment][,...]>", "animate for a bounded time"},
-        {"serve", "[--socket PATH]", "answer painter requests on a socket"},
+        {"serve", "[--socket PATH|--stdio]", "answer painter requests, on a socket or a pipe"},
         {"list", "", "every zone and segment the config defines"},
         {"check", "", "load the config and report what it holds"},
         {"names", "[<pack>]", "the vocabulary a pack can draw, one id per line"},
@@ -1201,10 +1201,19 @@ static int serve_command(int argc, char **argv) {
     const char *socket_path = NULL;
     const char *config_path = NULL;
     bool force = false;
+    bool stdio = false;
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--socket") == 0 && i + 1 < argc) socket_path = argv[++i];
         else if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) config_path = argv[++i];
         else if (strcmp(argv[i], "--force") == 0) force = true;
+        else if (strcmp(argv[i], "--stdio") == 0) stdio = true;
+    }
+    if (stdio) {
+        if (socket_path) {
+            pixy_fail(PIXY_EXIT_USAGE, "--stdio and --socket are two transports; pick one");
+            return PIXY_EXIT_USAGE;
+        }
+        return pixy_serve_stdio(config_path);
     }
     return pixy_serve(socket_path, config_path, force);
 }
