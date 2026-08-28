@@ -293,8 +293,12 @@ end
 local function title(ctx, container_title)
   local text = trim(tostring(value(ctx, "title") or ""))
   if not text then return nil end
-  local edge = container_title and {bg = 0, fg = 1} or {bg = 1, fg = 1}
+  -- The padding takes the body's background: a space shows only its background,
+  -- so an edge pinned to the active colour while the body dims leaves two blocks
+  -- of the wrong colour framing an inactive title. The container title keeps its
+  -- black edges on purpose -- those are a gap, not a slab.
   local body = value(ctx, "active") == false and {bg = 237, fg = 250} or style_git
+  local edge = container_title and {bg = 0, fg = 1} or body
   return pixy.row({pixy.text(" ", edge), pixy.text(text, body), pixy.text(" ", edge)})
 end
 

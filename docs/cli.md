@@ -9,9 +9,33 @@ pixy stream <names> [--fps N] [--duration MS]
 pixy pack build|check|list ...
 pixy names [<pack>]
 pixy palette set|use|end|reset|ask [--slot N] [--wait] [key=colour ...]
-pixy serve [--socket PATH]
+pixy serve [--socket PATH | --stdio]
 pixy --help | --version
 ```
+
+## Two transports, one protocol
+
+`serve` answers length-prefixed JSON — a four-byte big-endian length, then the
+request; the same, back. `--socket` binds a path; `--stdio` answers on stdin and
+stdout instead. **The frames are byte-identical**, so a host writes one encoder
+and one decoder and chooses a transport, never a protocol.
+
+They are for different shapes of host:
+
+| | |
+|---|---|
+| `--socket` | one painter, shared by everything on the machine |
+| `--stdio` | one painter per host, spawned and owned by it |
+
+A shared painter is a single process every session talks to: one accept loop
+serialising them all, one config to restart, and a stale one that outlives the
+binary that made it. A host that spawns its own over a pipe pays the Lua VM and
+config once, keeps it for as long as it wants it, and takes it down with itself.
+`--stdio` loops until stdin closes, so one child answers many requests.
+
+A one-shot `pixy render` is the third option and needs no server at all — right
+for a prompt, which is drawn a few times a second. It costs a process start per
+render, so it is the wrong shape for anything animating.
 
 `<name>` is a zone such as `prompt.left` or a segment selector such as
 `prompt.left.directory`. Pixy resolves an exact zone first; otherwise the final

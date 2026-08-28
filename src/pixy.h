@@ -189,6 +189,9 @@ bool pixy_output_json(const PixyOutput *output, PixyBuf *out);
 
 int pixy_main(int argc, char **argv);
 int pixy_serve(const char *socket_path, const char *config_path, bool force);
+/* The same protocol over stdin/stdout, so a host can own its painter instead of
+ * sharing one. Returns when stdin closes. */
+int pixy_serve_stdio(const char *config_path);
 bool pixy_use_colour(void);
 
 /* ------------------------------------------------------------------ width */

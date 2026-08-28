@@ -1,7 +1,7 @@
 -- The version lives here and nowhere else: `veri` reads and bumps this line,
 -- the build compiles it in as PIXY_VERSION_STRING, and the flake reads it from
 -- here too, so a release never leaves two files disagreeing.
-local PROJECT_VERSION = "0.2.1"
+local PROJECT_VERSION = "0.2.2"
 
 set_project("pixy")
 set_version(PROJECT_VERSION)

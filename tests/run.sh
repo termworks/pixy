@@ -53,6 +53,80 @@ equals "status@26 sheds" "$(render status 26 | wc -L)" "$(render status 26 | wc 
 
 # ---- the guarantees ----------------------------------------------------------
 
+# A float title dims as ONE label, padding included.
+#
+# The padding is a pair of spaces, and a space shows only its background. Those
+# edges used to be pinned to the active background while the body dimmed, so an
+# unfocused float wore two blocks of the ACTIVE colour around a grey title --
+# which reads as decoration that failed to update rather than as padding.
+#
+# Asserted as "the other state's background does not appear at all", because
+# that is the property: nothing in the label may be left behind when it changes.
+titlectx() { printf '{"values":{"title":"probe","active":%s}}' "$1"; }
+title_ansi() {
+  "$pixy" render float.title --config "$config" --target ansi \
+    --context-json "$(titlectx "$1")" 2>/dev/null
+}
+
+inactive_render=$(title_ansi false)
+case "$inactive_render" in
+  *"48;5;1m"*) bad "an inactive float title keeps nothing at the active colour" \
+                   "no 48;5;1 anywhere" "$(printf '%s' "$inactive_render" | cat -v)" ;;
+  *) ok ;;
+esac
+
+active_render=$(title_ansi true)
+case "$active_render" in
+  *"48;5;237m"*) bad "an active float title keeps nothing at the inactive colour" \
+                     "no 48;5;237 anywhere" "$(printf '%s' "$active_render" | cat -v)" ;;
+  *) ok ;;
+esac
+
+# The container title is a different case on purpose: its edges are the
+# surrounding black, a gap rather than a slab, and must stay that way.
+container_inactive=$("$pixy" render container.title --config "$config" --target ansi \
+  --context-json "$(titlectx false)" 2>/dev/null)
+case "$container_inactive" in
+  *"48;5;0m"*) ok ;;
+  *) bad "a container title keeps its black edges" "48;5;0 present" \
+         "$(printf '%s' "$container_inactive" | cat -v)" ;;
+esac
+
+# A label beside a spinner is held for the whole run, not re-rolled per frame.
+#
+# `system.random` used to seed from `now_ms`, so it picked again on every frame
+# the bar drew -- and the spinner next to it asks for one every few tens of
+# milliseconds, so the word churned instead of labelling anything. Seeding is
+# from the run's start now: the spinner moves, the word does not.
+#
+# The bundled fixture supplies `randomdo`, which short-circuits the random path
+# entirely, so this needs a context of its own or it would prove nothing.
+runctx='{"values":{"shell_running":true,"alt_screen":false,"started_at_ms":1000000}}'
+first=""
+churned=0
+# Deliberately NOT multiples of the frame step: with four words, times that are
+# all congruent mod 4 land on the same entry and would pass whatever the seed.
+for t in 0 37 71 118 163 209 254 301; do
+  word=$("$pixy" render status.left.random --context-json "$runctx" \
+         --target plain --now-ms "$((1000000 + t))" 2>/dev/null)
+  if [ -z "$first" ]; then first="$word"; elif [ "$word" != "$first" ]; then churned=1; fi
+done
+if [ -n "$first" ]; then ok; else bad "the label rendered at all" "a word" "nothing"; fi
+equals "the label is held for the whole run" 0 "$churned"
+
+# ...and a different run may still get a different word, or it is not a label
+# for the run, it is a constant.
+varies=0
+prev=""
+for r in 1000000 1000001 1000002 1000003; do
+  word=$("$pixy" render status.left.random --context-json \
+         "{\"values\":{\"shell_running\":true,\"alt_screen\":false,\"started_at_ms\":$r}}" \
+         --target plain --now-ms 9999999 2>/dev/null)
+  if [ -n "$prev" ] && [ "$word" != "$prev" ]; then varies=1; fi
+  prev="$word"
+done
+equals "a different run may get a different word" 1 "$varies"
+
 runaway=$(mktemp)
 cat >"$runaway" <<'LUA'
 local pixy = require("pixy")
@@ -506,6 +580,49 @@ fi
 kill "$holder" 2>/dev/null
 wait "$holder" 2>/dev/null
 rm -f "$socket"
+
+# ---- the same protocol over a pipe ---------------------------------------------
+#
+# `--stdio` exists so a host can own its painter instead of sharing one: a
+# socket painter is a single process every session talks to, with one accept
+# loop serialising them and a stale one outliving the binary that made it.
+#
+# What makes it worth having is that it is the SAME protocol -- so the bytes off
+# a pipe must equal the bytes off a socket, or a host needs two code paths and
+# the two drift.
+req='{"version":1,"select":["status.center"],"mode":"run","width":60,"height":1,"now_ms":1000,"context":{"values":{"tabs":["main","logs"],"active_tab":0}}}'
+len=${#req}
+header=$(printf '\\x%02x\\x%02x\\x%02x\\x%02x' \
+  $((len >> 24 & 255)) $((len >> 16 & 255)) $((len >> 8 & 255)) $((len & 255)))
+
+pipe_out=$(mktemp); sock_out=$(mktemp)
+printf "$header%s" "$req" | "$pixy" serve --stdio --config "$config" >"$pipe_out" 2>/dev/null
+
+socket2=$(mktemp -u /tmp/pixy-stdio-XXXXXX.sock)
+"$pixy" serve --socket "$socket2" --config "$config" >/dev/null 2>&1 &
+holder2=$!
+for _ in $(seq 400); do [ -S "$socket2" ] && break; sleep 0.01; done
+if [ -S "$socket2" ] && command -v socat >/dev/null 2>&1; then
+  printf "$header%s" "$req" | socat -t 2 - "UNIX-CONNECT:$socket2" >"$sock_out" 2>/dev/null
+  if cmp -s "$pipe_out" "$sock_out"; then ok
+  else bad "a pipe answers exactly what a socket answers" "identical frames" "they differ"; fi
+else
+  # No socat: still assert the pipe answered something well-formed, so this
+  # cannot pass by producing nothing at all.
+  if [ -s "$pipe_out" ]; then ok
+  else bad "the pipe answered" "a framed reply" "nothing"; fi
+fi
+kill "$holder2" 2>/dev/null; wait "$holder2" 2>/dev/null
+rm -f "$socket2"
+
+# It must LOOP: two requests on one child, so the VM and config are paid for
+# once rather than per frame. A one-shot would answer the first and hang up.
+two=$(mktemp)
+printf "$header%s$header%s" "$req" "$req" | "$pixy" serve --stdio --config "$config" >"$two" 2>/dev/null
+first=$(wc -c <"$pipe_out"); both=$(wc -c <"$two")
+if [ "$both" -eq $((first * 2)) ]; then ok
+else bad "one child answers many requests" "$((first * 2)) bytes" "$both bytes"; fi
+rm -f "$pipe_out" "$sock_out" "$two"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

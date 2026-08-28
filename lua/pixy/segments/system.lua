@@ -198,10 +198,24 @@ function M.sudo(ctx, options)
   return result.status == 0
 end
 
-function M.random(ctx, values)
+--- One of `values`, held steady for as long as the thing it labels is running.
+---
+--- Seeded from the run's start, NOT from the clock. A status bar redraws for
+--- whatever else is on it -- a spinner beside this one asks for a frame every
+--- few tens of milliseconds -- and seeding from `now_ms` re-rolled the choice on
+--- every one of those frames, so the word churned instead of labelling anything.
+--- The spinner is what moves; the word beside it is what stays.
+---
+--- `seed` overrides, for a caller whose run has some other identity. Failing
+--- both, the clock is the last resort and behaves as before -- churn is better
+--- than always answering with the first entry.
+function M.random(ctx, values, seed)
   if not values or #values == 0 then return nil end
-  local seed = tonumber(ctx and ctx.now_ms or 0) or 0
-  return values[(seed % #values) + 1]
+  local run = seed
+    or (ctx and ctx.values and ctx.values.started_at_ms)
+    or (ctx and ctx.now_ms)
+    or 0
+  return values[(math.floor(tonumber(run) or 0) % #values) + 1]
 end
 
 return M

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.2] - 2026-08-28
+
+### <!-- 0 -->⛰️  Features
+
+- --stdio, and a cadence that is a delay
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- Dim the padding with the title
+- Correct transcript row and improve clock fallback
+- Hold a run's label for the whole run
+
+### <!-- 7 -->⚙️ Miscellaneous Tasks
+
+- Install the config with the binary
+
 ## [0.2.1] - 2026-08-25
 
 ### <!-- 7 -->⚙️ Miscellaneous Tasks

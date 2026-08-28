@@ -86,17 +86,23 @@ static bool write_all(int fd, const void *from, size_t len) {
     return true;
 }
 
-static void answer(PixyEngine *engine, int fd) {
+/* One request, one response, on whatever pair of descriptors carries them.
+ *
+ * Split from the socket loop so the SAME framing serves a connection and a
+ * pipe: a host that speaks this needs one encoder and one decoder, and picks a
+ * transport rather than a protocol. A socket passes its fd for both; stdio
+ * passes 0 and 1. */
+static bool answer(PixyEngine *engine, int in_fd, int out_fd) {
     unsigned char header[4];
-    if (!read_exact(fd, header, 4)) return;
+    if (!read_exact(in_fd, header, 4)) return false;
     size_t length = ((size_t)header[0] << 24) | ((size_t)header[1] << 16) |
                     ((size_t)header[2] << 8) | header[3];
-    if (length > MAX_FRAME) return;
+    if (length > MAX_FRAME) return false;
     char *body = malloc(length + 1);
-    if (!body) return;
-    if (!read_exact(fd, body, length)) {
+    if (!body) return false;
+    if (!read_exact(in_fd, body, length)) {
         free(body);
-        return;
+        return false;
     }
     body[length] = '\0';
 
@@ -203,8 +209,58 @@ static void answer(PixyEngine *engine, int fd) {
     unsigned char out_header[4] = {(unsigned char)(response.len >> 24),
                                    (unsigned char)(response.len >> 16),
                                    (unsigned char)(response.len >> 8), (unsigned char)response.len};
-    if (write_all(fd, out_header, 4)) write_all(fd, response.data, response.len);
+    bool sent = write_all(out_fd, out_header, 4) && write_all(out_fd, response.data, response.len);
     pixy_buf_free(&response);
+    return sent;
+}
+
+/* The same protocol, on stdin and stdout, for a host that would rather own its
+ * painter than share one.
+ *
+ * A socket painter is a single process every session on the machine talks to:
+ * one config to restart, one accept loop serialising everyone, and a stale one
+ * outliving the binary that made it. Over a pipe the host spawns its own, keeps
+ * it for as long as it wants it, and takes it down with itself -- while sending
+ * byte-identical frames, so neither side needs a second code path.
+ *
+ * Loops until stdin closes, so one child answers many requests and the Lua VM
+ * and config are paid for once rather than per frame. */
+int pixy_serve_stdio(const char *config_path) {
+    PixyPaths paths;
+    if (!pixy_paths_discover(&paths)) return pixy_error_code();
+    PixyConfigSource source;
+    if (!pixy_config_load(config_path, &paths, &source)) return pixy_error_code();
+    char watched[4096];
+    snprintf(watched, sizeof(watched), "%s", source.path);
+    PixyEngine *engine = pixy_engine_load(&source, &paths);
+    pixy_config_free(&source);
+    if (!engine) return pixy_error_code();
+
+    struct stat info;
+    time_t stamp = stat(watched, &info) == 0 ? info.st_mtime : 0;
+
+    for (;;) {
+        /* Same reload rule as the socket: saving the file is the procedure. */
+        if (watched[0] && stat(watched, &info) == 0 && info.st_mtime != stamp) {
+            stamp = info.st_mtime;
+            PixyConfigSource next;
+            if (pixy_config_load(config_path, &paths, &next)) {
+                PixyEngine *reloaded = pixy_engine_load(&next, &paths);
+                pixy_config_free(&next);
+                if (reloaded) {
+                    pixy_engine_free(engine);
+                    engine = reloaded;
+                } else {
+                    fprintf(stderr, "pixy serve --stdio: keeping the last config: %s\n",
+                            pixy_error_message());
+                    pixy_clear_error();
+                }
+            }
+        }
+        if (!answer(engine, 0, 1)) break;
+    }
+    pixy_engine_free(engine);
+    return 0;
 }
 
 int pixy_serve(const char *socket_path, const char *config_path, bool force) {
@@ -290,7 +346,7 @@ int pixy_serve(const char *socket_path, const char *config_path, bool force) {
             }
         }
 
-        answer(engine, fd);
+        answer(engine, fd, fd);
         close(fd);
     }
 }

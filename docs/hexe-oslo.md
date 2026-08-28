@@ -93,5 +93,6 @@ and `progress_pct`; the profile draws a ten-cell bar with a percentage when the
 state carries a number, a sweeping block when it is `indeterminate`, and nothing
 at all when it is `inactive`. The bar is coloured by state — blue while running,
 red on error, grey when paused — and the sweeping form reports its own
-`next_frame_ms`, so a host polls when the picture changes rather than on a
+`next_frame_ms` — a DELAY in milliseconds, never a timestamp — so a host polls when
+the picture changes rather than on a
 timer.
