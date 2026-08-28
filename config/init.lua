@@ -238,20 +238,10 @@ local SPIN_FRAMES = { "⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷" }
 local SPIN_INTERVAL_MS = 150
 
 local function prompt_spinner(ctx)
-  -- **Nothing unless the caller asks.** A prompt is not a place to put a glyph
-  -- somebody did not request: the caller opts in by sending `frame` (a counter
-  -- it keeps) or `spinner` (just "yes"), and says nothing the rest of the time.
-  --
-  -- Reading the clock when neither was sent looked like the tidy default and is
-  -- not: it puts a turning braille cell in front of every prompt on the machine,
-  -- shifting everything after it, for callers that never wanted one.
   local n = tonumber(value(ctx, "frame"))
   if n then
     return pixy.text(" " .. SPIN_FRAMES[(math.floor(n) % #SPIN_FRAMES) + 1] .. " ", style_directory)
   end
-  if value(ctx, "spinner") ~= true then return nil end
-  -- Asked for, and on the clock, so the whole cycle is enumerable and a caller
-  -- animates from one render rather than one per frame.
   local glyph, next_frame = animate.frames(SPIN_FRAMES, SPIN_INTERVAL_MS, ctx.now_ms, 0)
   if not glyph then return nil end
   local node = pixy.text(" " .. glyph .. " ", style_directory)
@@ -690,17 +680,6 @@ pixy.zone("status.left", status_left)
 pixy.zone("status.center", status_center)
 pixy.zone("status.right", status_right)
 pixy.zone("status", status_bar)
--- **A plugin's view.** hexe's keycast plugin draws a panel and names this to
--- fill it, so the keys it shows are styled here with everything else rather
--- than as escape codes inside the plugin.
-pixy.zone("plug.keycast", {
-  pixy.segment("keys", function(ctx)
-    local text = trim(tostring(value(ctx, "keys") or ""))
-    if not text then return nil end
-    return pixy.text(" " .. text .. " ", {bg = 237, fg = 15, bold = true})
-  end),
-})
-
 pixy.zone("overlay", {
   pixy.segment("sprite", pokemon_sprite),
 })
