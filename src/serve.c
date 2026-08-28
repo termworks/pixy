@@ -140,6 +140,8 @@ static bool answer(PixyEngine *engine, int in_fd, int out_fd) {
             render.has_now_ms = true;
             render.now_ms = (uint64_t)pixy_json_number(now);
         }
+        const PixyJson *ahead = pixy_json_get(request, "frames_ms");
+        if (ahead) render.frames_ms = (uint32_t)pixy_json_number(ahead);
 
         /* A host flattens its state across the context: the nested `values` map
          * wins over a top-level name of its own, and `env` stays the host's. */
@@ -184,6 +186,23 @@ static bool answer(PixyEngine *engine, int in_fd, int out_fd) {
         if (found == 0) {
             pixy_buf_str(&response,
                          "{\"error\":\"a request names no view\",\"ok\":false,\"version\":1}");
+        } else if (render.frames_ms) {
+            PixyOutput *frames = NULL;
+            size_t count = 0;
+            if (pixy_engine_filmstrip(engine, &render, &frames, &count)) {
+                PixyBuf payload = {0};
+                pixy_filmstrip_json(frames, count, &payload);
+                pixy_buf_str(&response, "{\"ok\":true,\"output\":");
+                pixy_buf_add(&response, payload.data, payload.len);
+                pixy_buf_str(&response, ",\"version\":1}");
+                pixy_buf_free(&payload);
+                pixy_frames_free(frames, count);
+            } else {
+                pixy_buf_str(&response, "{\"error\":");
+                pixy_buf_json_string(&response, pixy_error_message(), strlen(pixy_error_message()));
+                pixy_buf_str(&response, ",\"ok\":false,\"version\":1}");
+                pixy_clear_error();
+            }
         } else if (pixy_engine_render(engine, &render, &output)) {
             PixyBuf payload = {0};
             pixy_output_json(&output, &payload);

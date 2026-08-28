@@ -419,6 +419,9 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
                 options->request.has_now_ms = true;
                 options->request.now_ms = strtoull(next, NULL, 10);
             }
+        } else if (strcmp(arg, "--frames-ms") == 0) {
+            needs_value = true;
+            if (next) options->request.frames_ms = (uint32_t)strtoul(next, NULL, 10);
         } else if (strcmp(arg, "--fps") == 0) {
             needs_value = true;
             if (next) options->fps = (unsigned)strtoul(next, NULL, 10);
@@ -564,6 +567,8 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
             options->request.has_now_ms = true;
             options->request.now_ms = (uint64_t)pixy_json_number(now);
         }
+        const PixyJson *ahead = pixy_json_get(request, "frames_ms");
+        if (ahead) options->request.frames_ms = (uint32_t)pixy_json_number(ahead);
         const PixyJson *ignore = pixy_json_get(request, "ignore_missing");
         if (ignore) options->request.ignore_missing = pixy_json_bool(ignore);
         const PixyJson *context = pixy_json_get(request, "context");
@@ -694,6 +699,24 @@ static int render_command(int argc, char **argv, bool selector_first) {
         return pixy_error_code();
     }
     palette_resolve(&options, engine);
+    if (options.request.frames_ms) {
+        PixyOutput *frames = NULL;
+        size_t count = 0;
+        if (!pixy_engine_filmstrip(engine, &options.request, &frames, &count)) {
+            pixy_engine_free(engine);
+            free_options(&options);
+            return pixy_error_code();
+        }
+        PixyBuf json = {0};
+        pixy_filmstrip_json(frames, count, &json);
+        fwrite(json.data, 1, json.len, stdout);
+        pixy_buf_free(&json);
+        if (options.newline) fputc('\n', stdout);
+        pixy_frames_free(frames, count);
+        pixy_engine_free(engine);
+        free_options(&options);
+        return 0;
+    }
     PixyOutput output;
     if (!pixy_engine_render(engine, &options.request, &output)) {
         pixy_engine_free(engine);
@@ -776,7 +799,8 @@ static int stream_command(int argc, char **argv) {
 
         long long wait = floor_ms;
         if (output.has_next_frame) {
-            long long due = (long long)output.next_frame_ms - pixy_unix_ms();
+            /* A delay -- "ask again in N ms" -- never a deadline. */
+            long long due = (long long)output.next_frame_ms;
             if (due > wait) wait = due;
         }
         pixy_output_free(&output);

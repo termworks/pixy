@@ -839,6 +839,88 @@ void pixy_output_free(PixyOutput *output) {
     pixy_buf_free(&output->stream_rewind);
 }
 
+/* ------------------------------------------------------------- filmstrip */
+
+#define PIXY_MAX_FRAMES 64
+
+/* The drawn picture, ignoring the cadence and the hit regions riding with it:
+ * two frames that paint the same cells are the same frame. */
+static bool same_picture(const PixyOutput *left, const PixyOutput *right) {
+    if (left->mode != right->mode || left->width != right->width ||
+        left->height != right->height)
+        return false;
+    if (left->payload.len != right->payload.len ||
+        left->runs_json.len != right->runs_json.len)
+        return false;
+    if (left->payload.len && memcmp(left->payload.data, right->payload.data, left->payload.len))
+        return false;
+    if (left->runs_json.len &&
+        memcmp(left->runs_json.data, right->runs_json.data, left->runs_json.len))
+        return false;
+    return true;
+}
+
+bool pixy_engine_filmstrip(PixyEngine *engine, const PixyRequest *request, PixyOutput **frames_out,
+                           size_t *count_out) {
+    *frames_out = NULL;
+    *count_out = 0;
+
+    PixyOutput *frames = calloc(PIXY_MAX_FRAMES, sizeof *frames);
+    if (!frames) {
+        pixy_fail(PIXY_EXIT_RENDER, "out of memory");
+        return false;
+    }
+
+    PixyRequest step = *request;
+    uint64_t base = request->has_now_ms ? request->now_ms : (uint64_t)pixy_unix_ms();
+    step.has_now_ms = true;
+
+    size_t count = 0;
+    uint64_t ahead = 0;
+    while (count < PIXY_MAX_FRAMES) {
+        step.now_ms = base + ahead;
+        PixyOutput frame;
+        if (!pixy_engine_render(engine, &step, &frame)) {
+            pixy_frames_free(frames, count);
+            return false;
+        }
+        /* The cycle closed: the caller loops back to the first frame itself. */
+        if (count > 0 && same_picture(&frames[0], &frame)) {
+            pixy_output_free(&frame);
+            break;
+        }
+        /* A held picture -- the pause at the end of a sweep -- is one frame
+         * shown for longer, not the same cells sent many times. */
+        if (count > 0 && same_picture(&frames[count - 1], &frame)) {
+            frames[count - 1].next_frame_ms += frame.next_frame_ms;
+            uint64_t held = frame.next_frame_ms;
+            pixy_output_free(&frame);
+            if (!held) break;
+            ahead += held;
+            if (ahead >= request->frames_ms) break;
+            continue;
+        }
+        frames[count++] = frame;
+        /* Nothing moves, so there is no second frame to hold. */
+        if (!frame.has_next_frame || frame.next_frame_ms == 0) break;
+        ahead += frame.next_frame_ms;
+        /* Past the horizon the caller asks again anyway, and content that is
+         * not on a cycle -- a clock -- must never be replayed from a stale
+         * strip. */
+        if (ahead >= request->frames_ms) break;
+    }
+
+    *frames_out = frames;
+    *count_out = count;
+    return true;
+}
+
+void pixy_frames_free(PixyOutput *frames, size_t count) {
+    if (!frames) return;
+    for (size_t i = 0; i < count; i++) pixy_output_free(&frames[i]);
+    free(frames);
+}
+
 /* ------------------------------------------------------------- inventory */
 
 static int compare_names(const void *left, const void *right) {

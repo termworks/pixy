@@ -156,6 +156,9 @@ typedef struct {
     bool has_now_ms;
     uint64_t now_ms;
     bool ignore_missing;
+    /* Render ahead: frames covering this many ms, not just the one due now.
+     * Zero renders a single frame. */
+    uint32_t frames_ms;
     /* Context as JSON, so it reaches Lua exactly as a caller wrote it. */
     const char *context_json;
     size_t context_json_len;
@@ -178,12 +181,20 @@ void pixy_output_free(PixyOutput *output);
 PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *paths);
 void pixy_engine_free(PixyEngine *engine);
 bool pixy_engine_render(PixyEngine *engine, const PixyRequest *request, PixyOutput *out);
+/* Renders forward from `now_ms` until the picture repeats or `frames_ms`
+ * elapses, whichever comes first. Each frame holds for its own
+ * `next_frame_ms`, so a caller animates without asking again. */
+bool pixy_engine_filmstrip(PixyEngine *engine, const PixyRequest *request, PixyOutput **frames,
+                           size_t *count);
+void pixy_frames_free(PixyOutput *frames, size_t count);
+
 bool pixy_engine_inventory(PixyEngine *engine, char ***names, size_t *count, size_t *zones,
                            size_t *segments);
 const char *pixy_engine_source_name(const PixyEngine *engine);
 
 /* Serialises an output the way `--mode run|surface` prints it. */
 bool pixy_output_json(const PixyOutput *output, PixyBuf *out);
+bool pixy_filmstrip_json(const PixyOutput *frames, size_t count, PixyBuf *out);
 
 /* -------------------------------------------------------------------- cli */
 

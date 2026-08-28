@@ -624,5 +624,44 @@ if [ "$both" -eq $((first * 2)) ]; then ok
 else bad "one child answers many requests" "$((first * 2)) bytes" "$both bytes"; fi
 rm -f "$pipe_out" "$sock_out" "$two"
 
+
+# ---- filmstrips --------------------------------------------------------------
+# One request buys a whole animation cycle, so a caller animates without asking
+# again. Enumerated off `now_ms`, which is what makes the frames derivable.
+
+frames_in() { grep -o '"mode"' <<<"$1" | wc -l | tr -d ' '; }
+
+spin_ctx='{"values":{"shell_running":true}}'
+strip() {
+  "$pixy" render status.left.spinner --config config/init.lua --mode run --width 20 \
+    --now-ms 0 --frames-ms "$1" --context-json "$spin_ctx" 2>/dev/null
+}
+
+short=$(frames_in "$(strip 200)")
+long=$(frames_in "$(strip 1000)")
+equals "a filmstrip fills its horizon" "5" "$short"
+if [ "$long" -gt "$short" ]; then ok
+else bad "a longer horizon holds more frames" ">$short" "$long"; fi
+
+# The cycle closes: asking far past the period must not draw forever.
+huge=$(frames_in "$(strip 60000)")
+if [ "$huge" -lt 64 ]; then ok
+else bad "the cycle closes before the cap" "<64 frames" "$huge"; fi
+
+# A held picture is one frame with a longer hold, never the same cells repeated.
+holds=$(strip 1000 | grep -o '"next_frame_ms":[0-9]*' | cut -d: -f2 | sort -rn | head -1)
+if [ "${holds:-0}" -gt 40 ]; then ok
+else bad "held frames coalesce" "a hold longer than one step" "${holds:-none}"; fi
+
+# Content with no cadence of its own is one frame, not a horizon's worth.
+clock=$(frames_in "$("$pixy" render status.left.clock --config config/init.lua --mode run \
+  --width 20 --frames-ms 5000 2>/dev/null)")
+equals "a still picture is one frame" "1" "$clock"
+
+# Line mode carries the drawn line, so a prompt can use a strip too.
+line_mode=$("$pixy" render prompt.left --config config/init.lua --mode line --target ansi \
+  --width 80 --frames-ms 500 2>/dev/null | grep -c '"mode":"line"')
+equals "line mode survives a filmstrip" "1" "$line_mode"
+
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
