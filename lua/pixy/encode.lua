@@ -110,7 +110,12 @@ function M.surface(lines, width, height)
   for _, line in ipairs(lines) do output[#output + 1] = ansi_line(line, true) end
   local rewind = "\r"
   if #lines > 1 then rewind = "\27[" .. tostring(#lines - 1) .. "A\r" end
-  return table.concat(output, "\n"), layout.measure(lines), #lines, rewind, lines
+  -- CRLF between rows, not a bare LF. A line feed on its own moves down one row
+  -- and leaves the cursor in whatever column it was already in, so every row
+  -- began where the previous one ended; with rows that open on a RELATIVE
+  -- cursor-forward the offset compounds, and the picture comes out as a
+  -- staircase instead of a rectangle.
+  return table.concat(output, "\r\n"), layout.measure(lines), #lines, rewind, lines
 end
 
 return M

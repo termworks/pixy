@@ -634,5 +634,18 @@ line_mode=$("$pixy" render prompt.left --config config/init.lua --mode line --ta
   --width 80 --frames-ms 500 2>/dev/null | grep -c '"mode":"line"')
 equals "line mode survives a filmstrip" "1" "$line_mode"
 
+
+# ---- a surface is a rectangle -------------------------------------------------
+#
+# Rows are separated by CRLF, never a bare LF. A line feed on its own moves down
+# a row and leaves the cursor where it was, so with rows that open on a relative
+# cursor-forward the offset compounds and the picture comes out as a staircase.
+# It shipped that way because nothing here looked at the separator.
+surf=$("$pixy" render overlay.sprite --config config/init.lua --mode surface \
+  --width 20 --height 10 \
+  --context-json '{"values":{"sprite_visible":true,"sprite_name":"pikachu"}}' 2>/dev/null)
+lone=$(printf '%s' "$surf" | awk 'BEGIN{RS="\n"; n=0} NR>1 && prev !~ /\r$/ {n++} {prev=$0} END{print n+0}')
+equals "a surface separates rows with CRLF" "0" "$lone"
+
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
