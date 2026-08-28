@@ -81,7 +81,7 @@ function M.sweep(options, ctx)
     .. string.rep(glyphs.filled or DEFAULT_GLYPHS.filled, block)
     .. string.rep(glyphs.empty or DEFAULT_GLYPHS.empty, width - block - offset)
   local node = pixy.text(text, options.style or {fg = DEFAULT_COLORS.indeterminate})
-  node.next_frame_ms = now + interval - (elapsed % interval)
+  node.next_frame_ms = interval - (elapsed % interval)
   return node
 end
 
