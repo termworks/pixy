@@ -53,6 +53,45 @@ equals "status@26 sheds" "$(render status 26 | wc -L)" "$(render status 26 | wc 
 
 # ---- the guarantees ----------------------------------------------------------
 
+# A float title dims as ONE label, padding included.
+#
+# The padding is a pair of spaces, and a space shows only its background. Those
+# edges used to be pinned to the active background while the body dimmed, so an
+# unfocused float wore two blocks of the ACTIVE colour around a grey title --
+# which reads as decoration that failed to update rather than as padding.
+#
+# Asserted as "the other state's background does not appear at all", because
+# that is the property: nothing in the label may be left behind when it changes.
+titlectx() { printf '{"values":{"title":"probe","active":%s}}' "$1"; }
+title_ansi() {
+  "$pixy" render float.title --config "$config" --target ansi \
+    --context-json "$(titlectx "$1")" 2>/dev/null
+}
+
+inactive_render=$(title_ansi false)
+case "$inactive_render" in
+  *"48;5;1m"*) bad "an inactive float title keeps nothing at the active colour" \
+                   "no 48;5;1 anywhere" "$(printf '%s' "$inactive_render" | cat -v)" ;;
+  *) ok ;;
+esac
+
+active_render=$(title_ansi true)
+case "$active_render" in
+  *"48;5;237m"*) bad "an active float title keeps nothing at the inactive colour" \
+                     "no 48;5;237 anywhere" "$(printf '%s' "$active_render" | cat -v)" ;;
+  *) ok ;;
+esac
+
+# The container title is a different case on purpose: its edges are the
+# surrounding black, a gap rather than a slab, and must stay that way.
+container_inactive=$("$pixy" render container.title --config "$config" --target ansi \
+  --context-json "$(titlectx false)" 2>/dev/null)
+case "$container_inactive" in
+  *"48;5;0m"*) ok ;;
+  *) bad "a container title keeps its black edges" "48;5;0 present" \
+         "$(printf '%s' "$container_inactive" | cat -v)" ;;
+esac
+
 # A label beside a spinner is held for the whole run, not re-rolled per frame.
 #
 # `system.random` used to seed from `now_ms`, so it picked again on every frame
