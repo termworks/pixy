@@ -19,12 +19,16 @@ separate render I/O budget.
 
 ```sh
 oslo make bench
-xmake bench-phases
+oslo make bench-phases
+oslo make bench-compare
 ```
 
 The benchmark command measures cold configuration loading, repeated rendering,
 and a native host execution provider. `bench-phases` separates path discovery,
-configuration reading, engine creation, and rendering.
+configuration reading, engine creation, and rendering. `bench-compare` uses the
+pinned Hyperfine and Starship packages from `flake.nix` to compare complete
+process startup for matched directory and Git-branch providers. Pass `--runs
+N` to change its default 200 samples.
 
 ## Release checks
 

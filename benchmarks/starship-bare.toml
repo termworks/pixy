@@ -1,0 +1,8 @@
+format = "$directory"
+right_format = ""
+add_newline = false
+
+[directory]
+format = " [$path]($style) "
+truncation_length = 0
+truncate_to_repo = false

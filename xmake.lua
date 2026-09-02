@@ -216,6 +216,15 @@ do
         return os.isfile("/bin/bash") and "/bin/bash" or "bash"
     end
 
+    local function command(arguments)
+        local words = {}
+        for _, argument in ipairs(arguments) do
+            local word = tostring(argument):gsub("'", "'\\''")
+            table.insert(words, "'" .. word .. "'")
+        end
+        return table.concat(words, " ")
+    end
+
     local function register(name, description, action)
         task(name)
             set_category("pixy")
@@ -291,6 +300,51 @@ do
         process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "cold", "500"})
         process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "query", "10000"})
         process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "provider", "100"})
+    end)
+
+    register("bench-compare", "Compare matched providers against Starship", function()
+        release_build()
+        local hyperfine = process.getenv("PIXY_BENCH_HYPERFINE") or which("hyperfine")
+        local starship = process.getenv("PIXY_BENCH_STARSHIP") or which("starship")
+        if not hyperfine or not os.isfile(hyperfine) then fail("hyperfine is missing from the dev shell") end
+        if not starship or not os.isfile(starship) then fail("starship is missing from the dev shell") end
+
+        local runs = tonumber(process.getenv("PIXY_BENCH_RUNS") or "200")
+        if not runs or runs < 1 or runs % 1 ~= 0 then fail("PIXY_BENCH_RUNS must be a positive integer") end
+
+        local work = path.join(root, OUTPUT, "bench-compare")
+        local plain = path.join(process.getenv("TMPDIR") or "/tmp", "pixy-bench-plain")
+        process.mkdir(work)
+        process.mkdir(plain)
+        process.mkdir(path.join(work, "starship-cache"))
+        process.mkdir(path.join(work, "pixy-cache"))
+
+        local bare_config = path.join(root, "benchmarks/starship-bare.toml")
+        local git_config = path.join(root, "benchmarks/starship-git-branch.toml")
+
+        local binary = path.join(root, OUTPUT, "pixy")
+        local config = path.join(root, "config/init.lua")
+        local function compare(label, directory_path, selector, module, starship_config)
+            local pixy = command({binary, "render", selector, "--config", config, "--target", "ansi",
+                                  "--width", "120", "--set", "cwd=" .. directory_path,
+                                  "--set", "status=0"})
+            local reference = command({starship, "module", module})
+            report("\n== " .. label)
+            process.execv(hyperfine, {"--shell=none", "--warmup", "20", "--runs", tostring(runs),
+                                      "--style", "basic", "--time-unit", "millisecond",
+                                      "--command-name", "pixy " .. label, pixy,
+                                      "--command-name", "starship " .. label, reference},
+                          {curdir = directory_path, envs = {
+                              PIXY_CACHE_DIR = path.join(work, "pixy-cache"),
+                              STARSHIP_CACHE = path.join(work, "starship-cache"),
+                              STARSHIP_CONFIG = starship_config,
+                              PWD = directory_path,
+                              TERM = "xterm-256color",
+                          }})
+        end
+
+        compare("directory", plain, "prompt.left.directory", "directory", bare_config)
+        compare("git-branch", root, "prompt.left.git", "git_branch", git_config)
     end)
 
     register("bench-phases", "Where a prompt spends its time", function()
