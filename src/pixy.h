@@ -1,9 +1,4 @@
-/* pixy: a Lua terminal painter.
- *
- * Rust hosted this before; the Lua under lua/ is unchanged, because the
- * configuration language is the contract and a rewrite is not an excuse to
- * break it. What lives here is the host: limits, I/O, packs and the CLI.
- */
+/* pixy: a C terminal renderer configured through Lua. */
 #ifndef PIXY_H
 #define PIXY_H
 
@@ -72,8 +67,8 @@ typedef struct {
 bool pixy_paths_discover(PixyPaths *paths);
 
 typedef struct {
-    char name[4096]; /* "@/path/to/init.lua" or "@pixy/default.lua" */
-    char path[4096]; /* empty when the source is not a file */
+    char name[4096]; /* "@/path/to/init.lua" */
+    char path[4096];
     char directory[4096];
     char *source;
     size_t source_len;

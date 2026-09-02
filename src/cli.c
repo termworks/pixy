@@ -19,8 +19,6 @@ int pixy_bench(int argc, char **argv);
 extern const char PIXY_BASH_INIT[];
 extern const char PIXY_ZSH_INIT[];
 extern const char PIXY_FISH_INIT[];
-extern const char PIXY_OSLO_INIT[];
-extern const char PIXY_HEXE_OSLO_CONFIG[];
 
 /* ---------------------------------------------------------------- colour */
 
@@ -55,7 +53,7 @@ static void print_help(void) {
     pixy_buf_str(&out, " ");
     paint(&out, "2", PIXY_VERSION);
     pixy_buf_str(&out, "\n");
-    paint(&out, "2", "Lua paints your terminal; C hosts it and gets out of the way.");
+    paint(&out, "2", "A C terminal renderer configured through Lua.");
     pixy_buf_str(&out, "\n\n");
 
     paint(&out, "1;38;5;213", "USAGE");
@@ -78,7 +76,7 @@ static void print_help(void) {
         {"list", "", "every zone and segment the config defines"},
         {"check", "", "load the config and report what it holds"},
         {"names", "[<pack>]", "the vocabulary a pack can draw, one id per line"},
-        {"init", "<shell>", "shell integration for bash|zsh|fish|oslo|hexe-oslo"},
+        {"init", "<shell>", "shell integration for bash, zsh, or fish"},
         {"pack", "<build|check|list>", "build and inspect sprite packs"},
         {"palette", "<set|use|end|...>", "colour namespaces for the output pixy writes"},
     };
@@ -205,7 +203,7 @@ static bool command_help(const char *name) {
         usage = "pixy palette <set|use|end|reset|ask> [--slot N] [<key>=<colour> ...]";
         lines = palette_lines;
     } else if (strcmp(name, "init") == 0) {
-        usage = "pixy init <bash|zsh|fish|oslo|hexe-oslo>";
+        usage = "pixy init <bash|zsh|fish>";
         lines = init_lines;
     } else if (strcmp(name, "list") == 0 || strcmp(name, "check") == 0) {
         usage = "pixy list|check [--config PATH]";
@@ -368,8 +366,7 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
         const char *next = index + 1 < argc ? argv[index + 1] : NULL;
         bool needs_value = false;
 
-        /* `--target=ansi` and `--target ansi` are the same option; the oslo
-         * integration writes the first form. */
+        /* `--target=ansi` and `--target ansi` are the same option. */
         char name[64];
         bool joined = false;
         const char *equals = strchr(arg, '=');
@@ -915,17 +912,15 @@ static int names_command(int argc, char **argv) {
 
 static int init_command(int argc, char **argv) {
     if (argc != 1) {
-        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy init <bash|zsh|fish|oslo|hexe-oslo>");
+        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy init <bash|zsh|fish>");
         return PIXY_EXIT_USAGE;
     }
     const char *text = NULL;
     if (strcmp(argv[0], "bash") == 0) text = PIXY_BASH_INIT;
     else if (strcmp(argv[0], "zsh") == 0) text = PIXY_ZSH_INIT;
     else if (strcmp(argv[0], "fish") == 0) text = PIXY_FISH_INIT;
-    else if (strcmp(argv[0], "oslo") == 0) text = PIXY_OSLO_INIT;
-    else if (strcmp(argv[0], "hexe-oslo") == 0) text = PIXY_HEXE_OSLO_CONFIG;
     if (!text) {
-        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy init <bash|zsh|fish|oslo|hexe-oslo>");
+        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy init <bash|zsh|fish>");
         return PIXY_EXIT_USAGE;
     }
     fputs(text, stdout);
@@ -1234,8 +1229,9 @@ static int serve_command(int argc, char **argv) {
     const char *config_path = NULL;
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) config_path = argv[++i];
-        else if (strcmp(argv[i], "--stdio") == 0) continue; /* the only transport; accepted so
-                                                             * existing callers keep working */
+        else if (strcmp(argv[i], "--stdio") == 0)
+            continue; /* the only transport; accepted so
+                       * existing callers keep working */
     }
     return pixy_serve_stdio(config_path);
 }

@@ -21,9 +21,12 @@
 #define MAX_ITEMS 4096
 #define MAX_ITEM_SIZE (1024u * 1024)
 
-/* The embedded archive, laid down by tools/embed.c at build time. */
-extern const unsigned char pixy_pokemon_pack[];
-extern const unsigned int pixy_pokemon_pack_len;
+/* The embedded archive symbols. */
+extern const unsigned char _binary_pokemon_hxsp_start[];
+extern const unsigned char _binary_pokemon_hxsp_end[];
+
+#define pixy_pokemon_pack _binary_pokemon_hxsp_start
+#define pixy_pokemon_pack_len ((size_t)(_binary_pokemon_hxsp_end - _binary_pokemon_hxsp_start))
 
 #define EMBED_MAGIC "HXSP"
 #define EMBED_HEADER 16
@@ -438,7 +441,7 @@ size_t pixy_embedded_count(void) {
 }
 
 const char *pixy_embedded_source(void) {
-    return "krabby / PokéSprite via Hexe 3ddc19b";
+    return "krabby / PokéSprite";
 }
 const char *pixy_embedded_license(void) {
     return "GPL-3.0-only; sprite images © Nintendo/Creatures Inc./GAME FREAK Inc.";

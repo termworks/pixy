@@ -241,4 +241,3 @@ int pixy_serve_stdio(const char *config_path) {
     pixy_engine_free(engine);
     return 0;
 }
-

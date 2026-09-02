@@ -65,11 +65,11 @@ values=('"#ff0000"' '"ff0000"' '"rgb:ff/00/aa"' '"#GGGGGG"' '"#ff00"' '""'
 
 for ((round = 0; round < config_rounds; round++)); do
   {
-    printf 'local pixy = require("pixy")\nreturn pixy.config({ palette = {'
+    printf 'local pixy = require("pixy")\npixy.palette({'
     for ((i = 0; i < RANDOM % 4 + 1; i++)); do
       printf ' %s = %s,' "${keys[RANDOM % ${#keys[@]}]}" "${values[RANDOM % ${#values[@]}]}"
     done
-    printf '}, zones = { z = pixy.zone({ pixy.segment("s", function() return pixy.text("x") end) }) } })\n'
+    printf '})\npixy.zone("z", {pixy.segment("s", function() return pixy.text("x") end)})\n'
   } >"$tmp/config.lua"
 
   out=$("$pixy" palette set --config "$tmp/config.lua" 2>/dev/null)

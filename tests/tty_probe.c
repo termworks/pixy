@@ -3,8 +3,7 @@
  *
  *   tty_probe <have|silent|junk|slow> <command> [argument...]
  *
- * Runs the command on a pty, watches for the `ask` query, and replies the way
- * hexe does. Prints `exit=<code> answer=<what the command printed>`.
+ * Runs the command on a pty, watches for the `ask` query, and prints the result.
  *
  *   have    reply `have;1330;31`
  *   silent  reply nothing, which the protocol defines as unsupported
