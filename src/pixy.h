@@ -1,9 +1,4 @@
-/* pixy: a Lua terminal painter.
- *
- * Rust hosted this before; the Lua under lua/ is unchanged, because the
- * configuration language is the contract and a rewrite is not an excuse to
- * break it. What lives here is the host: limits, I/O, packs and the CLI.
- */
+/* pixy: a C terminal renderer configured through Lua. */
 #ifndef PIXY_H
 #define PIXY_H
 
@@ -72,8 +67,8 @@ typedef struct {
 bool pixy_paths_discover(PixyPaths *paths);
 
 typedef struct {
-    char name[4096]; /* "@/path/to/init.lua" or "@pixy/default.lua" */
-    char path[4096]; /* empty when the source is not a file */
+    char name[4096]; /* "@/path/to/init.lua" */
+    char path[4096];
     char directory[4096];
     char *source;
     size_t source_len;
@@ -156,6 +151,9 @@ typedef struct {
     bool has_now_ms;
     uint64_t now_ms;
     bool ignore_missing;
+    /* Render ahead: frames covering this many ms, not just the one due now.
+     * Zero renders a single frame. */
+    uint32_t frames_ms;
     /* Context as JSON, so it reaches Lua exactly as a caller wrote it. */
     const char *context_json;
     size_t context_json_len;
@@ -178,17 +176,24 @@ void pixy_output_free(PixyOutput *output);
 PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *paths);
 void pixy_engine_free(PixyEngine *engine);
 bool pixy_engine_render(PixyEngine *engine, const PixyRequest *request, PixyOutput *out);
+/* Renders forward from `now_ms` until the picture repeats or `frames_ms`
+ * elapses, whichever comes first. Each frame holds for its own
+ * `next_frame_ms`, so a caller animates without asking again. */
+bool pixy_engine_filmstrip(PixyEngine *engine, const PixyRequest *request, PixyOutput **frames,
+                           size_t *count);
+void pixy_frames_free(PixyOutput *frames, size_t count);
+
 bool pixy_engine_inventory(PixyEngine *engine, char ***names, size_t *count, size_t *zones,
                            size_t *segments);
 const char *pixy_engine_source_name(const PixyEngine *engine);
 
 /* Serialises an output the way `--mode run|surface` prints it. */
 bool pixy_output_json(const PixyOutput *output, PixyBuf *out);
+bool pixy_filmstrip_json(const PixyOutput *frames, size_t count, PixyBuf *out);
 
 /* -------------------------------------------------------------------- cli */
 
 int pixy_main(int argc, char **argv);
-int pixy_serve(const char *socket_path, const char *config_path, bool force);
 /* The same protocol over stdin/stdout, so a host can own its painter instead of
  * sharing one. Returns when stdin closes. */
 int pixy_serve_stdio(const char *config_path);

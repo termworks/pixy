@@ -19,8 +19,6 @@ int pixy_bench(int argc, char **argv);
 extern const char PIXY_BASH_INIT[];
 extern const char PIXY_ZSH_INIT[];
 extern const char PIXY_FISH_INIT[];
-extern const char PIXY_OSLO_INIT[];
-extern const char PIXY_HEXE_OSLO_CONFIG[];
 
 /* ---------------------------------------------------------------- colour */
 
@@ -55,7 +53,7 @@ static void print_help(void) {
     pixy_buf_str(&out, " ");
     paint(&out, "2", PIXY_VERSION);
     pixy_buf_str(&out, "\n");
-    paint(&out, "2", "Lua paints your terminal; C hosts it and gets out of the way.");
+    paint(&out, "2", "A C terminal renderer configured through Lua.");
     pixy_buf_str(&out, "\n\n");
 
     paint(&out, "1;38;5;213", "USAGE");
@@ -74,11 +72,11 @@ static void print_help(void) {
     } commands[] = {
         {"render", "<zone[.segment][,...]>", "render once and exit"},
         {"stream", "<zone[.segment][,...]>", "animate for a bounded time"},
-        {"serve", "[--socket PATH|--stdio]", "answer painter requests, on a socket or a pipe"},
+        {"serve", "[--stdio]", "answer painter requests on stdin and stdout"},
         {"list", "", "every zone and segment the config defines"},
         {"check", "", "load the config and report what it holds"},
         {"names", "[<pack>]", "the vocabulary a pack can draw, one id per line"},
-        {"init", "<shell>", "shell integration for bash|zsh|fish|oslo|hexe-oslo"},
+        {"init", "<shell>", "shell integration for bash, zsh, or fish"},
         {"pack", "<build|check|list>", "build and inspect sprite packs"},
         {"palette", "<set|use|end|...>", "colour namespaces for the output pixy writes"},
     };
@@ -107,6 +105,7 @@ static void print_help(void) {
         {"--set key=value", "a context value, repeatable"},
         {"--context-json  --context-file", "the whole context at once"},
         {"--now-ms MS", "pin the clock, so animation is reproducible"},
+        {"--frames-ms MS", "draw the next MS as a filmstrip, all frames at once"},
         {"--palette [N]", "wrap the line in a colour namespace"},
         {"--newline", "end the output with a newline"},
         {"-h, --help  -V, --version", "this text, or the version"},
@@ -145,6 +144,7 @@ static bool command_help(const char *name) {
         "--context-json J  --context-file P|the whole context",
         "--now-ms MS|pin the clock",
         "--ignore-missing|skip selectors the config does not define",
+        "--frames-ms MS|every frame of the next MS, so a caller animates from one run",
         NULL,
     };
     static const char *stream_lines[] = {
@@ -153,9 +153,8 @@ static bool command_help(const char *name) {
         NULL,
     };
     static const char *serve_lines[] = {
-        "--socket PATH|bind here instead of the default painter socket",
-        "--force|take over a socket another painter is holding",
-        "|else $HEXE_PAINTER_SOCKET, then $XDG_RUNTIME_DIR/hexe/painter.sock",
+        "|reads requests on stdin, writes answers on stdout",
+        "|exits when stdin closes, so it goes when its caller does",
         NULL,
     };
     static const char *names_lines[] = {
@@ -192,7 +191,7 @@ static bool command_help(const char *name) {
         usage = "pixy stream <zone[.segment][,...]> [options]";
         lines = stream_lines;
     } else if (strcmp(name, "serve") == 0) {
-        usage = "pixy serve [--socket PATH] [--config PATH]";
+        usage = "pixy serve [--stdio] [--config PATH]";
         lines = serve_lines;
     } else if (strcmp(name, "names") == 0) {
         usage = "pixy names [<pack>]";
@@ -204,7 +203,7 @@ static bool command_help(const char *name) {
         usage = "pixy palette <set|use|end|reset|ask> [--slot N] [<key>=<colour> ...]";
         lines = palette_lines;
     } else if (strcmp(name, "init") == 0) {
-        usage = "pixy init <bash|zsh|fish|oslo|hexe-oslo>";
+        usage = "pixy init <bash|zsh|fish>";
         lines = init_lines;
     } else if (strcmp(name, "list") == 0 || strcmp(name, "check") == 0) {
         usage = "pixy list|check [--config PATH]";
@@ -367,8 +366,7 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
         const char *next = index + 1 < argc ? argv[index + 1] : NULL;
         bool needs_value = false;
 
-        /* `--target=ansi` and `--target ansi` are the same option; the oslo
-         * integration writes the first form. */
+        /* `--target=ansi` and `--target ansi` are the same option. */
         char name[64];
         bool joined = false;
         const char *equals = strchr(arg, '=');
@@ -419,6 +417,9 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
                 options->request.has_now_ms = true;
                 options->request.now_ms = strtoull(next, NULL, 10);
             }
+        } else if (strcmp(arg, "--frames-ms") == 0) {
+            needs_value = true;
+            if (next) options->request.frames_ms = (uint32_t)strtoul(next, NULL, 10);
         } else if (strcmp(arg, "--fps") == 0) {
             needs_value = true;
             if (next) options->fps = (unsigned)strtoul(next, NULL, 10);
@@ -564,6 +565,8 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
             options->request.has_now_ms = true;
             options->request.now_ms = (uint64_t)pixy_json_number(now);
         }
+        const PixyJson *ahead = pixy_json_get(request, "frames_ms");
+        if (ahead) options->request.frames_ms = (uint32_t)pixy_json_number(ahead);
         const PixyJson *ignore = pixy_json_get(request, "ignore_missing");
         if (ignore) options->request.ignore_missing = pixy_json_bool(ignore);
         const PixyJson *context = pixy_json_get(request, "context");
@@ -694,6 +697,24 @@ static int render_command(int argc, char **argv, bool selector_first) {
         return pixy_error_code();
     }
     palette_resolve(&options, engine);
+    if (options.request.frames_ms) {
+        PixyOutput *frames = NULL;
+        size_t count = 0;
+        if (!pixy_engine_filmstrip(engine, &options.request, &frames, &count)) {
+            pixy_engine_free(engine);
+            free_options(&options);
+            return pixy_error_code();
+        }
+        PixyBuf json = {0};
+        pixy_filmstrip_json(frames, count, &json);
+        fwrite(json.data, 1, json.len, stdout);
+        pixy_buf_free(&json);
+        if (options.newline) fputc('\n', stdout);
+        pixy_frames_free(frames, count);
+        pixy_engine_free(engine);
+        free_options(&options);
+        return 0;
+    }
     PixyOutput output;
     if (!pixy_engine_render(engine, &options.request, &output)) {
         pixy_engine_free(engine);
@@ -776,7 +797,8 @@ static int stream_command(int argc, char **argv) {
 
         long long wait = floor_ms;
         if (output.has_next_frame) {
-            long long due = (long long)output.next_frame_ms - pixy_unix_ms();
+            /* A delay -- "ask again in N ms" -- never a deadline. */
+            long long due = (long long)output.next_frame_ms;
             if (due > wait) wait = due;
         }
         pixy_output_free(&output);
@@ -890,17 +912,15 @@ static int names_command(int argc, char **argv) {
 
 static int init_command(int argc, char **argv) {
     if (argc != 1) {
-        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy init <bash|zsh|fish|oslo|hexe-oslo>");
+        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy init <bash|zsh|fish>");
         return PIXY_EXIT_USAGE;
     }
     const char *text = NULL;
     if (strcmp(argv[0], "bash") == 0) text = PIXY_BASH_INIT;
     else if (strcmp(argv[0], "zsh") == 0) text = PIXY_ZSH_INIT;
     else if (strcmp(argv[0], "fish") == 0) text = PIXY_FISH_INIT;
-    else if (strcmp(argv[0], "oslo") == 0) text = PIXY_OSLO_INIT;
-    else if (strcmp(argv[0], "hexe-oslo") == 0) text = PIXY_HEXE_OSLO_CONFIG;
     if (!text) {
-        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy init <bash|zsh|fish|oslo|hexe-oslo>");
+        pixy_fail(PIXY_EXIT_USAGE, "usage: pixy init <bash|zsh|fish>");
         return PIXY_EXIT_USAGE;
     }
     fputs(text, stdout);
@@ -1197,25 +1217,23 @@ static int palette_command(int argc, char **argv) {
     return code;
 }
 
+/* Answers on stdin and stdout, and only there.
+ *
+ * There used to be a `--socket` server as well, and it was the wrong shape for
+ * what a painter is: one process on the machine that every caller shared, whose
+ * accept loop serialised them, whose config outlived the binary that wrote it,
+ * and that nothing ever shut down. A caller that spawns pixy owns it instead --
+ * it starts with them, answers only them, and exits when their end of the pipe
+ * closes, which needs no shutdown protocol at all. */
 static int serve_command(int argc, char **argv) {
-    const char *socket_path = NULL;
     const char *config_path = NULL;
-    bool force = false;
-    bool stdio = false;
     for (int i = 0; i < argc; i++) {
-        if (strcmp(argv[i], "--socket") == 0 && i + 1 < argc) socket_path = argv[++i];
-        else if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) config_path = argv[++i];
-        else if (strcmp(argv[i], "--force") == 0) force = true;
-        else if (strcmp(argv[i], "--stdio") == 0) stdio = true;
+        if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) config_path = argv[++i];
+        else if (strcmp(argv[i], "--stdio") == 0)
+            continue; /* the only transport; accepted so
+                       * existing callers keep working */
     }
-    if (stdio) {
-        if (socket_path) {
-            pixy_fail(PIXY_EXIT_USAGE, "--stdio and --socket are two transports; pick one");
-            return PIXY_EXIT_USAGE;
-        }
-        return pixy_serve_stdio(config_path);
-    }
-    return pixy_serve(socket_path, config_path, force);
+    return pixy_serve_stdio(config_path);
 }
 
 int pixy_main(int argc, char **argv) {

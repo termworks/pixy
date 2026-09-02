@@ -1,7 +1,7 @@
 -- The version lives here and nowhere else: `veri` reads and bumps this line,
 -- the build compiles it in as PIXY_VERSION_STRING, and the flake reads it from
 -- here too, so a release never leaves two files disagreeing.
-local PROJECT_VERSION = "0.2.2"
+local PROJECT_VERSION = "0.3.0"
 
 set_project("pixy")
 set_version(PROJECT_VERSION)
@@ -10,12 +10,6 @@ set_xmakever("2.8.5")
 set_languages("c11")
 set_warnings("all", "extra", "pedantic")
 set_config("builddir", "build/xmake")
-
--- The generators have to finish before the binary compiles: `pokemon_pack.c`
--- carries the sprite archive in with `.incbin`, so the pack must be a file on
--- disk by the time the assembler reads it, and the module tables are sources
--- the compiler is handed. Overlapping targets would race all three.
-set_policy("build.fence", true)
 
 option("musl")
     set_default(false)
@@ -29,17 +23,15 @@ option("sanitize")
     set_description("Build with the address and undefined-behaviour sanitizers")
 option_end()
 
--- Everything lands here rather than under the mode-specific xmake tree, because
--- the scripts, the tests and the release workflow all reach for `build/pixy`.
+-- Stable output location for tests and release workflows.
 local OUTPUT = "build"
 
 local LUA_SRC = "vendor/lua/src/*.c"
 local MINIZ_SRC = {"vendor/miniz/miniz.c", "vendor/miniz/miniz_tdef.c", "vendor/miniz/miniz_tinfl.c"}
-local LUA_MODULES = {
-    "lua/pixy/style.lua", "lua/pixy/nodes.lua", "lua/pixy/layout.lua", "lua/pixy/ansi.lua",
-    "lua/pixy/encode.lua", "lua/pixy/animate.lua", "lua/pixy/sprite.lua",
-    "lua/pixy/segments/shell.lua", "lua/pixy/segments/git.lua", "lua/pixy/segments/system.lua",
-    "lua/pixy/segments/progress.lua", "lua/pixy/init.lua",
+local EMBEDDED_TEXT = {
+    {"PIXY_BASH_INIT", "examples/shell/init.bash"},
+    {"PIXY_ZSH_INIT", "examples/shell/init.zsh"},
+    {"PIXY_FISH_INIT", "examples/shell/init.fish"},
 }
 
 local function common(target)
@@ -63,59 +55,14 @@ local function quiet_line_markers(target)
     end
 end
 
--- ---------------------------------------------------------------- generators
-
--- Each generator produces its output as soon as it is built, rather than the
--- binary reaching for it: `add_deps` then guarantees the order, where a hook on
--- the consumer would run before its dependencies exist.
-
--- Compiles the bundled Lua to bytecode, which is otherwise parsed at every
--- prompt to reach the same functions. Runs on the machine doing the build.
-target("lua_precompile")
-    set_kind("binary")
-    set_default(false)
-    set_targetdir(OUTPUT)
-    add_files("scripts/lua_precompile.c")
-    add_files(LUA_SRC, {warnings = "none"})
-    on_load(common)
-    on_config(quiet_line_markers)
-    after_build(function(target)
-        import("core.project.depend")
-        local modules = path.join(OUTPUT, "lua_modules.c")
-        depend.on_changed(function()
-            os.vrunv(target:targetfile(), table.join({modules}, LUA_MODULES))
-        end, {files = table.join(LUA_MODULES, {target:targetfile()}),
-              dependfile = modules .. ".d"})
-    end)
-target_end()
-
-target("pack_sprites")
-    set_kind("binary")
-    set_default(false)
-    set_targetdir(OUTPUT)
-    add_files("scripts/pack_sprites.c")
-    add_files(MINIZ_SRC, {warnings = "none"})
-    add_sysincludedirs("vendor/miniz")
-    -- `-std=c11` alone hides `lstat`; the old build got it from the compiler's
-    -- gnu default rather than by asking.
-    add_defines("_GNU_SOURCE")
-    add_syslinks("m")
-    on_config(quiet_line_markers)
-    after_build(function(target)
-        local pack = path.join(OUTPUT, "pokemon.pack")
-        if not os.isfile(pack) then
-            os.vrunv(target:targetfile(), {"docs/assets/pokemon", pack})
-        end
-    end)
-target_end()
-
 -- ------------------------------------------------------------------- binary
 
 target("pixy")
     set_kind("binary")
     set_default(true)
     set_targetdir(OUTPUT)
-    add_deps("lua_precompile", "pack_sprites")
+    add_rules("utils.bin2obj")
+    add_files("assets/pokemon.hxsp", {rule = "utils.bin2obj"})
     add_files("src/*.c")
     -- Vendored code is not ours to hold to our warning settings; Lua's dispatch
     -- loop is a computed goto and miniz trips several on its own.
@@ -123,8 +70,7 @@ target("pixy")
     add_files(MINIZ_SRC, {warnings = "none"})
     -- Generated: one string literal per embedded file, longer than the standard
     -- obliges a compiler to support, which is the point of generating them.
-    add_files(OUTPUT .. "/lua_modules.c", OUTPUT .. "/texts.c",
-              {always_added = true, warnings = "none"})
+    add_files(OUTPUT .. "/texts.c", {always_added = true, warnings = "none"})
 
     on_load(function(target)
         common(target)
@@ -170,24 +116,19 @@ target("pixy")
     before_build(function(target)
         import("core.project.depend")
         local texts = path.join(OUTPUT, "texts.c")
-        local text_inputs = {
-            "lua/pixy/default.lua", "examples/hexe-oslo.lua", "examples/shell/init.bash",
-            "examples/shell/init.zsh", "examples/shell/init.fish", "examples/shell/init.oslo",
-        }
+        local text_inputs = {}
+        for _, entry in ipairs(EMBEDDED_TEXT) do table.insert(text_inputs, entry[2]) end
         os.mkdir(OUTPUT)
         depend.on_changed(function()
-            -- Run from the project root: a hook's working directory is not
-            -- guaranteed to be it, and every path here is relative to it.
-            os.vrunv("bash", {
-                "scripts/embed_text.sh", "text", texts,
-                "PIXY_DEFAULT_CONFIG=lua/pixy/default.lua",
-                "PIXY_HEXE_OSLO_CONFIG=examples/hexe-oslo.lua",
-                "PIXY_BASH_INIT=examples/shell/init.bash",
-                "PIXY_ZSH_INIT=examples/shell/init.zsh",
-                "PIXY_FISH_INIT=examples/shell/init.fish",
-                "PIXY_OSLO_INIT=examples/shell/init.oslo",
-            }, {curdir = os.projectdir()})
-        end, {files = table.join(text_inputs, {"scripts/embed_text.sh"}), dependfile = texts .. ".d"})
+            local source = {"/* Generated by xmake.lua. Do not edit. */\n#include <stddef.h>\n\n"}
+            for _, entry in ipairs(EMBEDDED_TEXT) do
+                local value = io.readfile(path.join(os.projectdir(), entry[2]))
+                value = value:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\t", "\\t")
+                value = value:gsub("\r", "\\r"):gsub("\n", '\\n"\n    "')
+                table.insert(source, "const char " .. entry[1] .. "[] =\n    \"" .. value .. "\";\n\n")
+            end
+            io.writefile(texts, table.concat(source))
+        end, {files = table.join(text_inputs, {"xmake.lua"}), dependfile = texts .. ".d"})
 
     end)
 target_end()
@@ -271,9 +212,8 @@ do
         end
     end
 
-    local function script(name, arguments, environment)
-        process.execv("bash", table.join({path.join(root, "scripts", name)}, arguments or {}),
-                 {envs = environment})
+    local function bash()
+        return os.isfile("/bin/bash") and "/bin/bash" or "bash"
     end
 
     local function register(name, description, action)
@@ -324,16 +264,16 @@ do
 
     register("pixy-test", "Run the test suite", function()
         release_build()
-        process.execv("bash", {path.join(root, "tests/run.sh")})
+        process.execv(bash(), {path.join(root, "tests/run.sh")}, {curdir = root})
     end)
 
     register("sanitize", "The suite under the address and UB sanitizers", function()
         configure("debug", {musl = false, sanitize = true})
         run_xmake({"build", "pixy"})
-        process.execv("bash", {path.join(root, "tests/run.sh")}, {envs = {
+        process.execv(bash(), {path.join(root, "tests/run.sh")}, {curdir = root, envs = {
             PIXY = path.join(OUTPUT, "pixy-sanitize"),
             PIXY_BIN = path.join(OUTPUT, "pixy-sanitize"),
-            ASAN_OPTIONS = "detect_leaks=1",
+            ASAN_OPTIONS = process.getenv("ASAN_OPTIONS") or "detect_leaks=1",
             UBSAN_OPTIONS = "print_stacktrace=1:halt_on_error=1",
         }})
     end)
@@ -341,35 +281,21 @@ do
     register("fuzz", "Random input at the palette surface", function()
         configure("debug", {musl = false, sanitize = true})
         run_xmake({"build", "pixy"})
-        process.execv("bash", {path.join(root, "tests/fuzz.sh"), path.join(OUTPUT, "pixy-sanitize"),
+        process.execv(bash(), {path.join(root, "tests/fuzz.sh"), path.join(OUTPUT, "pixy-sanitize"),
                           process.getenv("ROUNDS") or "1000"},
                  {envs = {ASAN_OPTIONS = "detect_leaks=1", UBSAN_OPTIONS = "halt_on_error=1"}})
     end)
 
-    register("smoke", "Run the CLI smoke", function()
-        release_build()
-        script("smoke.sh")
-    end)
-
-    register("smoke-shell", "Run the shell integration smoke", function()
-        release_build()
-        script("smoke_shell.sh")
-    end)
-
     register("bench", "Run release performance checks", function()
         release_build()
-        script("bench.sh")
-    end)
-
-    register("bench-compare", "Compare against starship (needs the dev shell)", function()
-        release_build()
-        script("bench_compare.sh")
+        process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "cold", "500"})
+        process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "query", "10000"})
+        process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "provider", "100"})
     end)
 
     register("bench-phases", "Where a prompt spends its time", function()
         release_build()
         process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "phases", "400"})
-        process.execv(path.join(root, OUTPUT, "pixy"), {"__bench", "compat-phases", "400"})
     end)
 
     register("example-pack", "Build the example sprite pack", function()
@@ -382,12 +308,17 @@ do
 
     register("package-check", "Check release artifact contents", function()
         run_xmake({"example-pack"})
-        script("package_check.sh", {}, {RELEASE_DIR = OUTPUT})
-    end)
-
-    register("docs-images", "Regenerate the README frames from live output", function()
-        release_build()
-        script("docs_images.sh", {}, {PIXY = path.join(OUTPUT, "pixy")})
+        for _, file in ipairs({"README.md", "LICENSE", "vendor/THIRD_PARTY.md",
+                               "assets/pokemon.hxsp", path.join(OUTPUT, "pixy")}) do
+            if not os.isfile(file) then fail("package input is missing: " .. file) end
+        end
+        process.execv(path.join(root, OUTPUT, "pixy"),
+                      {"pack", "check", path.join(OUTPUT, "pixy-example.pixypack")})
+        local listing = process.iorunv(path.join(root, OUTPUT, "pixy"), {"pack", "list"})
+        if not listing:find("pokemon\t2034\t", 1, true) then
+            fail("the embedded Pokemon pack is incomplete")
+        end
+        report("package ok")
     end)
 
     -- The globs are expanded here: these run the program directly, with no shell
@@ -395,7 +326,7 @@ do
     -- such file exists.
     local function c_sources()
         local found = {}
-        for _, pattern in ipairs({"src/*.c", "src/*.h", "scripts/*.c", "tests/*.c"}) do
+        for _, pattern in ipairs({"src/*.c", "src/*.h", "tests/*.c"}) do
             for _, file in ipairs(process.files(pattern)) do table.insert(found, file) end
         end
         return found

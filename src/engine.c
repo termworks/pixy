@@ -1,6 +1,4 @@
-/* The Lua host: a bounded state, the bundled modules, and one call into
- * `pixy._render`. Layout, styling and encoding all live in Lua and are
- * untouched by this file — that is what keeps a configuration portable. */
+/* The bounded Lua configuration host and its C implementation API. */
 #include "engine.h"
 
 #include <stdio.h>
@@ -14,40 +12,8 @@
 #include "lauxlib.h"
 #include "lua.h"
 #include "lualib.h"
+#include "lua_api.h"
 #include "palette.h"
-
-/* Generated from the lua/pixy tree at build time. */
-extern const PixyModule PIXY_MODULES[];
-extern const size_t PIXY_MODULE_COUNT;
-
-/* Kept byte-identical to the Rust build: a config that required a module by a
- * relative path must keep resolving the same way. */
-static const char MODULE_LOADER[] =
-    "local preload = package.searchers[1]\n"
-    "local compile = load\n"
-    "local function pixy_searcher(name)\n"
-    "  if type(name) ~= \"string\" or not name:match(\"^[%w_][%w_.-]*$\") then\n"
-    "    return \"\\n\\tinvalid Pixy Lua module name \" .. tostring(name)\n"
-    "  end\n"
-    "  local relative = name:gsub(\"%.\", \"/\")\n"
-    "  local candidates = {\n"
-    "    relative .. \".lua\",\n"
-    "    relative .. \"/init.lua\",\n"
-    "    \"lua/\" .. relative .. \".lua\",\n"
-    "    \"lua/\" .. relative .. \"/init.lua\",\n"
-    "  }\n"
-    "  for _, candidate in ipairs(candidates) do\n"
-    "    local ok, source = pcall(__pixy_host.read, candidate)\n"
-    "    if ok and source ~= nil then\n"
-    "      local loader, message = compile(source, \"@\" .. candidate, \"t\")\n"
-    "      if not loader then error(message, 0) end\n"
-    "      return loader, candidate\n"
-    "    end\n"
-    "  end\n"
-    "  return \"\\n\\tno Pixy Lua module '\" .. name .. \"'\"\n"
-    "end\n"
-    "package.searchers = {preload, pixy_searcher}\n"
-    "package.path = \"\"\n";
 
 struct PixyEngine {
     lua_State *L;
@@ -387,46 +353,74 @@ static void config_cache_store(lua_State *L, const char *path) {
     pixy_buf_free(&code);
 }
 
-/* Sits in `package.preload` for every bundled module and does the work only if
- * `require` ever asks. A configuration that uses two of them should not pay for
- * the other ten, and most use far fewer than all twelve.
- *
- * Precompiled first: the parser was the single largest cost in starting up, and
- * it would arrive at these same functions every time. Bytecode a build cannot
- * use is refused cleanly here, so the source stays a working fallback rather
- * than dead weight. */
-static int load_bundled_module(lua_State *L) {
-    size_t index = (size_t)lua_tointeger(L, lua_upvalueindex(1));
-    const PixyModule *module = &PIXY_MODULES[index];
-    char chunk[256];
-    snprintf(chunk, sizeof(chunk), "@bundled/%s.lua", module->name);
-
-    int loaded = LUA_ERRSYNTAX;
-    if (module->code_len) {
-        loaded = luaL_loadbuffer(L, (const char *)module->code, module->code_len, chunk);
-        if (loaded != LUA_OK) lua_pop(L, 1);
+static bool valid_module_name(const char *name) {
+    if (!name || !*name || strstr(name, "..")) return false;
+    for (const char *at = name; *at; at++) {
+        unsigned char ch = (unsigned char)*at;
+        bool alnum =
+            (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
+        if (!alnum && ch != '_' && ch != '.' && ch != '-') return false;
     }
-    if (loaded != LUA_OK) loaded = luaL_loadbuffer(L, module->source, module->len, chunk);
-    if (loaded != LUA_OK) return lua_error(L);
+    return true;
+}
 
-    lua_call(L, 0, 1);
+static int config_searcher(lua_State *L) {
+    const char *name = luaL_checkstring(L, 1);
+    if (!valid_module_name(name)) {
+        lua_pushfstring(L, "\n\tinvalid Pixy Lua module name %s", name);
+        return 1;
+    }
+    char relative[1024];
+    size_t len = strlen(name);
+    if (len >= sizeof(relative) - 16) {
+        lua_pushliteral(L, "\n\tPixy Lua module name is too long");
+        return 1;
+    }
+    memcpy(relative, name, len + 1);
+    for (size_t i = 0; i < len; i++) {
+        if (relative[i] == '.') relative[i] = '/';
+    }
+    char candidates[4][1100];
+    snprintf(candidates[0], sizeof(candidates[0]), "%s.lua", relative);
+    snprintf(candidates[1], sizeof(candidates[1]), "%s/init.lua", relative);
+    snprintf(candidates[2], sizeof(candidates[2]), "lua/%s.lua", relative);
+    snprintf(candidates[3], sizeof(candidates[3]), "lua/%s/init.lua", relative);
+    for (size_t i = 0; i < 4; i++) {
+        lua_getglobal(L, "__pixy_host");
+        lua_getfield(L, -1, "read");
+        lua_pushstring(L, candidates[i]);
+        if (lua_pcall(L, 1, 1, 0) == LUA_OK && lua_isstring(L, -1)) {
+            size_t source_len = 0;
+            const char *source = lua_tolstring(L, -1, &source_len);
+            size_t chunk_len = strlen(candidates[i]) + 2;
+            char *chunk = malloc(chunk_len);
+            if (!chunk) return luaL_error(L, "out of memory loading %s", candidates[i]);
+            snprintf(chunk, chunk_len, "@%s", candidates[i]);
+            int status = luaL_loadbuffer(L, source, source_len, chunk);
+            free(chunk);
+            if (status != LUA_OK) return lua_error(L);
+            lua_pushstring(L, candidates[i]);
+            return 2;
+        }
+        lua_settop(L, 1);
+    }
+    lua_pushfstring(L, "\n\tno Pixy Lua module '%s'", name);
     return 1;
 }
 
-static bool run_chunk(PixyEngine *engine, const char *chunk_name, const char *source, size_t len,
-                      int results, int code, const char *what) {
-    lua_State *L = engine->L;
-    if (luaL_loadbuffer(L, source, len, chunk_name) != LUA_OK) {
-        pixy_fail(code, "%s: lua error: @%s", what, lua_tostring(L, -1));
-        lua_pop(L, 1);
-        return false;
-    }
-    if (lua_pcall(L, 0, results, 0) != LUA_OK) {
-        pixy_fail(code, "%s: lua error: @%s", what, lua_tostring(L, -1));
-        lua_pop(L, 1);
-        return false;
-    }
-    return true;
+static void install_searchers(lua_State *L) {
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "searchers");
+    lua_rawgeti(L, -1, 1);
+    lua_newtable(L);
+    lua_pushvalue(L, -2);
+    lua_rawseti(L, -2, 1);
+    lua_pushcfunction(L, config_searcher);
+    lua_rawseti(L, -2, 2);
+    lua_setfield(L, -4, "searchers");
+    lua_pushliteral(L, "");
+    lua_setfield(L, -3, "path");
+    lua_pop(L, 3);
 }
 
 PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *paths) {
@@ -491,20 +485,8 @@ PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *pa
 
     arm(engine, PIXY_LOAD_DEADLINE_MS);
 
-    lua_getglobal(L, "package");
-    lua_getfield(L, -1, "preload");
-    for (size_t i = 0; i < PIXY_MODULE_COUNT; i++) {
-        lua_pushinteger(L, (lua_Integer)i);
-        lua_pushcclosure(L, load_bundled_module, 1);
-        lua_setfield(L, -2, PIXY_MODULES[i].name);
-    }
-    lua_pop(L, 2);
-
-    if (!run_chunk(engine, "@pixy/module-loader.lua", MODULE_LOADER, sizeof(MODULE_LOADER) - 1, 0,
-                   PIXY_EXIT_CONFIG, "module loader")) {
-        pixy_engine_free(engine);
-        return NULL;
-    }
+    pixy_lua_register_modules(L);
+    install_searchers(L);
 
     lua_getglobal(L, "require");
     lua_pushstring(L, "pixy");
@@ -546,30 +528,24 @@ PixyEngine *pixy_engine_load(const PixyConfigSource *source, const PixyPaths *pa
             return NULL;
         }
     }
-    /* A config registers its zones and returns nothing, so what it built is read
-     * off the module afterwards. Returning a `pixy.config` table still works and
-     * means the same thing -- it is the same zones, handed over differently. */
-    if (lua_isnil(L, -1)) {
-        lua_pop(L, 1);
-        lua_getglobal(L, "package");
-        lua_getfield(L, -1, "loaded");
-        lua_getfield(L, -1, "pixy");
-        lua_newtable(L);
-        if (lua_istable(L, -2)) {
-            lua_getfield(L, -2, "zones");
-        } else {
-            lua_pushnil(L);
-        }
-        lua_setfield(L, -2, "zones");
-        lua_replace(L, -4);
-        lua_pop(L, 2);
-    }
-    if (!lua_istable(L, -1)) {
-        pixy_fail(PIXY_EXIT_CONFIG,
-                  "%s: a config must register zones or return a pixy.config table", source->name);
+    if (!lua_isnil(L, -1)) {
+        pixy_fail(PIXY_EXIT_CONFIG, "%s: a config must register values and return nothing",
+                  source->name);
         pixy_engine_free(engine);
         return NULL;
     }
+    lua_pop(L, 1);
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "loaded");
+    lua_getfield(L, -1, "pixy");
+    lua_newtable(L);
+    lua_getfield(L, -2, "zones");
+    lua_setfield(L, -2, "zones");
+    lua_getfield(L, -2, "_palette");
+    if (!lua_isnil(L, -1)) lua_setfield(L, -2, "palette");
+    else lua_pop(L, 1);
+    lua_replace(L, -4);
+    lua_pop(L, 2);
     if (!validate_config(L, lua_gettop(L), source->name)) {
         pixy_engine_free(engine);
         return NULL;
@@ -839,6 +815,86 @@ void pixy_output_free(PixyOutput *output) {
     pixy_buf_free(&output->stream_rewind);
 }
 
+/* ------------------------------------------------------------- filmstrip */
+
+#define PIXY_MAX_FRAMES 64
+
+/* The drawn picture, ignoring the cadence and the hit regions riding with it:
+ * two frames that paint the same cells are the same frame. */
+static bool same_picture(const PixyOutput *left, const PixyOutput *right) {
+    if (left->mode != right->mode || left->width != right->width || left->height != right->height)
+        return false;
+    if (left->payload.len != right->payload.len || left->runs_json.len != right->runs_json.len)
+        return false;
+    if (left->payload.len && memcmp(left->payload.data, right->payload.data, left->payload.len))
+        return false;
+    if (left->runs_json.len &&
+        memcmp(left->runs_json.data, right->runs_json.data, left->runs_json.len))
+        return false;
+    return true;
+}
+
+bool pixy_engine_filmstrip(PixyEngine *engine, const PixyRequest *request, PixyOutput **frames_out,
+                           size_t *count_out) {
+    *frames_out = NULL;
+    *count_out = 0;
+
+    PixyOutput *frames = calloc(PIXY_MAX_FRAMES, sizeof *frames);
+    if (!frames) {
+        pixy_fail(PIXY_EXIT_RENDER, "out of memory");
+        return false;
+    }
+
+    PixyRequest step = *request;
+    uint64_t base = request->has_now_ms ? request->now_ms : (uint64_t)pixy_unix_ms();
+    step.has_now_ms = true;
+
+    size_t count = 0;
+    uint64_t ahead = 0;
+    while (count < PIXY_MAX_FRAMES) {
+        step.now_ms = base + ahead;
+        PixyOutput frame;
+        if (!pixy_engine_render(engine, &step, &frame)) {
+            pixy_frames_free(frames, count);
+            return false;
+        }
+        /* The cycle closed: the caller loops back to the first frame itself. */
+        if (count > 0 && same_picture(&frames[0], &frame)) {
+            pixy_output_free(&frame);
+            break;
+        }
+        /* A held picture -- the pause at the end of a sweep -- is one frame
+         * shown for longer, not the same cells sent many times. */
+        if (count > 0 && same_picture(&frames[count - 1], &frame)) {
+            frames[count - 1].next_frame_ms += frame.next_frame_ms;
+            uint64_t held = frame.next_frame_ms;
+            pixy_output_free(&frame);
+            if (!held) break;
+            ahead += held;
+            if (ahead >= request->frames_ms) break;
+            continue;
+        }
+        frames[count++] = frame;
+        /* Nothing moves, so there is no second frame to hold. */
+        if (!frame.has_next_frame || frame.next_frame_ms == 0) break;
+        ahead += frame.next_frame_ms;
+        /* Past the horizon the caller asks again anyway, and content that is
+         * not on a cycle -- a clock -- must never be replayed from a stale
+         * strip. */
+        if (ahead >= request->frames_ms) break;
+    }
+
+    *frames_out = frames;
+    *count_out = count;
+    return true;
+}
+
+void pixy_frames_free(PixyOutput *frames, size_t count) {
+    if (!frames) return;
+    for (size_t i = 0; i < count; i++) pixy_output_free(&frames[i]);
+    free(frames);
+}
+
 /* ------------------------------------------------------------- inventory */
 
 static int compare_names(const void *left, const void *right) {
@@ -908,15 +964,7 @@ bool pixy_engine_inventory(PixyEngine *engine, char ***names_out, size_t *count_
 
 /* ------------------------------------------------------------- palette */
 
-/* A configuration may declare the colours its indexes should resolve to:
- *
- *   return pixy.config({
- *     palette = {slot = 2, [1] = "#f38ba8", bg = "#11111b"},
- *     zones = {...},
- *   })
- *
- * pixy never picks colours itself; it only carries what the Lua named.
- */
+/* A configuration may register the colours its indexes should resolve to. */
 static int compare_palette_entries(const void *left, const void *right) {
     const PixyPaletteEntry *a = left, *b = right;
     bool a_index = a->key[0] >= '0' && a->key[0] <= '9';

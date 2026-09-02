@@ -216,10 +216,6 @@ static char *read_file(const char *path, size_t *len, size_t limit) {
     return buf.data;
 }
 
-/* The default configuration, used when the user has none. Kept byte-identical
- * to what the Rust build embedded. */
-extern const char PIXY_DEFAULT_CONFIG[];
-
 bool pixy_config_load(const char *explicit_path, const PixyPaths *paths, PixyConfigSource *out) {
     memset(out, 0, sizeof(*out));
     char candidate[4096];
@@ -238,16 +234,11 @@ bool pixy_config_load(const char *explicit_path, const PixyPaths *paths, PixyCon
     }
 
     if (!chosen) {
-        snprintf(out->name, sizeof(out->name), "@pixy/default.lua");
-        snprintf(out->directory, sizeof(out->directory), "%s", paths->config_dir);
-        out->source_len = strlen(PIXY_DEFAULT_CONFIG);
-        out->source = malloc(out->source_len + 1);
-        if (!out->source) {
-            pixy_fail(PIXY_EXIT_CONFIG, "out of memory");
-            return false;
-        }
-        memcpy(out->source, PIXY_DEFAULT_CONFIG, out->source_len + 1);
-        return true;
+        pixy_fail(
+            PIXY_EXIT_CONFIG,
+            "no Lua configuration found; set PIXY_CONFIG, pass --config, or create %s/init.lua",
+            paths->config_dir);
+        return false;
     }
 
     size_t len = 0;

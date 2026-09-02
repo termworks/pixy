@@ -1,13 +1,4 @@
-/* Palette namespaces: a private 256-colour table per region of output.
- *
- * The protocol is hexe's (docs/palette.md). pixy is a client of it: a prompt
- * claims a slot, prints indexed colours, and releases it, after which the
- * colours can be repainted without pixy rendering anything again.
- *
- * Every failure here is benign by design. A terminal without support discards
- * the sequence and the indexed colours render exactly as before, so pixy emits
- * optimistically and never asks first.
- */
+/* Palette namespaces: a private 256-colour table per region of output. */
 #include "palette.h"
 
 #include "host.h"
@@ -26,10 +17,7 @@
 #define ENTRIES_PER_SET 32
 
 unsigned pixy_palette_osc(void) {
-    /* hexe exports its OSC number into every pane when it is not the default,
-     * so a client builds sequences on the right one without being told. */
     const char *from_env = getenv("PIXY_PALETTE_OSC");
-    if (!from_env || !*from_env) from_env = getenv("HEXE_PALETTE_OSC");
     if (from_env && *from_env) {
         char *stop = NULL;
         long value = strtol(from_env, &stop, 10);

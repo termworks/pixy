@@ -132,7 +132,15 @@ bool pixy_encode_regions(lua_State *L, int index, PixyBuf *out) {
 }
 
 bool pixy_output_json(const PixyOutput *output, PixyBuf *out) {
-    if (output->mode == PIXY_MODE_SURFACE) {
+    if (output->mode == PIXY_MODE_LINE) {
+        /* The drawn line itself, escapes and all: a caller that prints a prompt
+         * wants the bytes, not the runs they were assembled from. */
+        if (!pixy_buf_str(out, "{\"mode\":\"line\",\"text\":")) return false;
+        if (!pixy_buf_json_string(out, output->payload.data ? output->payload.data : "",
+                                  output->payload.len))
+            return false;
+        if (!pixy_buf_fmt(out, ",\"width\":%zu", output->width)) return false;
+    } else if (output->mode == PIXY_MODE_SURFACE) {
         if (!pixy_buf_str(out, "{\"mode\":\"surface\",\"ansi\":")) return false;
         if (!pixy_buf_json_string(out, output->payload.data ? output->payload.data : "",
                                   output->payload.len))
@@ -156,4 +164,13 @@ bool pixy_output_json(const PixyOutput *output, PixyBuf *out) {
         if (!pixy_buf_str(out, output->regions_json.data)) return false;
     }
     return pixy_buf_str(out, "}");
+}
+
+bool pixy_filmstrip_json(const PixyOutput *frames, size_t count, PixyBuf *out) {
+    if (!pixy_buf_str(out, "{\"frames\":[")) return false;
+    for (size_t i = 0; i < count; i++) {
+        if (i && !pixy_buf_str(out, ",")) return false;
+        if (!pixy_output_json(&frames[i], out)) return false;
+    }
+    return pixy_buf_str(out, "]}");
 }

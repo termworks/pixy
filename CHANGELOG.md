@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0] - 2026-09-02
+
+### <!-- 0 -->⛰️  Features
+
+- A view for hexe's keycast plugin
+- Filmstrips, a cycle per request
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- Rows end CRLF, not a bare LF
+- Sweep cadence is a delay
+
+### <!-- 2 -->🚜 Refactor
+
+- Move pixy runtime to C
+- [**breaking**] Drop the socket, stdio only
+
 ## [0.2.2] - 2026-08-28
 
 ### <!-- 0 -->⛰️  Features

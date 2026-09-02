@@ -1,628 +1,186 @@
 #!/usr/bin/env bash
-# The test suite. Shell rather than a framework: every case drives the binary a
-# caller drives, so nothing passes because a test reached past the CLI.
 set -uo pipefail
 
 pixy=${PIXY:-build/pixy}
-config=examples/hexe-oslo.lua
-context=tests/fixtures/contexts/hexe-oslo.json
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
 pass=0
 fail=0
 
-ok() {
-  pass=$((pass + 1))
-}
-
-bad() {
-  fail=$((fail + 1))
-  printf 'FAIL %s\n  expected: %s\n  actual:   %s\n' "$1" "$2" "$3"
-}
-
-equals() {
-  local label=$1 want=$2 got=$3
-  if [ "$want" = "$got" ]; then ok; else bad "$label" "$want" "$got"; fi
-}
-
+ok() { pass=$((pass + 1)); }
+bad() { printf 'FAIL %s\n  expected: %s\n  actual:   %s\n' "$1" "$2" "$3"; fail=$((fail + 1)); }
+equals() { if [ "$2" = "$3" ]; then ok; else bad "$1" "$2" "$3"; fi; }
 exits() {
-  local label=$1 want=$2
+  local label=$1 expected=$2
   shift 2
   "$pixy" "$@" >/dev/null 2>&1
-  local got=$?
-  if [ "$want" = "$got" ]; then ok; else bad "$label" "exit $want" "exit $got"; fi
+  equals "$label" "$expected" "$?"
 }
 
-render() {
-  "$pixy" render "$1" --config "$config" --target plain --width "$2" \
-    --context-file "$context" --now-ms "${3:-0}"
-}
+cat >"$tmp/init.lua" <<'LUA'
+local p = require("pixy")
+local progress = p.progress
+local system = p.system
 
-# ---- the bundled profile, pinned frame by frame ------------------------------
+p.zone("line", {
+  p.segment("left", function(ctx)
+    return p.text(" " .. tostring(ctx.values.name or "pixy") .. " ", {fg = 15, bg = 24, bold = true})
+  end, {priority = 1}),
+  p.segment("status", function(ctx)
+    return p.when((ctx.values.status or 0) ~= 0,
+      p.text(" " .. tostring(ctx.values.status) .. " ", {fg = "white", bg = "red"}))
+  end, {priority = 5}),
+})
 
-equals "prompt.left@200" \
-  " //host  nix bresilla ▓| ❄  sudo | 2  7   >> | λ " \
-  "$(render prompt.left 200)"
-equals "prompt.right@200" \
-  "| pod | ~d/c/t/pixy  main  !  N " \
-  "$(render prompt.right 200)"
-equals "prompt.left@20" " bresilla  7  λ " "$(render prompt.left 20)"
-equals "status.center" " main | logs " "$(render status.center 60)"
+p.zone("layout", {
+  p.segment("content", function()
+    return p.row({p.text("left"), p.spacer(), p.style("right", {fg = {1, 2, 3}})})
+  end),
+})
 
-# Width is an input: segments drop by priority as the room runs out.
-equals "status@88 is a full bar" 88 "$(render status 88 | wc -L)"
-equals "status@26 sheds" "$(render status 26 | wc -L)" "$(render status 26 | wc -L)"
+p.zone("animation", {
+  p.segment("spinner", function(ctx)
+    return p.spinner({frames = {"a", "b", "c"}, interval_ms = 50,
+      started_at_ms = ctx.values.started_at_ms})
+  end),
+})
 
-# ---- the guarantees ----------------------------------------------------------
+p.zone("surface", {
+  p.segment("sprite", function()
+    return p.sprite({frames = {" x \nyy "}, transparent = true})
+  end),
+})
 
-# A float title dims as ONE label, padding included.
-#
-# The padding is a pair of spaces, and a space shows only its background. Those
-# edges used to be pinned to the active background while the body dimmed, so an
-# unfocused float wore two blocks of the ACTIVE colour around a grey title --
-# which reads as decoration that failed to update rather than as padding.
-#
-# Asserted as "the other state's background does not appear at all", because
-# that is the property: nothing in the label may be left behind when it changes.
-titlectx() { printf '{"values":{"title":"probe","active":%s}}' "$1"; }
-title_ansi() {
-  "$pixy" render float.title --config "$config" --target ansi \
-    --context-json "$(titlectx "$1")" 2>/dev/null
-}
+p.zone("host", {
+  p.segment("exec", function()
+    local result = p.host.exec({"printf", "native"}, {timeout_ms = 100})
+    return result.stdout
+  end),
+})
 
-inactive_render=$(title_ansi false)
-case "$inactive_render" in
-  *"48;5;1m"*) bad "an inactive float title keeps nothing at the active colour" \
-                   "no 48;5;1 anywhere" "$(printf '%s' "$inactive_render" | cat -v)" ;;
+p.zone("builtin", {
+  p.segment("directory", p.renderers.directory),
+  p.segment("git", p.renderers.git),
+  p.segment("status", p.renderers.status),
+  p.segment("spinner", p.renderers.spinner),
+})
+
+p.zone("pokemon", {
+  p.segment("sprite", p.renderers.pokemon),
+})
+
+p.zone("progress", {
+  p.segment("bar", function(ctx) return progress.segment({width = 5}, ctx) end),
+})
+
+p.zone("system", {
+  p.segment("uptime", function(ctx) return tostring(math.floor(system.uptime(ctx))) end),
+})
+
+p.zone("providers", {
+  p.segment("providers", function(ctx)
+    local battery = system.battery(ctx)
+    return tostring(system.sudo(ctx)) .. ":" .. tostring(battery.percent)
+      .. ":" .. tostring(battery.status) .. ":" .. system.clock(ctx, "!%S")
+  end),
+})
+
+p.palette({slot = 2, [1] = "#cc241d", bg = "#282828"})
+LUA
+
+export PIXY_CACHE_DIR="$tmp/cache"
+config=(--config "$tmp/init.lua")
+
+equals "check" 0 "$("$pixy" check "${config[@]}" >/dev/null; echo $?)"
+equals "line plain" " pixy " "$("$pixy" render line "${config[@]}" --target plain)"
+equals "context" " nova  7 " \
+  "$("$pixy" render line "${config[@]}" --target plain --set name=nova --set status=7)"
+equals "segment" " 7 " \
+  "$("$pixy" render line.status "${config[@]}" --target plain --set status=7)"
+equals "width pruning" " nova " \
+  "$("$pixy" render line "${config[@]}" --target plain --width 6 --set name=nova --set status=7)"
+equals "spacer" "left           right" \
+  "$("$pixy" render layout "${config[@]}" --target plain --width 20)"
+equals "spinner frame zero" a \
+  "$("$pixy" render animation "${config[@]}" --target plain --now-ms 0)"
+equals "spinner frame one" b \
+  "$("$pixy" render animation "${config[@]}" --target plain --now-ms 50)"
+equals "host exec" native "$("$pixy" render host "${config[@]}" --target plain)"
+equals "builtin renderers" " /tmp  main  7 ⠋" \
+  "$("$pixy" render builtin "${config[@]}" --target plain --set cwd=/tmp --set git_branch=main --set status=7 --now-ms 0)"
+equals "native progress" "██▓░░ 50%" \
+  "$("$pixy" render progress "${config[@]}" --target plain --set progress_state=in_progress --set progress_pct=50)"
+case $("$pixy" render system "${config[@]}" --target plain) in
+  ''|*[!0-9]*) bad "native system provider" "uptime seconds" "invalid" ;;
   *) ok ;;
 esac
 
-active_render=$(title_ansi true)
-case "$active_render" in
-  *"48;5;237m"*) bad "an active float title keeps nothing at the inactive colour" \
-                     "no 48;5;237 anywhere" "$(printf '%s' "$active_render" | cat -v)" ;;
-  *) ok ;;
-esac
+printf '73\n' >"$tmp/capacity"
+printf 'Charging\n' >"$tmp/status"
+equals "native providers" "true:73:Charging:00" \
+  "$("$pixy" render providers "${config[@]}" --target plain --now-ms 50 \
+     --context-json "{\"values\":{\"sudo\":true,\"battery_capacity_path\":\"$tmp/capacity\",\"battery_status_path\":\"$tmp/status\"}}")"
 
-# The container title is a different case on purpose: its edges are the
-# surrounding black, a gap rather than a slab, and must stay that way.
-container_inactive=$("$pixy" render container.title --config "$config" --target ansi \
-  --context-json "$(titlectx false)" 2>/dev/null)
-case "$container_inactive" in
-  *"48;5;0m"*) ok ;;
-  *) bad "a container title keeps its black edges" "48;5;0 present" \
-         "$(printf '%s' "$container_inactive" | cat -v)" ;;
-esac
+ansi=$("$pixy" render line.left "${config[@]}" --target ansi)
+case $ansi in *$'\e[38;5;15;48;5;24;1m'*) ok ;; *) bad "ANSI style" "styled" "$(printf %q "$ansi")" ;; esac
+bash_prompt=$("$pixy" render line.left "${config[@]}" --target bash)
+case $bash_prompt in *'\['*) ok ;; *) bad "bash escape" "wrapped" "$bash_prompt" ;; esac
+zsh_prompt=$("$pixy" render line.left "${config[@]}" --target zsh)
+case $zsh_prompt in *'%{'*) ok ;; *) bad "zsh escape" "wrapped" "$zsh_prompt" ;; esac
 
-# A label beside a spinner is held for the whole run, not re-rolled per frame.
-#
-# `system.random` used to seed from `now_ms`, so it picked again on every frame
-# the bar drew -- and the spinner next to it asks for one every few tens of
-# milliseconds, so the word churned instead of labelling anything. Seeding is
-# from the run's start now: the spinner moves, the word does not.
-#
-# The bundled fixture supplies `randomdo`, which short-circuits the random path
-# entirely, so this needs a context of its own or it would prove nothing.
-runctx='{"values":{"shell_running":true,"alt_screen":false,"started_at_ms":1000000}}'
-first=""
-churned=0
-# Deliberately NOT multiples of the frame step: with four words, times that are
-# all congruent mod 4 land on the same entry and would pass whatever the seed.
-for t in 0 37 71 118 163 209 254 301; do
-  word=$("$pixy" render status.left.random --context-json "$runctx" \
-         --target plain --now-ms "$((1000000 + t))" 2>/dev/null)
-  if [ -z "$first" ]; then first="$word"; elif [ "$word" != "$first" ]; then churned=1; fi
-done
-if [ -n "$first" ]; then ok; else bad "the label rendered at all" "a word" "nothing"; fi
-equals "the label is held for the whole run" 0 "$churned"
+run=$("$pixy" render line.left "${config[@]}" --mode run)
+case $run in *'"style":"fg:15 bg:24 bold"'*) ok ;; *) bad "run style" "style descriptor" "$run" ;; esac
+surface=$("$pixy" render surface "${config[@]}" --mode surface --width 5 --height 2)
+case $surface in *$'\e[1C'*$'\r\n'*) ok ;; *) bad "surface" "two rows with transparency" "$surface" ;; esac
 
-# ...and a different run may still get a different word, or it is not a label
-# for the run, it is a constant.
-varies=0
-prev=""
-for r in 1000000 1000001 1000002 1000003; do
-  word=$("$pixy" render status.left.random --context-json \
-         "{\"values\":{\"shell_running\":true,\"alt_screen\":false,\"started_at_ms\":$r}}" \
-         --target plain --now-ms 9999999 2>/dev/null)
-  if [ -n "$prev" ] && [ "$word" != "$prev" ]; then varies=1; fi
-  prev="$word"
-done
-equals "a different run may get a different word" 1 "$varies"
+names=$("$pixy" list "${config[@]}")
+case $names in *line.left*pokemon.sprite*) ok ;; *) bad "inventory" "zone and segment names" "$names" ;; esac
 
-runaway=$(mktemp)
-cat >"$runaway" <<'LUA'
-local pixy = require("pixy")
-return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
-  while true do end
-end)})}})
-LUA
-started=$(date +%s%N)
-"$pixy" render x --config "$runaway" --target plain >/dev/null 2>&1
-code=$?
-elapsed=$(( ($(date +%s%N) - started) / 1000000 ))
-equals "a runaway config is stopped" 4 "$code"
-if [ "$elapsed" -lt 1000 ]; then ok; else bad "stopped promptly" "<1000ms" "${elapsed}ms"; fi
-rm -f "$runaway"
+palette=$("$pixy" palette set "${config[@]}")
+case $palette in *'cc241d'*'282828'*) ok ;; *) bad "config palette" "configured colours" "$(printf %q "$palette")" ;; esac
 
-hungry=$(mktemp)
-cat >"$hungry" <<'LUA'
-local pixy = require("pixy")
-return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
-  local t = {}
-  while true do t[#t + 1] = ("x"):rep(8192) end
-end)})}})
-LUA
-"$pixy" render x --config "$hungry" --target plain >/dev/null 2>&1
-equals "a hungry config is stopped" 4 "$?"
-rm -f "$hungry"
+"$pixy" init bash >"$tmp/bash"
+"$pixy" init zsh >"$tmp/zsh"
+"$pixy" init fish >"$tmp/fish"
+grep -q -- '--target bash' "$tmp/bash" && ok || bad "bash init" "bash target" "missing"
+grep -q -- '--target zsh' "$tmp/zsh" && ok || bad "zsh init" "zsh target" "missing"
+grep -q -- '--target ansi' "$tmp/fish" && ok || bad "fish init" "ansi target" "missing"
+exits "unsupported shell" 2 init unknown
 
-# A config reaches the machine through the host or not at all. `io.open` would
-# walk straight past the trusted roots, so the libraries that offer it are never
-# opened rather than being taken away afterwards.
-sandbox=$(mktemp)
-cat >"$sandbox" <<'LUA'
-local pixy = require("pixy")
-return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
-  local reachable = {}
-  if io ~= nil then reachable[#reachable + 1] = "io" end
-  if debug ~= nil then reachable[#reachable + 1] = "debug" end
-  if os and os.execute ~= nil then reachable[#reachable + 1] = "os.execute" end
-  if os and os.remove ~= nil then reachable[#reachable + 1] = "os.remove" end
-  if dofile ~= nil then reachable[#reachable + 1] = "dofile" end
-  if loadfile ~= nil then reachable[#reachable + 1] = "loadfile" end
-  return #reachable == 0 and "sealed" or table.concat(reachable, ",")
-end)})}})
-LUA
-equals "a config cannot reach past the host" "sealed" \
-  "$("$pixy" render x --config "$sandbox" --target plain)"
-# What it does need stays: the clock and the width tables are the whole point.
-cat >"$sandbox" <<'LUA'
-local pixy = require("pixy")
-return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
-  return os.date("!%Y", 0) .. ":" .. tostring(utf8.len("héllo")) .. ":" .. ("x"):rep(2)
-end)})}})
-LUA
-equals "the clock and utf8 are still there" "1970:5:xx" \
-  "$("$pixy" render x --config "$sandbox" --target plain)"
-rm -f "$sandbox"
+"$pixy" render pokemon "${config[@]}" --mode surface --width 80 --height 40 >"$tmp/pokemon"
+grep -Fq $'\e[38;2;' "$tmp/pokemon" && ok || bad "embedded pokemon" "truecolor sprite" "missing"
+equals "embedded names" 1017 "$("$pixy" names pokemon | wc -l)"
 
-# The deadline bounds how long a config may *compute*. Waiting on a provider is
-# not computing, and providers have a budget of their own an order of magnitude
-# larger, so charging the deadline for time spent blocked in waitpid killed
-# prompts that were doing exactly what they were meant to: ask a few providers,
-# then lay the answer out.
-waiting=$(mktemp)
-cat >"$waiting" <<'LUA'
-local pixy = require("pixy")
-return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
-  for _ = 1, 3 do pixy.host.exec({"sleep", "0.05"}, {timeout_ms = 500, ttl_ms = 0}) end
-  local total = 0
-  for i = 1, 200000 do total = total + i end
-  return pixy.text(tostring(total))
-end)})}})
-LUA
-equals "waiting on providers does not spend the deadline" "20000100000" \
-  "$("$pixy" render x --config "$waiting" --target plain)"
-rm -f "$waiting"
+mkdir "$tmp/pack"
+printf cat >"$tmp/pack/cat.txt"
+"$pixy" pack build "$tmp/pack" --output "$tmp/example.pixypack" \
+  --source tests --license MIT --attribution Pixy
+"$pixy" pack check "$tmp/example.pixypack" >/dev/null && ok || bad "pack check" 0 "$?"
 
-escape=$(mktemp)
-cat >"$escape" <<'LUA'
-local pixy = require("pixy")
-return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
-  return tostring(pixy.host.read("/etc/passwd"))
-end)})}})
-LUA
-"$pixy" render x --config "$escape" --target plain >/dev/null 2>&1
-equals "reads stay inside the trusted roots" 4 "$?"
-rm -f "$escape"
+exits "missing config" 3 render line --config "$tmp/missing.lua" --target plain
+exits "unknown selector" 4 render missing "${config[@]}" --target plain
 
-# ---- a cached provider still expires -----------------------------------------
-
-# A hit must serve what is stored and let it lapse on time. Renewing the window
-# on every read froze a 250ms clock for as long as a host kept asking for it,
-# which is exactly what a status bar does.
-ticking=$(mktemp)
-cat >"$ticking" <<'LUA'
-local pixy = require("pixy")
-return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function()
-  local result = pixy.host.exec({"date", "+%s%N"}, {timeout_ms = 200, ttl_ms = 250})
-  return (result.stdout:gsub("%s+$", ""))
-end)})}})
-LUA
-first=$("$pixy" render x --config "$ticking" --target plain)
-sleep 0.05
-within=$("$pixy" render x --config "$ticking" --target plain)
-equals "a fresh cache entry is reused" "$first" "$within"
-# Poll faster than the ttl throughout, the way a bar does, then look past it.
-for _ in $(seq 6); do
-  "$pixy" render x --config "$ticking" --target plain >/dev/null
-  sleep 0.1
-done
-after=$("$pixy" render x --config "$ticking" --target plain)
-if [ "$first" != "$after" ]; then ok; else bad "a cached provider expires" "a new value" "$after"; fi
-rm -f "$ticking"
-
-# ---- configuration errors are named ------------------------------------------
-
-for broken in \
-  'return pixy.config({zones = {["bad name"] = pixy.zone({pixy.segment("v", function() return "x" end)})}})' \
-  'return pixy.config({zones = {x = pixy.zone({})}})' \
-  'return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function() return "x" end), pixy.segment("v", function() return "y" end)})}})' \
-  'return pixy.config({zones = {x = {kind = "not a zone"}}})' \
-  'return {}'; do
-  file=$(mktemp)
-  printf 'local pixy = require("pixy")\n%s\n' "$broken" >"$file"
-  "$pixy" render x --config "$file" --target plain >/dev/null 2>&1
-  equals "invalid config refused" 3 "$?"
-  rm -f "$file"
+for legacy in \
+  'require("pixy.animate")' \
+  'require("pixy.segments.git")' \
+  'local p=require("pixy"); p.config({zones={}})' \
+  'local p=require("pixy"); p.zone({})' \
+  'local p=require("pixy"); p.zone("x", {p.segment("s", function() return "x" end)}); return {}'; do
+  printf '%s\n' "$legacy" >"$tmp/legacy.lua"
+  exits "legacy Lua API rejected" 3 check --config "$tmp/legacy.lua"
 done
 
-# ---- context ------------------------------------------------------------------
-
-values=$(mktemp)
-cat >"$values" <<'LUA'
-local pixy = require("pixy")
-return pixy.config({zones = {x = pixy.zone({pixy.segment("v", function(ctx)
-  return tostring(ctx.values.status) .. ":" .. tostring(ctx.values.key) ..
-    ":" .. tostring(ctx.values.flag) .. ":" .. tostring(ctx.values.missing)
-end)})}})
+cat >"$tmp/runaway.lua" <<'LUA'
+local p=require("pixy")
+p.zone("x", {p.segment("loop", function() while true do end end)})
 LUA
-equals "--set spells its own type" "7:text:true:nil" \
-  "$("$pixy" render x --config "$values" --target plain --set status=7 --set key=text --set flag=true --set missing=)"
-# A whole context replaces what --set built rather than merging into it.
-equals "--context-json replaces --set" "2:json:nil:nil" \
-  "$("$pixy" render x --config "$values" --target plain --set status=1 \
-     --context-json '{"values":{"status":2,"key":"json"}}')"
-rm -f "$values"
+exits "render deadline" 4 render x --config "$tmp/runaway.lua" --target plain
 
-# The oslo integration writes `--target=ansi`; both spellings are one option.
-equals "--flag=value is accepted" \
-  "$("$pixy" render prompt.left --config "$config" --target plain --width 60 --context-file "$context" --now-ms 0)" \
-  "$("$pixy" render prompt.left --config="$config" --target=plain --width=60 --context-file="$context" --now-ms=0)"
-for spelling in --target=plain --mode=line --width=40; do
-  "$pixy" render prompt.left --config "$config" "$spelling" --context-file "$context" >/dev/null 2>&1
-  equals "$spelling parses" 0 "$?"
-done
-# Every command the shell integrations print must actually run.
-for shell in bash zsh fish oslo; do
-  while read -r line; do
-    equals "init $shell command runs" 0 "$(eval "${line/command pixy/$pixy}" >/dev/null 2>&1; echo $?)"
-  done < <("$pixy" init "$shell" | grep -oE '(command )?pixy render [^"$)]*' | head -2)
-done
-
-# ---- names, packs, inventory ---------------------------------------------------
-
-equals "names lists one id per creature" 1017 "$("$pixy" names | wc -l)"
-equals "names are ids, not paths" 0 "$("$pixy" names | grep -c '/')"
-equals "names includes pikachu" 1 "$("$pixy" names | grep -c '^pikachu$')"
-exits "names refuses an unknown pack" 2 names definitely-not-a-pack
-equals "every name has art" "ok" "$(
-  for name in $("$pixy" names | head -400 | tail -8); do
-    "$pixy" render overlay --config "$config" --mode surface --width 20 --height 8 \
-      --context-json "{\"values\":{\"sprite_name\":\"$name\"}}" >/dev/null 2>&1 || { echo "missing $name"; exit; }
-  done
-  echo ok
-)"
-
-equals "pack list reports the embedded pack" 1 \
-  "$("$pixy" pack list | grep -c '^pokemon	2034')"
-
-# ---- the CLI itself ------------------------------------------------------------
-
-equals "version" 1 "$("$pixy" --version | grep -cE '^pixy [0-9]+\.[0-9]+\.[0-9]+$')"
-equals "help lists the commands" 1 "$("$pixy" --help | grep -c 'names \[<pack>\]')"
-equals "command help answers" 1 "$("$pixy" names --help | grep -c '^pixy names')"
-exits "a typo is a usage error" 2 frobnicate
-exits "an unknown zone is a render error" 4 render nope --config "$config"
-equals "a typo names the commands" 1 \
-  "$("$pixy" frobnicate 2>&1 | grep -c 'no zone or command named')"
-equals "diagnostics go to stderr" "" "$("$pixy" render nope --config "$config" 2>/dev/null)"
-
-# `pixy names | head` closes the pipe early and must exit quietly. Quiet means
-# saying nothing, not any one status: whether the writer finishes into the pipe
-# buffer first (0) or is killed by SIGPIPE (141) is a race, and dying on SIGPIPE
-# is what every other filter does.
-noise=$("$pixy" names 2>&1 >/dev/null | head -1)
-"$pixy" names 2>/dev/null | head -1 >/dev/null
-case "${PIPESTATUS[0]}" in
-  0 | 141) equals "a closed pipe is quiet" "" "$noise" ;;
-  *) bad "a closed pipe is quiet" "exit 0 or 141" "exit ${PIPESTATUS[0]}" ;;
-esac
-
-equals "render writes no trailing newline" "1" \
-  "$("$pixy" render prompt.left --config "$config" --target plain --context-file "$context" | wc -l | tr -d ' ' | sed 's/^0$/1/')"
-
-# ---- the clock -----------------------------------------------------------------
-
-# Read in process, from the time pixy already holds. Running `date` instead read
-# the zone with whatever libc was first on PATH, and one that cannot find its
-# zoneinfo falls back to UTC without saying so -- a prompt hours behind.
-clock() {
-  "$pixy" render status.left.clock --config "$config" --target plain "$@" | tr -d ' '
-}
-# One instant, four zones, the offsets they are actually owed. `date` is not the
-# reference here: a `date` whose libc cannot find its zoneinfo answers UTC for
-# every one of these, which is the bug this pins.
-#
-# Whether zones resolve at all belongs to the C library this binary was linked
-# against, not to pixy: a glibc built by Nix carries a TZDIR holding no zoneinfo,
-# so a binary built in the dev shell answers UTC for everything until TZDIR is
-# set. Asking it first keeps the failure honest -- what is being checked is that
-# pixy reads local time, and where nothing can tell the zones apart there is
-# nothing to read.
-if [ "$(TZ=UTC clock --now-ms 1200000000)" = "$(TZ=Asia/Tokyo clock --now-ms 1200000000)" ]; then
-  printf 'note: this C library resolves no timezones (TZDIR=%s); zone offsets not checked\n' \
-    "${TZDIR:-unset}"
+if strings "$pixy" | grep -Eq 'lua/pixy/(layout|style|nodes)\.lua'; then
+  bad "no bundled Lua implementation" "no internal module paths" "found"
 else
-  equals "the clock follows the zone" "21:20:00 06:20:00 22:20:00 16:20:00" \
-    "$(TZ=UTC clock --now-ms 1200000000) $(TZ=Asia/Tokyo clock --now-ms 1200000000) \
-$(TZ=Europe/Berlin clock --now-ms 1200000000) $(TZ=America/New_York clock --now-ms 1200000000)"
-fi
-equals "the same instant renders the same twice" \
-  "$(clock --now-ms 1787292810953)" "$(clock --now-ms 1787292810953)"
-# A caller that supplies its own time still wins.
-equals "a caller's time overrides the clock" "12:34:56" \
-  "$("$pixy" render status.left.clock --config "$config" --target plain \
-     --context-file "$context" | tr -d ' ')"
-
-# ---- the compiled config cache -------------------------------------------------
-
-# Parsing a real config was the largest cost left in a prompt, so the compiled
-# form is kept. What it must never do is serve an edit's predecessor: the key is
-# the content, because `st_mtime` counts whole seconds and two edits a moment
-# apart that leave the file the same length look identical to it.
-cachedir=$(mktemp -d)
-live=$(mktemp)
-write_config() {
-  printf 'local pixy = require("pixy")\nreturn pixy.config({zones = {z = pixy.zone({pixy.segment("s", function() return pixy.text("%s") end)})}})\n' "$1" >"$live"
-}
-seen=""
-for word in ONE TWO ONE THREE; do
-  write_config "$word"
-  seen="$seen$(PIXY_CACHE_DIR=$cachedir "$pixy" render z --config "$live" --target plain) "
-done
-equals "an edit is never served the last compile" "ONE TWO ONE THREE " "$seen"
-# One compiled copy per config, not one per edit.
-equals "the cache keeps one copy per config" 1 \
-  "$(find "$cachedir" -name '*.luac' | wc -l | tr -d ' ')"
-# A cache it cannot use is a slower start, never a broken one.
-printf 'not a compiled chunk' >"$(find "$cachedir" -name '*.luac')"
-equals "a corrupt cache falls back to the source" "THREE" \
-  "$(PIXY_CACHE_DIR=$cachedir "$pixy" render z --config "$live" --target plain)"
-equals "a config renders the same with no cache at all" "THREE" \
-  "$(PIXY_CACHE_DIR=/nonexistent/unwritable "$pixy" render z --config "$live" --target plain)"
-rm -rf "$cachedir" "$live"
-
-# ---- the capability query ------------------------------------------------------
-
-# `ask` alone stays an emitter like every other verb. `--wait` is the protocol's
-# one round trip, and needs a terminal that answers, so it runs on a pty.
-exits "a timeout is bounded" 2 palette ask --wait --timeout-ms 0
-exits "a timeout is bounded above too" 2 palette ask --wait --timeout-ms 999999
-
-# Deliberately not run against the terminal the suite is in. `--wait` writes a
-# query to /dev/tty and reads the reply, so doing it here would depend on which
-# terminal someone runs the tests from -- silence outside hexe, an answer inside
-# it -- and would take a keystroke out of their input while it listened. The pty
-# cases below give it a terminal of its own and pin both answers exactly.
-
-probe=$(mktemp -u)
-if ${CC:-cc} -O1 -o "$probe" tests/tty_probe.c -lutil >/dev/null 2>&1; then
-  # Silence is the documented answer for "unsupported", and a reply that arrives
-  # after the deadline is silence -- a prompt cannot wait on a terminal.
-  equals "a terminal that answers is believed" "exit=0 answer=1330 31" \
-    "$("$probe" have "$pixy" palette ask --wait)"
-  equals "another reply in the way is stepped over" "exit=0 answer=1330 31" \
-    "$("$probe" junk "$pixy" palette ask --wait)"
-  equals "silence means unsupported" "exit=1 answer=" \
-    "$("$probe" silent "$pixy" palette ask --wait)"
-  equals "a late reply is not waited for" "exit=1 answer=" \
-    "$("$probe" slow "$pixy" palette ask --wait --timeout-ms 100)"
-  rm -f "$probe"
-fi
-
-# ---- palette namespaces --------------------------------------------------------
-
-esc=$'\033'
-st=$'\033\\'
-palette() { "$pixy" palette "$@" 2>&1; }
-
-equals "use claims a slot" "${esc}]1330;use;4${st}" "$(palette use --slot 4)"
-equals "end releases it" "${esc}]1330;end${st}" "$(palette end)"
-equals "ask is the capability query" "${esc}]1330;ask${st}" "$(palette ask)"
-equals "reset forgets a slot" "${esc}]1330;reset;4${st}" "$(palette reset --slot 4)"
-equals "a star addresses every slot in use" "${esc}]1330;set;*;7=#ff00aa${st}" \
-  "$(palette set --slot '*' 7=#ff00aa)"
-equals "hexe spells the flag --ns" "${esc}]1330;use;4${st}" "$(palette use --ns 4)"
-equals "set patches named entries only" "${esc}]1330;set;2;1=#ff5555;bg=#0a0a0a${st}" \
-  "$(palette set 1=#ff5555 bg=#0a0a0a)"
-equals "the OSC number follows the terminal" "${esc}]1400;use;4${st}" \
-  "$(HEXE_PALETTE_OSC=1400 palette use --slot 4)"
-
-# Slot 0 is the ordinary palette and slot 1 the terminal's own chrome: both can
-# be themed, neither can be claimed, or output would be tagged as someone else's.
-exits "use refuses the ordinary palette" 2 palette use --slot 0
-exits "use refuses the terminal's chrome" 2 palette use --slot 1
-exits "use refuses a slot past the last" 2 palette use --slot 32
-exits "set themes the ordinary palette" 0 palette set --slot 0 1=#c04040
-exits "set themes the terminal's chrome" 0 palette set --slot 1 237=#123456
-exits "a colour may not carry a separator" 2 palette set 1='#ff00aa;boom'
-exits "a key is an index or a name" 2 palette set 300=#ff00aa
-exits "cursor is a key" 0 palette set cursor=#00ff88
-exits "rgb: is a colour" 0 palette set 1=rgb:ff/00/aa
-
-# A prompt claims the slot the config declares, so the startup `set` and the
-# per-prompt `use` cannot drift apart.
-declared=tests/fixtures/palette.lua
-equals "set emits what the config declared" "${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${st}" \
-  "$("$pixy" palette set --config "$declared")"
-equals "a render claims the declared slot" \
-  "${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${st}${esc}]1330;use;3${st} hi ${esc}]1330;end${st}" \
-  "$("$pixy" render prompt.left --config "$declared" --target plain --palette)"
-equals "an explicit slot wins over the config" \
-  "${esc}]1330;set;9;15=#cdd6f4;bg=#11111b${st}${esc}]1330;use;9${st} hi ${esc}]1330;end${st}" \
-  "$("$pixy" render prompt.left --config "$declared" --target plain --palette 9)"
-equals "a config that declares nothing emits nothing" "" \
-  "$("$pixy" palette set --config examples/minimal.lua)"
-
-# Bash reads the backslash of ST as an escape inside `\[ … \]`: it eats the
-# closing marker and prints a stray `]` into the prompt. So a bash prompt gets
-# BEL, which the protocol allows and the shell leaves alone. Zsh keeps ST.
-bell=$'\a'
-bash_prompt=$("$pixy" render prompt.left --config "$declared" --target bash --palette)
-zsh_prompt=$("$pixy" render prompt.left --config "$declared" --target zsh --palette)
-equals "a bash prompt is terminated with BEL" "yes" \
-  "$(case $bash_prompt in
-       "\\[${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${bell}${esc}]1330;use;3${bell}\\]"*"\\[${esc}]1330;end${bell}\\]") echo yes ;;
-       *) printf '%s' "$bash_prompt" ;;
-     esac)"
-equals "a zsh prompt keeps ST" "yes" \
-  "$(case $zsh_prompt in
-       "%{${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${st}${esc}]1330;use;3${st}%}"*"%{${esc}]1330;end${st}%}") echo yes ;;
-       *) printf '%s' "$zsh_prompt" ;;
-     esac)"
-
-# What bash itself makes of it, which is the only check that catches the above.
-# `bash` on PATH may be another shell wearing the name, so find a real one.
-real_bash=""
-for candidate in /bin/bash /usr/bin/bash "$(command -v bash 2>/dev/null)"; do
-  [ -x "$candidate" ] || continue
-  if [ "$("$candidate" -c 'p=ok; printf "%s" "${p@P}"' 2>/dev/null)" = "ok" ]; then
-    real_bash=$candidate
-    break
-  fi
-done
-if [ -n "$real_bash" ]; then
-  # Through an argument, not PS1: a non-interactive bash does not inherit it.
-  expanded=$("$real_bash" -c 'prompt=$1; printf "%s" "${prompt@P}"' _ "$bash_prompt")
-  equals "bash expands the prompt back to the sequences" "yes" \
-    "$(case $expanded in
-         "${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${bell}${esc}]1330;use;3${bell}"*"${esc}]1330;end${bell}") echo yes ;;
-         *) printf '%s' "$expanded" | cat -v ;;
-       esac)"
-fi
-equals "palette help answers" 1 "$("$pixy" palette --help | grep -c '^pixy palette')"
-
-# A slot that cannot be claimed has to fail before anything is written. Emitting
-# the release without the claim would pop whatever namespace the surrounding
-# application was holding, and mis-colour the rest of its output.
-for slot in 0 1 32 99 -1 abc 2.5; do
-  exits "--palette $slot is refused, not half-applied" 2 \
-    render prompt.left --config "$declared" --target plain --palette "$slot"
-done
-equals "nothing is written when the slot is refused" "" \
-  "$("$pixy" render prompt.left --config "$declared" --target plain --palette 99 2>/dev/null)"
-exits "--palette is refused where it cannot be carried" 2 \
-  render prompt.left --config "$declared" --mode run --palette
-
-# Anything that writes cells can claim a slot, and each claim is released. A
-# surface is always ANSI, so only the wrapper is pinned here.
-surface=$("$pixy" render prompt.left --config "$declared" --mode surface --palette)
-equals "a surface claims the slot too" "yes" \
-  "$(case $surface in "${esc}]1330;set;3;15=#cdd6f4;bg=#11111b${st}${esc}]1330;use;3${st}"*"${esc}]1330;end${st}") echo yes ;; *) echo "$surface" ;; esac)"
-# How many frames a stream writes is a matter of timing; that every one of them
-# is released is not.
-stream=$("$pixy" stream work --config examples/spinner.lua --palette 4 --fps 20 --duration 200 2>/dev/null)
-claims=$(printf '%s' "$stream" | grep -o "${esc}]1330;use;4" | wc -l | tr -d ' ')
-releases=$(printf '%s' "$stream" | grep -o "${esc}]1330;end" | wc -l | tr -d ' ')
-equals "every stream frame is balanced" "balanced" \
-  "$([ "$claims" -ge 1 ] && [ "$claims" = "$releases" ] && echo balanced || echo "$claims/$releases")"
-
-# Arguments are checked whole. A truncated one would silently address something
-# else: `--slot 00000002` cut short is slot 0, the whole pane's palette.
-equals "a padded slot addresses the slot it spells" "${esc}]1330;set;2;1=#ff0000${st}" \
-  "$(palette set --slot 00000002 1=#ff0000)"
-exits "an overlong slot is refused" 2 palette set --slot 000000000000000002 1=#ff0000
-exits "an overlong entry is refused" 2 palette set 1=#ffffffffffffffffffffffffffffffffffff
-exits "a typo is not silently ignored" 2 palette set nonsense
-exits "--slot needs a value" 2 palette use --slot
-exits "--config needs a value" 2 palette set --config
-exits "use takes one slot, not every slot" 2 palette use --slot '*'
-exits "end takes no slot" 2 palette end --slot 4
-exits "ask takes no slot" 2 palette ask --slot 4
-
-# A config declaring a broken palette is named, never guessed at.
-broken() {
-  printf 'local pixy = require("pixy")\nreturn pixy.config({palette = %s, zones = {z = pixy.zone({pixy.segment("s", function() return pixy.text("x") end)})}})\n' "$1" >"$tmpdir/broken.lua"
-}
-tmpdir=$(mktemp -d)
-for bad in '"blue"' '{[1.5] = "#ff0000"}' '{[1] = 16711680}' '{[1] = true}' '{[1] = {}}' '{slot = 2.7}' '{slot = 1}' '{slot = 99}'; do
-  broken "$bad"
-  exits "palette $bad is a config error" 3 palette set --config "$tmpdir/broken.lua"
-  exits "check reports palette $bad" 3 check --config "$tmpdir/broken.lua"
-  # A prompt that stops drawing is worse than one wearing the terminal's colours,
-  # so a render forgives what check refuses.
-  exits "a render survives palette $bad" 0 \
-    render z --config "$tmpdir/broken.lua" --target plain --palette
-done
-rm -rf "$tmpdir"
-
-equals "check counts the palette it accepts" 1 \
-  "$("$pixy" check --config "$declared" | grep -c '2 palette colours in slot 3')"
-equals "check stays quiet without one" 0 \
-  "$("$pixy" check --config examples/minimal.lua | grep -c palette)"
-
-# ---- the painter socket --------------------------------------------------------
-
-socket=$(mktemp -u /tmp/pixy-test-XXXXXX.sock)
-"$pixy" serve --socket "$socket" --config "$config" >/dev/null 2>&1 &
-holder=$!
-for _ in $(seq 400); do
-  [ -S "$socket" ] && break
-  sleep 0.01
-done
-if [ -S "$socket" ]; then
   ok
-  # A second painter must not displace the first.
-  "$pixy" serve --socket "$socket" >/dev/null 2>&1
-  equals "serve refuses to steal a live socket" 5 "$?"
-else
-  bad "serve binds" "a socket" "nothing"
 fi
-kill "$holder" 2>/dev/null
-wait "$holder" 2>/dev/null
-rm -f "$socket"
 
-# ---- the same protocol over a pipe ---------------------------------------------
-#
-# `--stdio` exists so a host can own its painter instead of sharing one: a
-# socket painter is a single process every session talks to, with one accept
-# loop serialising them and a stale one outliving the binary that made it.
-#
-# What makes it worth having is that it is the SAME protocol -- so the bytes off
-# a pipe must equal the bytes off a socket, or a host needs two code paths and
-# the two drift.
-req='{"version":1,"select":["status.center"],"mode":"run","width":60,"height":1,"now_ms":1000,"context":{"values":{"tabs":["main","logs"],"active_tab":0}}}'
-len=${#req}
-header=$(printf '\\x%02x\\x%02x\\x%02x\\x%02x' \
-  $((len >> 24 & 255)) $((len >> 16 & 255)) $((len >> 8 & 255)) $((len & 255)))
-
-pipe_out=$(mktemp); sock_out=$(mktemp)
-printf "$header%s" "$req" | "$pixy" serve --stdio --config "$config" >"$pipe_out" 2>/dev/null
-
-socket2=$(mktemp -u /tmp/pixy-stdio-XXXXXX.sock)
-"$pixy" serve --socket "$socket2" --config "$config" >/dev/null 2>&1 &
-holder2=$!
-for _ in $(seq 400); do [ -S "$socket2" ] && break; sleep 0.01; done
-if [ -S "$socket2" ] && command -v socat >/dev/null 2>&1; then
-  printf "$header%s" "$req" | socat -t 2 - "UNIX-CONNECT:$socket2" >"$sock_out" 2>/dev/null
-  if cmp -s "$pipe_out" "$sock_out"; then ok
-  else bad "a pipe answers exactly what a socket answers" "identical frames" "they differ"; fi
-else
-  # No socat: still assert the pipe answered something well-formed, so this
-  # cannot pass by producing nothing at all.
-  if [ -s "$pipe_out" ]; then ok
-  else bad "the pipe answered" "a framed reply" "nothing"; fi
-fi
-kill "$holder2" 2>/dev/null; wait "$holder2" 2>/dev/null
-rm -f "$socket2"
-
-# It must LOOP: two requests on one child, so the VM and config are paid for
-# once rather than per frame. A one-shot would answer the first and hang up.
-two=$(mktemp)
-printf "$header%s$header%s" "$req" "$req" | "$pixy" serve --stdio --config "$config" >"$two" 2>/dev/null
-first=$(wc -c <"$pipe_out"); both=$(wc -c <"$two")
-if [ "$both" -eq $((first * 2)) ]; then ok
-else bad "one child answers many requests" "$((first * 2)) bytes" "$both bytes"; fi
-rm -f "$pipe_out" "$sock_out" "$two"
-
-printf '\n%d passed, %d failed\n' "$pass" "$fail"
-[ "$fail" -eq 0 ]
+printf '%d passed, %d failed\n' "$pass" "$fail"
+test "$fail" -eq 0

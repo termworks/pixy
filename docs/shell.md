@@ -1,32 +1,27 @@
 # Shell integration
 
-`pixy init bash`, `zsh`, `fish`, or `oslo` prints integration text and never
-edits configuration. Bash and Zsh request their prompt-safe encodings; Fish and
-the generated Oslo command use raw ANSI. The reference prompt accepts cwd,
-status, duration, jobs, language, and vi-mode context.
-
-The Oslo output assigns both `oslo.prompt.left` and `oslo.prompt.right`, uses
-Oslo's `$status`, `$duration_ms`, `$jobs`, `$language`, and `$vimode`
-substitutions, and enables asynchronous rendering with a 10-millisecond
-deadline. It does not replace shell-to-multiplexer hooks or exit policy.
-
-The Bash, Zsh, and Fish generators install pre-execution hooks so status and
-duration describe the command that just completed. Existing Bash prompt hooks
-run while Pixy's timing guard remains active.
-
-Every integration also claims a [palette namespace](cli.md#palette-namespaces),
-on by default: each prompt renders with `--palette`, which wraps it in `use` and
-`end` and carries whatever colours the configuration declared along with the
-claim. There is no startup line to add — oslo's configuration cannot run a
-command, and a prompt that defines its own colours also survives a `clear` or a
-reattach. On a terminal without support the sequences are discarded and the
-prompt is unchanged; on hexe the prompt can be recoloured afterwards without
-rendering it again.
-
-Review generated output before adding it to shell configuration:
+Pixy prints integration source for Bash, Zsh, and Fish:
 
 ```sh
+pixy init bash
 pixy init zsh
-pixy init oslo
-pixy init hexe-oslo
+pixy init fish
+```
+
+The command writes source to stdout and never edits shell configuration. Source
+the output from the corresponding shell startup file.
+
+Each integration renders `prompt.left` and passes conventional values including
+`cwd`, `status`, `duration_ms`, `jobs`, `language`, and `vimode`. These names are
+not reserved by Pixy; the selected Lua configuration decides whether to use
+them.
+
+Bash output uses `--target bash`, Zsh uses `--target zsh`, and Fish uses ANSI.
+Prompt targets mark control sequences as zero-width where the shell requires it.
+
+The integration expects a configuration to be discoverable through
+`PIXY_CONFIG` or the normal configuration directory. Install the starter with:
+
+```sh
+oslo make configs
 ```
