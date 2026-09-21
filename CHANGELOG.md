@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-09-21
+
+### <!-- 0 -->⛰️  Features
+
+- Better lua conf
+
 ## [0.3.0] - 2026-09-02
 
 ### <!-- 0 -->⛰️  Features

@@ -72,6 +72,13 @@ A color is an index from 0 through 255, one of the eight basic color names,
 `spacer` absorbs remaining horizontal width. `segments` and configuration zones
 remove higher-priority-numbered items first when width is insufficient.
 
+`spacer({weight = 1, fill = "-", style = {fg = 8}})` draws its width as a
+repeated pattern of one to eight one-cell glyphs (`"-"`, `"─╌"`, `"-="`)
+instead of blanks, in `style`. ANSI line output writes each fill as an OSC 1332
+stretch point instead wherever `$HEXE_STRETCH` is set, so a terminal that speaks
+it keeps the line full width when it is resized. Nothing asks for this and no
+field turns it on or off: the environment says whether the marks can be read.
+
 ## Animation
 
 ```lua

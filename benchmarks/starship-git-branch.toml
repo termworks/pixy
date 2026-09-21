@@ -1,0 +1,6 @@
+format = "$git_branch"
+right_format = ""
+add_newline = false
+
+[git_branch]
+format = "[$branch]($style) "

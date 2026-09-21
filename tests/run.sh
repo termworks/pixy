@@ -2,6 +2,10 @@
 set -uo pipefail
 
 pixy=${PIXY:-build/pixy}
+# Stretching is on by default and detected from the environment, so a run inside
+# a hexe pane would otherwise answer differently from one outside it. Tests that
+# want it say so.
+unset HEXE_STRETCH
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 pass=0
@@ -35,6 +39,18 @@ p.zone("line", {
 p.zone("layout", {
   p.segment("content", function()
     return p.row({p.text("left"), p.spacer(), p.style("right", {fg = {1, 2, 3}})})
+  end),
+})
+
+p.zone("fill", {
+  p.segment("content", function()
+    return p.row({p.text("L"), p.spacer({fill = "-="}), p.text("R")})
+  end),
+})
+
+p.zone("widefill", {
+  p.segment("content", function()
+    return p.row({p.text("L"), p.spacer({fill = "漢"}), p.text("R")})
   end),
 })
 
@@ -101,6 +117,21 @@ equals "width pruning" " nova " \
   "$("$pixy" render line "${config[@]}" --target plain --width 6 --set name=nova --set status=7)"
 equals "spacer" "left           right" \
   "$("$pixy" render layout "${config[@]}" --target plain --width 20)"
+equals "spacer fill" "L-=-=-=-=R" \
+  "$("$pixy" render fill "${config[@]}" --target plain --width 10)"
+equals "spacer fill ansi" "L-=-=-=-=R" \
+  "$("$pixy" render fill "${config[@]}" --target ansi --width 10)"
+# Nothing is asked for: the pane answers. $HEXE_STRETCH is set by a frontend
+# that draws OSC 1332, and by nothing else.
+stretched=$'\e]1332;begin\e\\L\e]1332;fill;-=\e\\R\e]1332;end\e\\'
+equals "stretch under hexe" "$stretched" \
+  "$(HEXE_STRETCH=1332 "$pixy" render fill "${config[@]}" --target ansi --width 10)"
+equals "stretch without hexe" "L-=-=-=-=R" \
+  "$(env -u HEXE_STRETCH "$pixy" render fill "${config[@]}" --target ansi --width 10)"
+equals "stretch stays off the plain target" "L-=-=-=-=R" \
+  "$(HEXE_STRETCH=1332 "$pixy" render fill "${config[@]}" --target plain --width 10)"
+exits "no stretch flag to reject" 2 render fill "${config[@]}" --stretch always
+exits "wide spacer fill" 4 render widefill "${config[@]}" --target plain
 equals "spinner frame zero" a \
   "$("$pixy" render animation "${config[@]}" --target plain --now-ms 0)"
 equals "spinner frame one" b \

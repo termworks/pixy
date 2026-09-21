@@ -22,6 +22,14 @@ local function xmake_pinned(...)
   return xmake(...)
 end
 
+local function xmake_developed(...)
+  if HAVE_NIX and
+      (not os.getenv("PIXY_BENCH_HYPERFINE") or not os.getenv("PIXY_BENCH_STARSHIP")) then
+    return sh.nix("develop", "--command", "xmake", ...)
+  end
+  return xmake(...)
+end
+
 local function report()
   local stat = oslo.fs.stat(BIN)
   if stat then print(('%s %s: %d bytes'):format(NAME, VERSION, stat.size)) end
@@ -75,6 +83,15 @@ make.recipe({
 make.recipe({name = "bench", desc = "run performance checks", run = function()
   xmake("bench")
 end})
+make.recipe({
+  name = "bench-compare",
+  desc = "compare matched providers against starship",
+  params = {{"--runs", desc = "number of runs"}},
+  run = function(args)
+    if args.runs then oslo.env.set("PIXY_BENCH_RUNS", tostring(args.runs)) end
+    xmake_developed("bench-compare")
+  end,
+})
 make.recipe({name = "bench-phases", desc = "measure render phases", run = function()
   xmake("bench-phases")
 end})

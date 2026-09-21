@@ -37,10 +37,14 @@
             pkgs.git-cliff
             pkgs.valgrind
             pkgs.gdb
+            pkgs.hyperfine
+            pkgs.starship
           ];
 
           shellHook = ''
             export PIXY_MUSL_CC=${muslcc}/bin/pixy-musl-cc
+            export PIXY_BENCH_HYPERFINE=${pkgs.hyperfine}/bin/hyperfine
+            export PIXY_BENCH_STARSHIP=${pkgs.starship}/bin/starship
             # A binary built here links this glibc, whose compiled-in TZDIR
             # holds no zoneinfo, so every zone would resolve to UTC. The static
             # musl builds that ship look in the standard paths and are fine.
