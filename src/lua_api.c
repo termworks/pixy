@@ -183,12 +183,28 @@ static int api_animate(lua_State *L) {
     return 1;
 }
 
+/* `spacer(weight)`, or `spacer({weight = …, fill = "-", style = …})` for a
+ * spacer drawn with a repeated pattern instead of blanks. */
 static int api_spacer(lua_State *L) {
-    double weight = luaL_optnumber(L, 1, 1);
+    bool options = lua_istable(L, 1);
+    double weight = 1;
+    if (options) {
+        lua_getfield(L, 1, "weight");
+        weight = luaL_optnumber(L, -1, 1);
+        lua_pop(L, 1);
+    } else {
+        weight = luaL_optnumber(L, 1, 1);
+    }
     lua_newtable(L);
     set_kind(L, "spacer");
     lua_pushnumber(L, weight > 0 ? weight : 0);
     lua_setfield(L, -2, "weight");
+    if (options) {
+        lua_getfield(L, 1, "fill");
+        lua_setfield(L, -2, "fill");
+        lua_getfield(L, 1, "style");
+        lua_setfield(L, -2, "style");
+    }
     return 1;
 }
 

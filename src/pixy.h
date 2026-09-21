@@ -151,6 +151,8 @@ typedef struct {
     bool has_now_ms;
     uint64_t now_ms;
     bool ignore_missing;
+    /* Write spacer fills as OSC 1332 stretch points (ANSI line output). */
+    bool stretch;
     /* Render ahead: frames covering this many ms, not just the one due now.
      * Zero renders a single frame. */
     uint32_t frames_ms;

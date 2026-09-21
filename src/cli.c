@@ -342,6 +342,10 @@ static bool parse_options(int argc, char **argv, Options *options, bool selector
     options->request.target = PIXY_TARGET_ANSI;
     options->request.width = default_width();
     options->request.height = 1;
+    /* Not a switch: the pane is asked. $HEXE_STRETCH is set only by a frontend
+     * that draws OSC 1332, so the marks go out exactly where something reads
+     * them and the pattern is pre-expanded everywhere else. */
+    options->request.stretch = getenv("HEXE_STRETCH") != NULL;
     options->fps = 12;
     options->duration_ms = 1000;
     options->palette_slot = PIXY_PALETTE_DEFAULT_SLOT;

@@ -713,6 +713,8 @@ bool pixy_engine_render(PixyEngine *engine, const PixyRequest *request, PixyOutp
     lua_setfield(L, -2, "now_ms");
     lua_pushboolean(L, request->ignore_missing);
     lua_setfield(L, -2, "ignore_missing");
+    lua_pushboolean(L, request->stretch);
+    lua_setfield(L, -2, "stretch");
 
     lua_newtable(L);
     const PixyJson *values = context ? pixy_json_get(context, "values") : NULL;

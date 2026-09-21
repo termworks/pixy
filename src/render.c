@@ -39,6 +39,8 @@ typedef struct {
     size_t width;
     double flex;
     bool transparent;
+    /* A spacer with a fill: `text` is its pattern until the width is known. */
+    bool fill;
     Style style;
     Region *region;
 } Run;
@@ -63,6 +65,8 @@ typedef struct {
     uint16_t width;
     uint16_t height;
     uint64_t now_ms;
+    /* Fills are written as OSC 1332 marks for the terminal to stretch. */
+    bool stretch;
     Region **regions;
     size_t region_count;
     size_t region_capacity;
@@ -850,6 +854,63 @@ static Lines flatten_sprite(Render *render, int value, Style inherited) {
     return result;
 }
 
+/* The same limit hexe puts on an OSC 1332 fill pattern. */
+#define FILL_MAX_GLYPHS 8
+
+static size_t utf8_step(const char *text, size_t len, size_t at) {
+    unsigned char c = (unsigned char)text[at];
+    size_t n = c < 0x80 ? 1 : (c >> 5) == 0x6 ? 2 : (c >> 4) == 0xE ? 3 : 4;
+    return at + n <= len ? n : len - at;
+}
+
+/* A spacer: blank by default, or a pattern of one-cell glyphs repeated across
+ * whatever width it is given. */
+static Run spacer_run(lua_State *L, int value, Style inherited) {
+    double weight = fmax(0, number_field(L, value, "weight", 1));
+    lua_getfield(L, value, "fill");
+    size_t len = 0;
+    const char *fill = lua_type(L, -1) == LUA_TSTRING ? lua_tolstring(L, -1, &len) : NULL;
+    if (!fill || len == 0) {
+        lua_pop(L, 1);
+        Run run = make_skip(0);
+        run.flex = weight;
+        return run;
+    }
+    size_t glyphs = 0;
+    for (size_t at = 0; at < len; glyphs++) {
+        size_t n = utf8_step(fill, len, at);
+        if (glyphs >= FILL_MAX_GLYPHS || pixy_cell_width(fill + at, n) != 1)
+            luaL_error(L, "a spacer fill is 1 to %d one-cell glyphs", FILL_MAX_GLYPHS);
+        at += n;
+    }
+    lua_getfield(L, value, "style");
+    Style style = style_merge(L, inherited, lua_gettop(L));
+    lua_pop(L, 1);
+    Run run = make_run(L, fill, len, style);
+    lua_pop(L, 1);
+    run.width = 0;
+    run.flex = weight;
+    run.fill = true;
+    return run;
+}
+
+/* Replace a fill's pattern with the pattern repeated across `cells`. */
+static void fill_repeat(Run *run, size_t cells) {
+    PixyBuf out = (PixyBuf){0};
+    size_t at = 0;
+    for (size_t i = 0; i < cells && run->len; i++) {
+        if (at >= run->len) at = 0;
+        size_t n = utf8_step(run->text, run->len, at);
+        pixy_buf_add(&out, run->text + at, n);
+        at += n;
+    }
+    pixy_buf_add(&out, "", 1);
+    free(run->text);
+    run->text = out.data;
+    run->len = out.data ? out.len - 1 : 0;
+    run->width = cells;
+}
+
 static Lines flatten(Render *render, int value, Style inherited) {
     lua_State *L = render->L;
     value = lua_absindex(L, value);
@@ -893,10 +954,9 @@ static Lines flatten(Render *render, int value, Style inherited) {
     }
     if (strcmp(kind, "transparent") == 0 || strcmp(kind, "spacer") == 0) {
         Line line = (Line){0};
-        Run run = make_skip(strcmp(kind, "transparent") == 0
-                                ? (size_t)fmax(0, number_field(L, value, "width", 0))
-                                : 0);
-        if (strcmp(kind, "spacer") == 0) run.flex = fmax(0, number_field(L, value, "weight", 1));
+        Run run = strcmp(kind, "spacer") == 0
+                      ? spacer_run(L, value, inherited)
+                      : make_skip((size_t)fmax(0, number_field(L, value, "width", 0)));
         if (!run.text || !line_add(&line, run) || !lines_add(&result, line))
             luaL_error(L, "out of memory");
         return result;
@@ -1002,7 +1062,7 @@ static Lines flatten(Render *render, int value, Style inherited) {
     return result;
 }
 
-static void resolve_flex(Lines *lines, size_t width) {
+static void resolve_flex(Lines *lines, size_t width, bool stretch) {
     for (size_t row = 0; row < lines->count; row++) {
         Line *line = &lines->lines[row];
         size_t content = line_width(line);
@@ -1018,10 +1078,17 @@ static void resolve_flex(Lines *lines, size_t width) {
             seen += run->flex;
             size_t target = (size_t)floor(slack * seen / total);
             size_t amount = target - given;
+            given = target;
+            if (run->fill) {
+                /* Stretching, the terminal draws it: keep the pattern and
+                 * only account for the width. */
+                if (stretch) run->width = amount;
+                else fill_repeat(run, amount);
+                continue;
+            }
             free(run->text);
             *run = make_skip(amount);
             run->flex = 1;
-            given = target;
         }
     }
 }
@@ -1150,10 +1217,25 @@ static void push_line(Render *render, const Lines *lines, const char *target) {
     if (lines->count > 1) luaL_error(L, "line output cannot contain multiple lines");
     PixyBuf out = (PixyBuf){0};
     const Line *line = lines->count ? &lines->lines[0] : NULL;
+    bool stretch = false;
+    for (size_t i = 0; render->stretch && line && i < line->count; i++)
+        stretch = stretch || line->runs[i].fill;
+    if (stretch) pixy_buf_str(&out, "\033]1332;begin\033\\");
     for (size_t i = 0; line && i < line->count; i++) {
         const Run *run = &line->runs[i];
         if (strcmp(target, "plain") == 0) {
             pixy_buf_add(&out, run->text, run->len);
+            continue;
+        }
+        if (stretch && run->fill) {
+            PixyBuf styled = (PixyBuf){0};
+            style_sgr(&styled, run->style);
+            pixy_buf_add(&out, styled.data ? styled.data : "", styled.len);
+            pixy_buf_str(&out, "\033]1332;fill;");
+            pixy_buf_add(&out, run->text, run->len);
+            pixy_buf_str(&out, "\033\\");
+            if (styled.len) pixy_buf_str(&out, "\033[0m");
+            pixy_buf_free(&styled);
             continue;
         }
         PixyBuf styled = (PixyBuf){0};
@@ -1171,6 +1253,7 @@ static void push_line(Render *render, const Lines *lines, const char *target) {
         }
         pixy_buf_free(&styled);
     }
+    if (stretch) pixy_buf_str(&out, "\033]1332;end\033\\");
     lua_pushlstring(L, out.data ? out.data : "", out.len);
     pixy_buf_free(&out);
 }
@@ -1270,6 +1353,11 @@ int pixy_lua_render(lua_State *L) {
                      .width = (uint16_t)number_field(L, 2, "width", 80),
                      .height = (uint16_t)number_field(L, 2, "height", 24),
                      .now_ms = (uint64_t)number_field(L, 2, "now_ms", 0)};
+    /* The pane is asked, not the caller. Only a one-line ANSI string can carry
+     * the marks, so the other two are what the output can express. */
+    render.stretch = getenv("HEXE_STRETCH") != NULL &&
+                     strcmp(string_field(L, 2, "mode", "line"), "line") == 0 &&
+                     strcmp(string_field(L, 2, "target", "plain"), "ansi") == 0;
     set_context(&render, 2);
     lua_getfield(L, 1, "zones");
     int zones = lua_gettop(L);
@@ -1404,7 +1492,7 @@ int pixy_lua_render(lua_State *L) {
         if (entries[i].present) visible[visible_count++] = entries[i].lines;
     }
     Lines lines = horizontal(L, visible, visible_count);
-    resolve_flex(&lines, render.width);
+    resolve_flex(&lines, render.width, render.stretch);
     if (lines_width(&lines) > render.width) truncate_lines(L, &lines, render.width, "");
     lua_newtable(L);
     int output = lua_gettop(L);

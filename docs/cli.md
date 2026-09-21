@@ -35,6 +35,13 @@ Common options:
 - `--palette [SLOT]`
 - `--newline`
 
+Spacer fills are written as OSC 1332 stretch points, so the terminal sizes them
+and the line stays full width when the pane is resized. There is no option for
+this: `$HEXE_STRETCH` is set by a frontend that draws OSC 1332 and by nothing
+else, so the marks go out where something reads them and the pattern is
+pre-expanded everywhere else. Plain targets and run and surface modes cannot
+carry the marks and never get them.
+
 Line mode writes only the rendered bytes. Run mode emits styled runs as JSON.
 Surface mode emits a multi-line ANSI payload. With `--frames-ms`, run and
 surface modes return a JSON filmstrip covering the requested horizon.
