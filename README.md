@@ -31,6 +31,10 @@ checks the binary, the embedded Pokémon archive, and the example sprite pack.
 
 ### Nix binary cache
 
+Only the latest release per package and architecture is protected from cache
+cleanup. Pins use `*-latest-*` with `--keep-revisions 1`; older releases may
+need rebuilding after garbage collection.
+
 Tagged releases are cached for `x86_64-linux` and `aarch64-linux`:
 
 ```sh
