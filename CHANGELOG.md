@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.2] - 2026-10-04
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- Free allocations after Lua errors
+
+### <!-- 7 -->⚙️ Miscellaneous Tasks
+
+- Cache pixy tagged releases
+
 ## [0.3.1] - 2026-09-21
 
 ### <!-- 0 -->⛰️  Features
