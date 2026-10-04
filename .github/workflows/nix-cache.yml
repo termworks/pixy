@@ -77,3 +77,8 @@ jobs:
             --max-jobs 0 --builders '' .#pixy
           result/bin/pixy --version
           result/bin/pixy --help
+          result/bin/pixy check --config result/share/pixy/config/init.lua
+          result/bin/pixy pack list | grep -E '^pokemon[[:space:]]+2034[[:space:]]'
+          result/bin/pixy render prompt.left.directory --config result/share/pixy/config/init.lua \
+            --target plain --set cwd=/tmp > "$RUNNER_TEMP/pixy-render"
+          test -s "$RUNNER_TEMP/pixy-render"

@@ -29,6 +29,28 @@ xmake release-musl
 The release build is a static Linux executable. `oslo make package-check`
 checks the binary, the embedded Pokémon archive, and the example sprite pack.
 
+### Nix binary cache
+
+Tagged releases are cached for `x86_64-linux` and `aarch64-linux`:
+
+```sh
+cachix use termworks
+nix build --accept-flake-config github:termworks/pixy/v0.3.2
+nix run --accept-flake-config github:termworks/pixy/v0.3.2 -- --version
+```
+
+The cache is `https://termworks.cachix.org`, with public signing key
+`termworks.cachix.org-1:Ty7sSVALfD5ajbcWBIdaNHcaEx3fEmVrOo+rSzy0mvE=`.
+Only pushed `v*` tags publish to it; branch revisions may need compilation.
+Use `oslo make nix-build` and `oslo make nix-check` for local package checks.
+The Nix package includes starter configuration and examples under `share/pixy`;
+unlike the standalone release archive, its runtime dependencies live in the Nix store.
+
+From another flake, set `inputs.pixy.url = "github:termworks/pixy/v0.3.2"` and
+use `pixy.packages.${system}.default`. Enable the cache on the consuming machine
+with `cachix use termworks`; input flakes do not apply their `nixConfig`
+automatically.
+
 ## Configuration
 
 Pixy loads Lua from the first available source:
