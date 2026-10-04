@@ -52,7 +52,7 @@ jobs:
         run: |
           cachix push termworks < "$RUNNER_TEMP/pixy-store-paths"
           path=$(cat "$RUNNER_TEMP/pixy-store-paths")
-          cachix pin termworks "pixy-latest-$SYSTEM" "$path" --keep-revisions 1
+          cachix pin termworks "pixy-$SYSTEM" "$path" --keep-revisions 5
 
   verify-download:
     needs: publish
