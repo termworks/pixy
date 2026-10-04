@@ -1,13 +1,18 @@
 {
   description = "pixy: a Lua terminal painter in C";
 
+  nixConfig = {
+    extra-substituters = [ "https://termworks.cachix.org" ];
+    extra-trusted-public-keys = [ "termworks.cachix.org-1:Ty7sSVALfD5ajbcWBIdaNHcaEx3fEmVrOo+rSzy0mvE=" ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs?rev=4c1018dae018162ec878d42fec712642d214fdfa";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
-    { nixpkgs, flake-utils, ... }:
+    { self, nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
@@ -53,12 +58,17 @@
           '';
         };
 
-        packages.default = pkgs.stdenv.mkDerivation {
+        packages.pixy = self.packages.${system}.default;
+        apps.default = { type = "app"; program = "${self.packages.${system}.default}/bin/pixy"; };
+        apps.pixy = self.apps.${system}.default;
+        checks.pixy = self.packages.${system}.default;
+
+        packages.default = pkgs.stdenv.mkDerivation (finalAttrs: {
           pname = "pixy";
           version = builtins.head (
             builtins.match ".*local PROJECT_VERSION = \"([0-9.]+)\".*" (builtins.readFile ./xmake.lua)
           );
-          src = ./.;
+          src = pkgs.lib.cleanSource ./.;
           nativeBuildInputs = [ pkgs.xmake ];
           buildPhase = ''
             export XDG_CACHE_HOME="$TMPDIR/xmake-cache"
@@ -77,8 +87,30 @@
           '';
           installPhase = ''
             install -Dm755 build/pixy "$out/bin/pixy"
+            mkdir -p "$out/share/pixy"
+            cp -r config examples "$out/share/pixy/"
           '';
-        };
+
+          doInstallCheck = true;
+          installCheckPhase = ''
+            runHook preInstallCheck
+            test "$($out/bin/pixy --version)" = 'pixy ${finalAttrs.version}'
+            $out/bin/pixy check --config "$out/share/pixy/config/init.lua"
+            $out/bin/pixy pack list | grep -E '^pokemon[[:space:]]+2034[[:space:]]'
+            $out/bin/pixy render prompt.left.directory --config "$out/share/pixy/config/init.lua" \
+              --target plain --set cwd=/tmp > "$TMPDIR/pixy-render"
+            test -s "$TMPDIR/pixy-render"
+            runHook postInstallCheck
+          '';
+
+          meta = {
+            description = "Lua-configured terminal renderer";
+            homepage = "https://github.com/termworks/pixy";
+            license = pkgs.lib.licenses.mit;
+            mainProgram = "pixy";
+            platforms = pkgs.lib.platforms.linux;
+          };
+        });
       }
     );
 }

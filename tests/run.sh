@@ -207,6 +207,44 @@ p.zone("x", {p.segment("loop", function() while true do end end)})
 LUA
 exits "render deadline" 4 render x --config "$tmp/runaway.lua" --target plain
 
+cat >"$tmp/render-errors.lua" <<'LUA'
+local p=require("pixy")
+p.zone("good", {p.segment("first", function() return p.text("ok") end, {id="first"})})
+p.zone("callback", {
+  p.segment("first", function() return p.text("allocated") end, {id="first"}),
+  p.segment("error", function() error("deliberate") end),
+})
+p.zone("nested", {p.segment("error", function()
+  return p.row({p.text("allocated"), p.spacer({fill="漢"})})
+end)})
+p.zone("sprite", {p.segment("error", function()
+  return p.sprite({frames={"valid\n\27]bad"}})
+end)})
+p.zone("loop", {p.segment("error", function() while true do end end)})
+LUA
+for zone in callback nested sprite loop; do
+  exits "render cleanup: $zone" 4 render "good,$zone" \
+    --config "$tmp/render-errors.lua" --target plain
+done
+
+frame() {
+  local payload=$1 length=${#1}
+  printf -v prefix '\\%03o\\%03o\\%03o\\%03o' \
+    "$((length >> 24 & 255))" "$((length >> 16 & 255))" \
+    "$((length >> 8 & 255))" "$((length & 255))"
+  printf '%b%s' "$prefix" "$payload"
+}
+for iteration in 1 2 3; do
+  for zone in good callback nested sprite loop good; do
+    frame "{\"select\":[\"$zone\"]}"
+  done
+done >"$tmp/requests"
+"$pixy" serve --stdio --config "$tmp/render-errors.lua" \
+  <"$tmp/requests" >"$tmp/responses" 2>"$tmp/serve-errors"
+equals "render cleanup: server exit" 0 "$?"
+equals "render cleanup: recovered renders" 6 "$(grep -ao '"ok":true' "$tmp/responses" | wc -l)"
+equals "render cleanup: failed renders" 12 "$(grep -ao '"ok":false' "$tmp/responses" | wc -l)"
+
 if strings "$pixy" | grep -Eq 'lua/pixy/(layout|style|nodes)\.lua'; then
   bad "no bundled Lua implementation" "no internal module paths" "found"
 else

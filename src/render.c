@@ -11,6 +11,77 @@
 #include "lua.h"
 #include "pixy.h"
 
+typedef struct RenderAllocation {
+    void *data;
+    struct RenderAllocation *next;
+} RenderAllocation;
+
+typedef struct {
+    lua_State *L;
+    RenderAllocation *allocations;
+} RenderScope;
+
+static _Thread_local RenderScope *render_scope;
+
+static void *render_track(void *data) {
+    if (!data) return NULL;
+    RenderAllocation *allocation = malloc(sizeof(*allocation));
+    if (!allocation) {
+        free(data);
+        luaL_error(render_scope->L, "out of memory");
+        return NULL;
+    }
+    *allocation = (RenderAllocation){.data = data, .next = render_scope->allocations};
+    render_scope->allocations = allocation;
+    return data;
+}
+
+static void *render_malloc(size_t size) {
+    return render_track(malloc(size));
+}
+
+static void *render_calloc(size_t count, size_t size) {
+    return render_track(calloc(count, size));
+}
+
+static void render_free(void *data) {
+    if (!data) return;
+    RenderAllocation **link = &render_scope->allocations;
+    while (*link && (*link)->data != data) link = &(*link)->next;
+    if (*link) {
+        RenderAllocation *allocation = *link;
+        *link = allocation->next;
+        free(allocation);
+    }
+    free(data);
+}
+
+static void *render_realloc(void *data, size_t size) {
+    if (!data) return render_malloc(size);
+    for (RenderAllocation *allocation = render_scope->allocations; allocation;
+         allocation = allocation->next) {
+        if (allocation->data != data) continue;
+        void *next = realloc(data, size);
+        if (next) allocation->data = next;
+        return next;
+    }
+    luaL_error(render_scope->L, "untracked render allocation");
+    return NULL;
+}
+
+static char *render_strdup(const char *text) {
+    return render_track(strdup(text));
+}
+
+static char *render_strndup(const char *text, size_t len) {
+    return render_track(strndup(text, len));
+}
+
+static void render_buf_free(PixyBuf *buf) {
+    render_free(buf->data);
+    *buf = (PixyBuf){0};
+}
+
 typedef enum { COLOR_NONE, COLOR_DEFAULT, COLOR_INDEX, COLOR_RGB } ColorKind;
 
 typedef struct {
@@ -62,6 +133,7 @@ typedef struct {
 typedef struct {
     lua_State *L;
     int context;
+    int region_refs;
     uint16_t width;
     uint16_t height;
     uint64_t now_ms;
@@ -75,21 +147,21 @@ typedef struct {
 static void *grow(void *data, size_t *capacity, size_t count, size_t size) {
     if (count < *capacity) return data;
     size_t next = *capacity ? *capacity * 2 : 8;
-    void *result = realloc(data, next * size);
+    void *result = render_realloc(data, next * size);
     if (!result) return NULL;
     *capacity = next;
     return result;
 }
 
 static void line_free(Line *line) {
-    for (size_t i = 0; i < line->count; i++) free(line->runs[i].text);
-    free(line->runs);
+    for (size_t i = 0; i < line->count; i++) render_free(line->runs[i].text);
+    render_free(line->runs);
     memset(line, 0, sizeof(*line));
 }
 
 static void lines_free(Lines *lines) {
     for (size_t i = 0; i < lines->count; i++) line_free(&lines->lines[i]);
-    free(lines->lines);
+    render_free(lines->lines);
     memset(lines, 0, sizeof(*lines));
 }
 
@@ -116,7 +188,7 @@ static bool lines_empty(Lines *lines) {
 
 static Run run_copy(const Run *source) {
     Run result = *source;
-    result.text = malloc(source->len + 1);
+    result.text = render_malloc(source->len + 1);
     if (result.text) {
         memcpy(result.text, source->text, source->len);
         result.text[source->len] = 0;
@@ -128,7 +200,7 @@ static bool line_copy_into(Line *target, const Line *source) {
     for (size_t i = 0; i < source->count; i++) {
         Run copy = run_copy(&source->runs[i]);
         if (!copy.text || !line_add(target, copy)) {
-            free(copy.text);
+            render_free(copy.text);
             return false;
         }
     }
@@ -238,7 +310,7 @@ static bool valid_text(const char *text, size_t len) {
 static Run make_run(lua_State *L, const char *text, size_t len, Style style) {
     if (!valid_text(text, len)) luaL_error(L, "text contains a control byte");
     Run run = {.len = len, .width = pixy_cell_width(text, len), .style = style};
-    run.text = malloc(len + 1);
+    run.text = render_malloc(len + 1);
     if (!run.text) luaL_error(L, "out of memory");
     memcpy(run.text, text, len);
     run.text[len] = 0;
@@ -247,7 +319,7 @@ static Run make_run(lua_State *L, const char *text, size_t len, Style style) {
 
 static Run make_skip(size_t width) {
     Run run = {.len = width, .width = width, .transparent = true};
-    run.text = malloc(width + 1);
+    run.text = render_malloc(width + 1);
     if (run.text) {
         memset(run.text, ' ', width);
         run.text[width] = 0;
@@ -311,12 +383,12 @@ static Region *region_new(Render *render, int options) {
             ch != '_' && ch != '.' && ch != '-')
             luaL_error(L, "region requires a valid id");
     }
-    Region *region = calloc(1, sizeof(*region));
+    Region *region = render_calloc(1, sizeof(*region));
     if (!region) luaL_error(L, "out of memory");
-    region->id = strdup(id);
+    region->id = render_strdup(id);
     lua_pop(L, 1);
     lua_pushvalue(L, options);
-    region->ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    region->ref = luaL_ref(L, render->region_refs);
     void *data =
         grow(render->regions, &render->region_capacity, render->region_count, sizeof(Region *));
     if (!data) luaL_error(L, "out of memory");
@@ -392,9 +464,9 @@ static int node_part_compare(const void *left, const void *right) {
 static Lines flatten_segments_node(Render *render, int table, Style inherited) {
     lua_State *L = render->L;
     size_t count = lua_rawlen(L, table);
-    NodePart *parts = calloc(count ? count : 1, sizeof(NodePart));
-    NodePart **order = calloc(count ? count : 1, sizeof(NodePart *));
-    Lines *visible = calloc(count ? count : 1, sizeof(Lines));
+    NodePart *parts = render_calloc(count ? count : 1, sizeof(NodePart));
+    NodePart **order = render_calloc(count ? count : 1, sizeof(NodePart *));
+    Lines *visible = render_calloc(count ? count : 1, sizeof(Lines));
     if (!parts || !order || !visible) luaL_error(L, "out of memory");
     size_t total = 0;
     for (size_t i = 0; i < count; i++) {
@@ -422,9 +494,9 @@ static Lines flatten_segments_node(Render *render, int table, Style inherited) {
     }
     Lines result = horizontal(L, visible, visible_count);
     for (size_t i = 0; i < count; i++) lines_free(&parts[i].lines);
-    free(visible);
-    free(order);
-    free(parts);
+    render_free(visible);
+    render_free(order);
+    render_free(parts);
     return result;
 }
 
@@ -492,7 +564,7 @@ static Lines flatten_list(Render *render, int table, Style inherited, bool verti
         if (!result.count) lines_empty(&result);
         return result;
     }
-    Lines *parts = calloc(count ? count : 1, sizeof(Lines));
+    Lines *parts = render_calloc(count ? count : 1, sizeof(Lines));
     if (!parts) luaL_error(L, "out of memory");
     for (size_t i = 0; i < count; i++) {
         lua_rawgeti(L, table, (lua_Integer)i + 1);
@@ -501,7 +573,7 @@ static Lines flatten_list(Render *render, int table, Style inherited, bool verti
     }
     Lines result = horizontal(L, parts, count);
     for (size_t i = 0; i < count; i++) lines_free(&parts[i]);
-    free(parts);
+    render_free(parts);
     return result;
 }
 
@@ -677,14 +749,14 @@ static char *asset(Render *render, int value, size_t *len) {
     const char *name = string_field(L, value, "name", NULL);
     if (!pack || !name || strstr(name, "..")) return NULL;
     unsigned char *bytes = pixy_embedded_item(pack, name, len);
-    if (bytes) return (char *)bytes;
+    if (bytes) return render_track(bytes);
     lua_getglobal(L, "__pixy_host");
     lua_getfield(L, -1, "asset");
     lua_pushstring(L, pack);
     lua_pushstring(L, name);
     lua_call(L, 2, 1);
     const char *found = lua_tolstring(L, -1, len);
-    char *copy = found ? strndup(found, *len) : NULL;
+    char *copy = found ? render_strndup(found, *len) : NULL;
     lua_pop(L, 2);
     return copy;
 }
@@ -814,7 +886,7 @@ static Lines flatten_sprite(Render *render, int value, Style inherited) {
         size_t index = (size_t)(elapsed / interval) % count + 1;
         lua_rawgeti(L, -1, (lua_Integer)index);
         frame = lua_tolstring(L, -1, &len);
-        if (frame) owned = strndup(frame, len);
+        if (frame) owned = render_strndup(frame, len);
         lua_pop(L, 1);
     }
     lua_pop(L, 1);
@@ -850,7 +922,7 @@ static Lines flatten_sprite(Render *render, int value, Style inherited) {
         start = stop + 1;
         if (start == end) break;
     }
-    free(owned);
+    render_free(owned);
     return result;
 }
 
@@ -905,8 +977,8 @@ static void fill_repeat(Run *run, size_t cells) {
         at += n;
     }
     pixy_buf_add(&out, "", 1);
-    free(run->text);
-    run->text = out.data;
+    render_free(run->text);
+    run->text = render_track(out.data);
     run->len = out.data ? out.len - 1 : 0;
     run->width = cells;
 }
@@ -1086,7 +1158,7 @@ static void resolve_flex(Lines *lines, size_t width, bool stretch) {
                 else fill_repeat(run, amount);
                 continue;
             }
-            free(run->text);
+            render_free(run->text);
             *run = make_skip(amount);
             run->flex = 1;
         }
@@ -1161,13 +1233,14 @@ static void push_runs(lua_State *L, const Lines *lines) {
         const Run *run = &line->runs[i];
         PixyBuf description = (PixyBuf){0};
         style_description(&description, run->style);
+        render_track(description.data);
         lua_newtable(L);
         lua_pushlstring(L, run->text, run->len);
         lua_setfield(L, -2, "text");
         lua_pushlstring(L, description.data ? description.data : "", description.len);
         lua_setfield(L, -2, "style");
         lua_rawseti(L, -2, (lua_Integer)++output);
-        pixy_buf_free(&description);
+        render_buf_free(&description);
     }
 }
 
@@ -1197,7 +1270,7 @@ static void push_regions(Render *render, const Lines *lines) {
             }
         }
         if (!found) continue;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, region->ref);
+        lua_rawgeti(L, render->region_refs, region->ref);
         lua_pushstring(L, region->id);
         lua_setfield(L, -2, "id");
         lua_pushinteger(L, (lua_Integer)min_x);
@@ -1254,8 +1327,9 @@ static void push_line(Render *render, const Lines *lines, const char *target) {
         pixy_buf_free(&styled);
     }
     if (stretch) pixy_buf_str(&out, "\033]1332;end\033\\");
+    render_track(out.data);
     lua_pushlstring(L, out.data ? out.data : "", out.len);
-    pixy_buf_free(&out);
+    render_buf_free(&out);
 }
 
 static void push_surface(Render *render, Lines *lines) {
@@ -1283,8 +1357,9 @@ static void push_surface(Render *render, Lines *lines) {
             }
         }
     }
+    render_track(out.data);
     lua_pushlstring(L, out.data ? out.data : "", out.len);
-    pixy_buf_free(&out);
+    render_buf_free(&out);
 }
 
 typedef struct {
@@ -1346,7 +1421,7 @@ static bool bool_field(lua_State *L, int table, const char *name) {
     return value;
 }
 
-int pixy_lua_render(lua_State *L) {
+static int render_inner(lua_State *L) {
     luaL_checktype(L, 1, LUA_TTABLE);
     luaL_checktype(L, 2, LUA_TTABLE);
     Render render = {.L = L,
@@ -1358,13 +1433,15 @@ int pixy_lua_render(lua_State *L) {
     render.stretch = getenv("HEXE_STRETCH") != NULL &&
                      strcmp(string_field(L, 2, "mode", "line"), "line") == 0 &&
                      strcmp(string_field(L, 2, "target", "plain"), "ansi") == 0;
+    lua_newtable(L);
+    render.region_refs = lua_gettop(L);
     set_context(&render, 2);
     lua_getfield(L, 1, "zones");
     int zones = lua_gettop(L);
     lua_getfield(L, 2, "select");
     int selectors = lua_gettop(L);
     size_t select_count = lua_rawlen(L, selectors);
-    Entry *entries = calloc(select_count ? select_count : 1, sizeof(Entry));
+    Entry *entries = render_calloc(select_count ? select_count : 1, sizeof(Entry));
     if (!entries) return luaL_error(L, "out of memory");
     size_t count = 0;
     for (size_t selected = 0; selected < select_count; selected++) {
@@ -1389,7 +1466,7 @@ int pixy_lua_render(lua_State *L) {
         if (!lua_istable(L, -1)) {
             lua_pop(L, 2);
             if (!bool_field(L, 2, "ignore_missing")) {
-                free(entries);
+                render_free(entries);
                 return luaL_error(L, "unknown zone or segment %s", selector);
             }
             continue;
@@ -1398,8 +1475,8 @@ int pixy_lua_render(lua_State *L) {
         lua_getfield(L, zone, "segments");
         int segments = lua_gettop(L);
         size_t segment_count = lua_rawlen(L, segments);
-        Lines *parts = calloc(segment_count ? segment_count : 1, sizeof(Lines));
-        double *priorities = calloc(segment_count ? segment_count : 1, sizeof(double));
+        Lines *parts = render_calloc(segment_count ? segment_count : 1, sizeof(Lines));
+        double *priorities = render_calloc(segment_count ? segment_count : 1, sizeof(double));
         if (!parts || !priorities) return luaL_error(L, "out of memory");
         size_t part_count = 0;
         for (size_t i = 0; i < segment_count; i++) {
@@ -1434,9 +1511,9 @@ int pixy_lua_render(lua_State *L) {
         }
         if (segment_name && part_count == 0 && !bool_field(L, 2, "ignore_missing"))
             return luaL_error(L, "unknown segment %s", selector);
-        bool *present = calloc(part_count ? part_count : 1, sizeof(bool));
-        Removal *order = calloc(part_count ? part_count : 1, sizeof(Removal));
-        Lines *kept = calloc(part_count ? part_count : 1, sizeof(Lines));
+        bool *present = render_calloc(part_count ? part_count : 1, sizeof(bool));
+        Removal *order = render_calloc(part_count ? part_count : 1, sizeof(Removal));
+        Lines *kept = render_calloc(part_count ? part_count : 1, sizeof(Lines));
         if (!present || !order || !kept) return luaL_error(L, "out of memory");
         size_t zone_width = 0;
         for (size_t i = 0; i < part_count; i++) {
@@ -1459,12 +1536,12 @@ int pixy_lua_render(lua_State *L) {
             if (present[i]) kept[kept_count++] = parts[i];
         }
         Lines combined = horizontal(L, kept, kept_count);
-        free(kept);
-        free(order);
-        free(present);
+        render_free(kept);
+        render_free(order);
+        render_free(present);
         for (size_t i = 0; i < part_count; i++) lines_free(&parts[i]);
-        free(parts);
-        free(priorities);
+        render_free(parts);
+        render_free(priorities);
         entries[count] = (Entry){.lines = combined, .priority = 0, .index = count, .present = true};
         count++;
         lua_pop(L, 3);
@@ -1472,7 +1549,7 @@ int pixy_lua_render(lua_State *L) {
     size_t total = 0;
     for (size_t i = 0; i < count; i++) total += lines_width(&entries[i].lines);
     if (total > render.width && count > 1) {
-        Entry **order = calloc(count, sizeof(Entry *));
+        Entry **order = render_calloc(count, sizeof(Entry *));
         if (!order) return luaL_error(L, "out of memory");
         for (size_t i = 0; i < count; i++) order[i] = &entries[i];
         qsort(order, count, sizeof(Entry *), removal_compare);
@@ -1484,9 +1561,9 @@ int pixy_lua_render(lua_State *L) {
             total -= width;
             present--;
         }
-        free(order);
+        render_free(order);
     }
-    Lines *visible = calloc(count ? count : 1, sizeof(Lines));
+    Lines *visible = render_calloc(count ? count : 1, sizeof(Lines));
     size_t visible_count = 0;
     for (size_t i = 0; i < count; i++) {
         if (entries[i].present) visible[visible_count++] = entries[i].lines;
@@ -1523,15 +1600,28 @@ int pixy_lua_render(lua_State *L) {
     lua_pushliteral(L, "\r\033[K");
     lua_setfield(L, output, "_stream_rewind");
     for (size_t i = 0; i < count; i++) lines_free(&entries[i].lines);
-    free(visible);
-    free(entries);
+    render_free(visible);
+    render_free(entries);
     lines_free(&lines);
     for (size_t i = 0; i < render.region_count; i++) {
-        luaL_unref(L, LUA_REGISTRYINDEX, render.regions[i]->ref);
-        free(render.regions[i]->id);
-        free(render.regions[i]);
+        render_free(render.regions[i]->id);
+        render_free(render.regions[i]);
     }
-    free(render.regions);
+    render_free(render.regions);
     lua_pushvalue(L, output);
+    return 1;
+}
+
+int pixy_lua_render(lua_State *L) {
+    int arguments = lua_gettop(L);
+    lua_pushcfunction(L, render_inner);
+    lua_insert(L, 1);
+    RenderScope scope = {.L = L};
+    RenderScope *previous = render_scope;
+    render_scope = &scope;
+    int status = lua_pcall(L, arguments, 1, 0);
+    while (scope.allocations) render_free(scope.allocations->data);
+    render_scope = previous;
+    if (status != LUA_OK) return lua_error(L);
     return 1;
 }

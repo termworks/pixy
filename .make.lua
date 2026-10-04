@@ -115,6 +115,14 @@ make.recipe({
 })
 make.alias("v", "verify")
 
+make.recipe({name = "nix-build", desc = "build the Nix package", run = function()
+  sh.nix("build", "--accept-flake-config", ".#pixy", "-L")
+end})
+
+make.recipe({name = "nix-check", desc = "check the flake and package", run = function()
+  sh.nix("flake", "check", "--accept-flake-config", "-L")
+end})
+
 make.recipe({
   name = "configs",
   desc = "install config into the user config directory",

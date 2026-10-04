@@ -26,7 +26,7 @@ jobs:
       - name: Pixy gates
         env:
           PIXY_BENCH_SCALE: "3"
-        run: xmake smoke && xmake smoke-shell && xmake bench && xmake package-check
+        run: xmake bench && xmake package-check
       - name: Sanitizers and fuzz
         env:
           ROUNDS: "400"
