@@ -32,20 +32,19 @@ checks the binary, the embedded Pokémon archive, and the example sprite pack.
 ### Nix binary cache
 
 Each package and architecture uses one stable pin, such as
-`pixy-x86_64-linux`, with `--keep-revisions 5`. The five newest pin revisions
-are protected from cache cleanup; each binary retains its actual package version.
-Older revisions become eligible for garbage collection and may need rebuilding.
+`pixy-x86_64-linux`, listed at <https://cache.bresilla.com/-/pins>. The pinned
+build is protected from cache cleanup; each binary retains its actual package
+version. Builds that are no longer pinned are removed and may need rebuilding.
 
 Tagged releases are cached for `x86_64-linux` and `aarch64-linux`:
 
 ```sh
-cachix use termworks
 nix build --accept-flake-config github:termworks/pixy/v0.3.2
 nix run --accept-flake-config github:termworks/pixy/v0.3.2 -- --version
 ```
 
-The cache is `https://termworks.cachix.org`, with public signing key
-`termworks.cachix.org-1:Ty7sSVALfD5ajbcWBIdaNHcaEx3fEmVrOo+rSzy0mvE=`.
+The cache is `https://cache.bresilla.com/bresilla`, with public signing key
+`bresilla:zsecaZYIrjCJQS4AuGPmEVU5PRkiMmB/Mds3KaCzTvE=`.
 Only pushed `v*` tags publish to it; branch revisions may need compilation.
 Use `oslo make nix-build` and `oslo make nix-check` for local package checks.
 The Nix package includes starter configuration and examples under `share/pixy`;
@@ -53,7 +52,8 @@ unlike the standalone release archive, its runtime dependencies live in the Nix 
 
 From another flake, set `inputs.pixy.url = "github:termworks/pixy/v0.3.2"` and
 use `pixy.packages.${system}.default`. Enable the cache on the consuming machine
-with `cachix use termworks`; input flakes do not apply their `nixConfig`
+by adding `extra-substituters` and `extra-trusted-public-keys` with the values
+above to `/etc/nix/nix.conf`; input flakes do not apply their `nixConfig`
 automatically.
 
 ## Configuration
